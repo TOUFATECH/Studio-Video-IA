@@ -1,0 +1,34 @@
+// Lecture des clés API et des applications OAuth, déchiffrées côté serveur uniquement.
+import "server-only";
+import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@feuilleton/core";
+import { dechiffrer, lireCleMaitre } from "@feuilleton/core/chiffrement";
+import { lireEnv } from "./env";
+import { clientAdmin } from "./supabase/admin";
+
+/** Application OAuth à utiliser pour chaque réseau. */
+export const FOURNISSEUR_DU_RESEAU: Record<Reseau, Fournisseur> = { youtube: "google", instagram: "meta", tiktok: "tiktok" };
+
+/** Clé maître de chiffrement (ENCRYPTION_KEY), lue au moment de l'appel. */
+export function cleMaitre(): Buffer {
+  return lireCleMaitre(lireEnv("ENCRYPTION_KEY"));
+}
+
+/** Valeur déchiffrée d'une clé de l'utilisateur, ou null si elle n'est pas enregistrée. */
+export async function lireCle(proprietaire: string, fournisseur: Fournisseur): Promise<string | null> {
+  const { data } = await clientAdmin().from("cles_api").select("valeur_chiffree").eq("proprietaire", proprietaire).eq("fournisseur", fournisseur).maybeSingle();
+  const chiffre: unknown = data?.valeur_chiffree;
+  if (typeof chiffre !== "string") return null;
+  return dechiffrer(chiffre, cleMaitre());
+}
+
+/** Application OAuth (identifiant et secret) du réseau, ou null si absente ou mal formée. */
+export async function lireAppOAuth(proprietaire: string, reseau: Reseau): Promise<AppOAuth | null> {
+  const brut = await lireCle(proprietaire, FOURNISSEUR_DU_RESEAU[reseau]);
+  if (!brut) return null;
+  try {
+    const r = schemaAppOAuth.safeParse(JSON.parse(brut));
+    return r.success ? r.data : null;
+  } catch {
+    return null;
+  }
+}

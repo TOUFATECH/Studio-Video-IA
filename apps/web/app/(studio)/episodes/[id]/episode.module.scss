@@ -1,0 +1,305 @@
+// Styles de la page épisode : étapes, ligne de temps, plans, vignettes du storyboard, unités de génération.
+@use "../../../../styles/mixins" as *;
+
+.etapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.etape {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: couleur("texte");
+  text-decoration: none;
+  background: couleur("surface");
+  border: 1px solid couleur("bordure");
+
+  &[aria-current="page"] {
+    background: couleur("surface-2");
+    border-color: couleur("accent");
+
+    .numero:not(.numeroFait) {
+      background: couleur("accent");
+      color: couleur("accent-texte");
+    }
+  }
+
+  &:hover {
+    border-color: couleur("bordure-forte");
+  }
+}
+
+.numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+  background: couleur("bordure");
+  color: couleur("texte-discret");
+}
+
+.numeroFait {
+  background: couleur("succes");
+  color: couleur("fond");
+}
+
+.frise {
+  display: flex;
+  gap: 3px;
+  height: 40px;
+}
+
+.segment {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--police-mono), monospace;
+  color: couleur("type-texte");
+  background: couleur("neutre");
+}
+
+@each $type in ("accroche", "action", "dialogue", "decor", "climax", "final") {
+  .type-#{$type} {
+    background: couleur("type-#{$type}");
+  }
+}
+
+.generique {
+  background: couleur("bordure-forte");
+  color: couleur("texte");
+}
+
+.legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.carre {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.plan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px;
+  background: couleur("surface");
+  border: 1px solid couleur("bordure");
+  border-radius: 12px;
+
+  @include des("moyen") {
+    padding: 16px 20px;
+  }
+}
+
+.planModifie {
+  border-color: couleur("attention");
+}
+
+.planCote {
+  flex: 0 0 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planCorps {
+  flex: 999 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// Les champs de dialogue n'apparaissent que si le type choisi est « Dialogue » (sans JavaScript).
+.dialogue {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: couleur("fond");
+  border: 1px solid couleur("bordure");
+}
+
+.formPlan:has(select[name="type"] option[value="dialogue"]:checked) .dialogue {
+  display: flex;
+}
+
+.vignettes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.vignette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: couleur("surface");
+  border: 1px solid couleur("bordure");
+}
+
+.vignetteValidee {
+  border-color: couleur("succes");
+}
+
+.cadre {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+  overflow: hidden;
+  background: couleur("fond");
+  border: 1px solid couleur("bordure");
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.cadreHaut {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.etiquetteImage {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: couleur("surface-3");
+  color: couleur("texte");
+}
+
+.unite {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: couleur("surface-3");
+  color: couleur("texte-discret");
+}
+
+.unitePrete {
+  background: couleur("succes-doux");
+  color: couleur("succes-texte");
+}
+
+.uniteEchec {
+  background: couleur("erreur-doux");
+  color: couleur("erreur-texte");
+}
+
+.uniteEnCours {
+  background: couleur("info-doux");
+  color: couleur("info-texte");
+}
+
+.lecteurs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  video {
+    width: 120px;
+    aspect-ratio: 9 / 16;
+    background: couleur("fond");
+    border-radius: 8px;
+  }
+}
+
+.lecteurRendu {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 9 / 16;
+  background: couleur("fond");
+  border-radius: 10px;
+}
+
+.lecteurFilm {
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 16 / 9;
+  background: couleur("fond");
+  border-radius: 10px;
+}
+
+.miniatures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.miniature {
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid couleur("bordure");
+  background: couleur("fond");
+  cursor: pointer;
+  width: 100%;
+
+  &[aria-pressed="true"] {
+    border-color: couleur("accent");
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.choixDate {
+  display: none;
+}
+
+.formPublier:has(input[name="quand"][value="date"]:checked) .choixDate {
+  display: flex;
+}
+
+.legendeReseau {
+  background: couleur("fond");
+  border: 1px solid couleur("bordure");
+  border-radius: 10px;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.boutonValider {
+  padding: 0 8px;
+}

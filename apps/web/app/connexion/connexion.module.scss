@@ -1,0 +1,25 @@
+// Mise en page de l'écran de connexion : une colonne centrée.
+@use "../../styles/mixins" as *;
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.boite {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.marque {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: couleur("texte");
+}

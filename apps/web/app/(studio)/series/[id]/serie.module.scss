@@ -1,0 +1,17 @@
+// Styles propres à la fiche série : vignette de fiche personnage, aperçu de programmation.
+@use "../../../../styles/mixins" as *;
+
+.fiche {
+  flex: 0 0 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.apercuProgrammation {
+  border: 1px solid couleur("bordure");
+  border-radius: 10px;
+  padding: 4px 14px;
+  background: couleur("fond");
+}

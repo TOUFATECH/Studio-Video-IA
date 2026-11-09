@@ -1,0 +1,9 @@
+// Couleur et taille de la courbe d'évolution.
+@use "../../styles/mixins" as *;
+
+.courbe {
+  display: block;
+  width: 100%;
+  height: 56px;
+  color: couleur("info");
+}

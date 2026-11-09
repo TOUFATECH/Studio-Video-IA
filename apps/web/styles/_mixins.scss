@@ -1,0 +1,36 @@
+// Outils Sass partagés : points de rupture (mobile d'abord) et accès aux couleurs du thème.
+@use "sass:map";
+
+/// Points de rupture, du plus petit au plus grand.
+$points: (
+  "petit": 480px,
+  "moyen": 768px,
+  "large": 1024px,
+  "tres-large": 1280px,
+);
+
+/// Styles appliqués à partir d'une largeur d'écran (mobile d'abord).
+@mixin des($point) {
+  @media (min-width: map.get($points, $point)) {
+    @content;
+  }
+}
+
+/// Couleur du thème courant, par son nom dans la palette.
+@function couleur($nom) {
+  @return var(--couleur-#{$nom});
+}
+
+/// Cible tactile minimale de 44 px.
+@mixin cible-tactile {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/// Anneau de focus visible au clavier.
+@mixin focus-visible {
+  &:focus-visible {
+    outline: 2px solid couleur("accent");
+    outline-offset: 2px;
+  }
+}
