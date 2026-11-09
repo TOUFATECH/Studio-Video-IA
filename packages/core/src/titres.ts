@@ -1,5 +1,6 @@
 // Titres, légendes et livrables d'une publication selon la langue et le réseau.
-import { ACCROCHES_TITRE, HASHTAGS, motEpisode, type Langue, type Livrable, type Reseau } from "./constantes";
+import { ACCROCHES_TITRE, motEpisode, type Langue, type Livrable, type Reseau } from "./constantes";
+import { hashtagsParDefaut, hashtagsPour } from "./hashtags";
 import type { Episode, Serie } from "./types";
 
 /** Trois propositions de titre pour une langue. La traduction du titre est utilisée si elle existe. */
@@ -11,10 +12,9 @@ export function propositionsTitres(episode: Pick<Episode, "titre" | "titres_trad
   return [base, `${serie.nom} · ${base}`, `${ACCROCHES_TITRE[langue]} · ${serie.nom}`];
 }
 
-/** Hashtags d'une publication : ceux de la langue, puis le nom de la série en un seul mot. */
+/** Hashtags par défaut d'une publication : ceux de la langue, puis le nom de la série en un seul mot. */
 export function hashtags(serie: Pick<Serie, "nom">, langue: Langue): string {
-  const mot = serie.nom.normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
-  return mot ? `${HASHTAGS[langue]} #${mot}` : HASHTAGS[langue];
+  return hashtagsParDefaut(serie.nom, langue);
 }
 
 /** Titre retenu pour une langue (choix fait dans l'étape Montage, sinon la première proposition). */
@@ -39,9 +39,19 @@ export function libelleLivrable(livrable: Livrable, reseau: Reseau): string {
   return "Vidéo 9:16";
 }
 
-/** Légende complète (titre, description, hashtags) d'une publication. */
-export function legende(episode: Pick<Episode, "titre" | "titres_traduits" | "numero" | "genre" | "choix_titres" | "idee">, serie: Pick<Serie, "nom">, langue: Langue): { titre: string; description: string; tags: string } {
+/**
+ * Légende complète (titre, description, hashtags) d'une publication.
+ * Avec un réseau : hashtags de l'épisode, sinon de la série, sinon par défaut, nettoyés selon les limites du réseau.
+ */
+export function legende(
+  episode: Pick<Episode, "titre" | "titres_traduits" | "numero" | "genre" | "choix_titres" | "idee"> & { hashtags?: Episode["hashtags"] },
+  serie: Pick<Serie, "nom"> & { hashtags?: Serie["hashtags"] },
+  langue: Langue,
+  reseau?: Reseau,
+): { titre: string; description: string; tags: string } {
   const titre = titreChoisi(episode, serie, langue);
-  const tags = hashtags(serie, langue);
+  const tags = reseau
+    ? hashtagsPour({ reseau, langue, nomSerie: serie.nom, serie: serie.hashtags ?? {}, episode: episode.hashtags ?? {} })
+    : hashtags(serie, langue);
   return { titre, description: `${titre}\n\n${tags}`, tags };
 }

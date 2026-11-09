@@ -8,7 +8,10 @@ import {
   dureeTotale,
   etatEpisode,
   horodatageSrt,
+  hashtagsPour,
   instantLocal,
+  legende,
+  normaliserHashtags,
   languesATraduire,
   livrablePour,
   prochainCreneau,
@@ -35,7 +38,7 @@ function episode(extra: Partial<Episode> = {}): Episode {
   return {
     id: "e1", serie_id: "s1", saison_id: "sa1", genre: "episode", numero: 2, titre: "Le pont", idee: "idée", format: "court", duree_cible: 75,
     langue: "fr", langues: ["fr", "en"], sous_titres: { fr: "fr", en: "aucun" }, prises: 1, enchainer: true, musique: true, bruitages: true,
-    chapitres: [], titres_traduits: { ja: "橋" }, choix_titres: {}, miniature: null, memoire_faite: false, cree_le: "2026-01-01", ...extra,
+    chapitres: [], titres_traduits: { ja: "橋" }, choix_titres: {}, miniature: null, memoire_faite: false, hashtags: {}, cree_le: "2026-01-01", ...extra,
   };
 }
 
@@ -166,5 +169,27 @@ describe("état d'un épisode", () => {
     const base = { episode: episode(), personnages: [], fichiers, taches: [], publications: [] };
     expect(etatEpisode({ ...base, plans }).statut).toBe("Storyboard à valider");
     expect(etatEpisode({ ...base, plans: plans.map((p) => ({ ...p, valide: true })) }).statut).toBe("Clips à lancer");
+  });
+});
+
+describe("hashtags", () => {
+  it("nettoie une saisie libre et retire les doublons", () => {
+    expect(normaliserHashtags("histoire, #Anime  série #anime", "tiktok")).toBe("#histoire #anime #série");
+  });
+  it("garde les hashtags japonais et limite Instagram à 30", () => {
+    expect(normaliserHashtags("#アニメ #物語", "instagram")).toBe("#アニメ #物語");
+    const beaucoup = Array.from({ length: 40 }, (_, i) => `#mot${i}`).join(" ");
+    expect(normaliserHashtags(beaucoup, "instagram").split(" ")).toHaveLength(30);
+  });
+  it("prend ceux de l'épisode, puis de la série, puis par défaut", () => {
+    const base = { reseau: "tiktok" as const, langue: "fr" as const, nomSerie: "Le renard néon" };
+    expect(hashtagsPour({ ...base, serie: { tiktok: "#renard" }, episode: { tiktok: "#pont" } })).toBe("#pont");
+    expect(hashtagsPour({ ...base, serie: { tiktok: "#renard" }, episode: {} })).toBe("#renard");
+    expect(hashtagsPour({ ...base, serie: {}, episode: {} })).toBe("#histoire #animation #série #lerenardnéon");
+  });
+  it("met les hashtags du réseau dans la légende", () => {
+    const l = legende(episode({ hashtags: { instagram: "#reel" } }), { nom: "Série", hashtags: { instagram: "#serie" } }, "fr", "instagram");
+    expect(l.tags).toBe("#reel");
+    expect(l.description.endsWith("#reel")).toBe(true);
   });
 });

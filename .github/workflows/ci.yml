@@ -1,0 +1,28 @@
+# Contrôles automatiques à chaque push et pull request : types, tests (dont un vrai rendu ffmpeg) et build du site.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # ffmpeg et une police japonaise/coréenne pour le test de rendu avec sous-titres.
+      - name: Installer ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+      - run: npm ci
+      - name: Vérification des types
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Build du site
+        run: npm run build -w @feuilleton/web
