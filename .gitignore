@@ -1,0 +1,19 @@
+# Dépendances et fichiers générés
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets : ne jamais committer les clés
+.env
+.env.local
+.env.*.local
+apps/*/.env
+apps/*/.env.local
+
+# Fichiers temporaires du worker (clips, rendus)
+apps/worker/tmp/
+tmp/
+.DS_Store
