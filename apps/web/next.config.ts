@@ -1,10 +1,10 @@
-// Configuration Next.js de l'app web Feuilleton.
+// Configuration Next.js de l'app web Studio Vidéo IA.
 // Les paquets du monorepo sont livrés en TypeScript : Next les transpile lui-même.
 import type { NextConfig } from "next";
 
 /** Réglages de Next : transpilation des paquets internes, en-têtes de sécurité. */
 const config: NextConfig = {
-  transpilePackages: ["@feuilleton/core", "@feuilleton/integrations"],
+  transpilePackages: ["@studio-video-ia/core", "@studio-video-ia/integrations"],
   poweredByHeader: false,
   // Pas d'ESLint dans ce lot : la vérification passe par « tsc --noEmit ».
   eslint: { ignoreDuringBuilds: true },

@@ -1,5 +1,5 @@
 // Journal du worker : lignes horodatées sur la sortie standard, secrets masqués.
-import { masquerSecrets } from "@feuilleton/integrations";
+import { masquerSecrets } from "@studio-video-ia/integrations";
 
 /** Niveau d'un message. */
 export type Niveau = "info" | "attention" | "erreur";

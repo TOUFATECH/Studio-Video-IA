@@ -33,7 +33,7 @@ const mono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Feuilleton", template: "%s · Feuilleton" },
+  title: { default: "Studio Vidéo IA", template: "%s · Studio Vidéo IA" },
   description: "Studio de séries vidéo : scénario, images, clips, voix, montage et publication.",
   robots: { index: false, follow: false },
 };

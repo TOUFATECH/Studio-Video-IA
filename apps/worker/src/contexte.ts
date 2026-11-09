@@ -1,8 +1,8 @@
 // Contexte passé à chaque tâche : accès base et stockage, clés, progression, budget, dossier temporaire, arrêt.
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { Tache } from "@feuilleton/core";
-import type { Fetch } from "@feuilleton/integrations";
+import type { Tache } from "@studio-video-ia/core";
+import type { Fetch } from "@studio-video-ia/integrations";
 import { chargerCles, proprietaireEspace, type ClesProprietaire } from "./cles";
 import type { Config } from "./config";
 import { journal } from "./journal";

@@ -1,7 +1,7 @@
 // Invalidation des générations quand l'utilisateur modifie un plan, les langues ou les sous-titres.
 // Appelé après vérification d'appartenance ; écrit en service_role (les fichiers sont en lecture seule pour l'utilisateur).
 import "server-only";
-import type { Langue } from "@feuilleton/core";
+import type { Langue } from "@studio-video-ia/core";
 import { supprimerObjets } from "./medias";
 import { clientAdmin } from "./supabase/admin";
 

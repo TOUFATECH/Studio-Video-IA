@@ -1,4 +1,4 @@
-# Tester Feuilleton, étape par étape
+# Tester Studio Vidéo IA, étape par étape
 
 Chaque niveau valide le précédent. Les niveaux 0 à 2 sont **gratuits**. À partir du niveau 3, les appels aux IA coûtent de l'argent : règle d'abord un **plafond mensuel bas** (par exemple 10 €) dans Réglages → Budget.
 
@@ -8,7 +8,7 @@ Chaque niveau valide le précédent. Les niveaux 0 à 2 sont **gratuits**. À pa
 npm install
 npm run typecheck                    # 0 erreur attendue
 npm test                             # 227 tests attendus, tous verts
-npm run build -w @feuilleton/web     # le site se compile, sans .env
+npm run build -w @studio-video-ia/web     # le site se compile, sans .env
 bash supabase/tests/lancer.sh        # migrations + sécurité sur un PostgreSQL local (si PostgreSQL est installé)
 ```
 

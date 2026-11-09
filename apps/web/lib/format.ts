@@ -1,5 +1,5 @@
 // Formatage des nombres, montants et dates pour l'interface (français, fuseau de l'espace).
-import { dateLocale } from "@feuilleton/core";
+import { dateLocale } from "@studio-video-ia/core";
 
 /** Montant en euros : « 12,40 € ». */
 export function euros(valeur: number): string {

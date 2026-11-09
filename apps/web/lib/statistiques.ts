@@ -1,6 +1,6 @@
 // Calculs des statistiques : engagement, tri du tableau des vidéos, abonnés, revenus par mois, tracé des courbes.
 // Fonctions pures, testées dans tests/statistiques.test.ts.
-import type { Reseau, ReseauConnecte, Revenu, StatsCompte, VideoReseau } from "@feuilleton/core";
+import type { Reseau, ReseauConnecte, Revenu, StatsCompte, VideoReseau } from "@studio-video-ia/core";
 import { z } from "zod";
 
 /** Compteurs d'interactions d'une vidéo ou d'une publication. */

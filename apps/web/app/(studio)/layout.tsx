@@ -1,5 +1,5 @@
 // Coquille des pages connectées : barre du haut (compte, générations, Nouveau), menu latéral, notifications.
-import { NOMS_RESEAUX, schemaReseau } from "@feuilleton/core";
+import { NOMS_RESEAUX, schemaReseau } from "@studio-video-ia/core";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -81,7 +81,7 @@ export default async function LayoutStudio({ children }: { children: ReactNode }
       <header className={styles.barre}>
         <Link href="/" className={styles.marque}>
           <Logo />
-          <span>Feuilleton</span>
+          <span>Studio Vidéo IA</span>
         </Link>
         <SelecteurEspace options={options} courant={portee.cle} />
         <span className={styles.espaceur} />

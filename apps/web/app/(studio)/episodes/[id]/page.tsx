@@ -1,5 +1,5 @@
 // Page d'un épisode en 5 étapes : scénario, storyboard, clips et voix, montage, publication.
-import { formaterDuree, DUREE_GENERIQUES } from "@feuilleton/core";
+import { formaterDuree, DUREE_GENERIQUES } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { genererImages, lancerClips, lancerRendu } from "@/app/actions/episodes";

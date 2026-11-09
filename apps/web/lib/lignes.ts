@@ -25,7 +25,7 @@ import {
   type Serie,
   type Tache,
   type Tarifs,
-} from "@feuilleton/core";
+} from "@studio-video-ia/core";
 import { z } from "zod";
 
 /** Nombre venant de PostgreSQL (numeric peut arriver en texte). */

@@ -1,6 +1,6 @@
 // Point d'entrée du worker : configuration, connexion Supabase, démarrage de la file, arrêt propre sur SIGINT / SIGTERM.
 import { mkdir } from "node:fs/promises";
-import { lireCleMaitre } from "@feuilleton/core/chiffrement";
+import { lireCleMaitre } from "@studio-video-ia/core/chiffrement";
 import { chargerFichierEnv, ErreurConfig, lireConfig } from "./config";
 import { FileDeTaches } from "./file";
 import { journal, messageErreur } from "./journal";

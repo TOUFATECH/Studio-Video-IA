@@ -1,7 +1,7 @@
 // Outils communs aux routes OAuth : redirection vers les réglages avec un message, adresse de retour.
 import "server-only";
 import { NextResponse } from "next/server";
-import type { Reseau } from "@feuilleton/core";
+import type { Reseau } from "@studio-video-ia/core";
 import { urlApp } from "./env";
 import { COOKIE_FLASH, encoderFlash, type Flash } from "./flash";
 

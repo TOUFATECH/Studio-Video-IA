@@ -1,4 +1,4 @@
-// Point d'entrée de @feuilleton/core. Le chiffrement (Node uniquement) s'importe à part : « @feuilleton/core/chiffrement ».
+// Point d'entrée de @studio-video-ia/core. Le chiffrement (Node uniquement) s'importe à part : « @studio-video-ia/core/chiffrement ».
 export * from "./constantes";
 export * from "./types";
 export * from "./durees";

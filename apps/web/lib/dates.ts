@@ -1,6 +1,6 @@
 // Conversion entre le champ « datetime-local » du formulaire de publication et un instant UTC,
 // toujours dans le fuseau de l'espace (et non celui du navigateur ou du serveur).
-import { dateLocale, instantLocal } from "@feuilleton/core";
+import { dateLocale, instantLocal } from "@studio-video-ia/core";
 import { z } from "zod";
 
 /** Format produit par <input type="datetime-local"> : « 2026-11-12T18:30 » (secondes facultatives). */

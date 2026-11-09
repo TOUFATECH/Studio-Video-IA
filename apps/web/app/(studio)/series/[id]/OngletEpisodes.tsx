@@ -1,5 +1,5 @@
 // Onglet « Épisodes » : une carte par saison avec ses épisodes, son opening et son ending.
-import { NOMS_RESEAUX, type Episode } from "@feuilleton/core";
+import { NOMS_RESEAUX, type Episode } from "@studio-video-ia/core";
 import Link from "next/link";
 import { ajouterEpisode, ajouterSaison, ecrireSuite } from "@/app/actions/series";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";

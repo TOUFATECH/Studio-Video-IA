@@ -1,5 +1,5 @@
 // Calendrier : publications de J-3 à J+13, regroupées par jour dans le fuseau de leur espace, filtrables par réseau.
-import { NOMS_RESEAUX, RESEAUX, ajouterJours, dateLocale } from "@feuilleton/core";
+import { NOMS_RESEAUX, RESEAUX, ajouterJours, dateLocale } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeReseau, Puce } from "@/components/ui/elements";

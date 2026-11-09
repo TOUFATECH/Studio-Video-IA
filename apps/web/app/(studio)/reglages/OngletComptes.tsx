@@ -1,5 +1,5 @@
 // Onglet « Comptes » : espaces (nom, couleur, fuseau, plafond), réseaux connectés et connexion OAuth.
-import { NOMS_RESEAUX, RESEAUX } from "@feuilleton/core";
+import { NOMS_RESEAUX, RESEAUX } from "@studio-video-ia/core";
 import Link from "next/link";
 import { creerEspace, definirAuditTiktok, deconnecterReseau, modifierEspace, modifierLangueReseau, retirerReseau } from "@/app/actions/reglages";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";

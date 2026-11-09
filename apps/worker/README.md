@@ -1,4 +1,4 @@
-# Worker Feuilleton
+# Worker Studio Vidéo IA
 
 Le worker exécute la file de tâches : écriture des scénarios, images (OpenAI), clips (Grok), voix et bruitages
 (ElevenLabs), montage ffmpeg, publications programmées (YouTube, Instagram, TikTok) et statistiques des comptes.
@@ -40,6 +40,6 @@ docker compose run --rm worker npx tsx apps/worker/src/diagnostic-cli.ts   # dia
 ## Tests
 
 ```bash
-npm test -w @feuilleton/worker        # dont un vrai rendu ffmpeg (ignoré si ffmpeg est absent)
-npm run test:live -w @feuilleton/integrations   # appels réels en lecture seule, avec RUN_LIVE_TESTS=1
+npm test -w @studio-video-ia/worker        # dont un vrai rendu ffmpeg (ignoré si ffmpeg est absent)
+npm run test:live -w @studio-video-ia/integrations   # appels réels en lecture seule, avec RUN_LIVE_TESTS=1
 ```

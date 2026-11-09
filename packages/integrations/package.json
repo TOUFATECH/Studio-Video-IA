@@ -1,5 +1,5 @@
 {
-  "name": "@feuilleton/integrations",
+  "name": "@studio-video-ia/integrations",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "test:live": "vitest run tests/live"
   },
   "dependencies": {
-    "@feuilleton/core": "0.1.0",
+    "@studio-video-ia/core": "0.1.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

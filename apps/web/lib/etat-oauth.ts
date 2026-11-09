@@ -1,11 +1,11 @@
 // Paramètre « state » des connexions OAuth : valeur aléatoire gardée dans un cookie httpOnly
 // signé par HMAC (clé dérivée d'ENCRYPTION_KEY), avec l'espace visé et une durée de vie courte.
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { schemaReseau, type Reseau } from "@feuilleton/core";
+import { schemaReseau, type Reseau } from "@studio-video-ia/core";
 import { z } from "zod";
 
 /** Nom du cookie qui porte l'état signé. */
-export const COOKIE_ETAT_OAUTH = "feuilleton_oauth";
+export const COOKIE_ETAT_OAUTH = "studio_video_ia_oauth";
 /** Durée de validité d'une tentative de connexion. */
 export const DUREE_ETAT_MS = 10 * 60_000;
 
@@ -19,7 +19,7 @@ const schemaContenu = z.object({
 
 /** Clé HMAC dérivée de la clé maître : on n'utilise jamais la même clé pour chiffrer et pour signer. */
 function cleSignature(cleMaitre: Buffer): Buffer {
-  return createHmac("sha256", cleMaitre).update("feuilleton:oauth-state:v1").digest();
+  return createHmac("sha256", cleMaitre).update("studio-video-ia:oauth-state:v1").digest();
 }
 
 /** Signature base64url d'un texte. */

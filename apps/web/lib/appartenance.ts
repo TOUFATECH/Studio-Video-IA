@@ -1,7 +1,7 @@
 // Vérifications d'appartenance : chaque objet est relu avec le client de l'utilisateur (RLS).
 // S'il revient, il est à lui ; ces fonctions sont appelées AVANT toute écriture en service_role.
 import "server-only";
-import type { Episode, Espace, Personnage, Plan, Publication, ReseauConnecte, Saison, Serie } from "@feuilleton/core";
+import type { Episode, Espace, Personnage, Plan, Publication, ReseauConnecte, Saison, Serie } from "@studio-video-ia/core";
 import { ErreurUtilisateur } from "./erreurs";
 import { ligne, ligneEpisode, ligneEspace, lignePersonnage, lignePlan, lignePublication, ligneReseau, ligneSaison, ligneSerie } from "./lignes";
 import { utilisateur } from "./session";

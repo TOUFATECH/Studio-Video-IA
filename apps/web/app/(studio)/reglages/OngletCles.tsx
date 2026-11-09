@@ -1,5 +1,5 @@
 // Onglet « Clés API » : saisie chiffrée côté serveur, jamais réaffichée (seuls les 4 derniers caractères), test.
-import { RESEAUX, type Fournisseur } from "@feuilleton/core";
+import { RESEAUX, type Fournisseur } from "@studio-video-ia/core";
 import { enregistrerCle } from "@/app/actions/reglages";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { Puce } from "@/components/ui/elements";

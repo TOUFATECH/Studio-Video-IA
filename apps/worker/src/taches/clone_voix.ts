@@ -1,6 +1,6 @@
 // Tâche « clone_voix » : clonage instantané ElevenLabs à partir des échantillons d'un personnage (avec son accord).
-import type { Fichier, Personnage } from "@feuilleton/core";
-import { clonerVoix } from "@feuilleton/integrations";
+import type { Fichier, Personnage } from "@studio-video-ia/core";
+import { clonerVoix } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
@@ -30,7 +30,7 @@ export async function tacheCloneVoix(ctx: Contexte): Promise<void> {
     fichiers.push({ nom: chemin.split("/").pop() ?? "echantillon.mp3", donnees: await ctx.stockage.lire(chemin), type: typeMime(chemin) });
   }
   await ctx.progression({ fait: 1, total: 2, etape: "Clonage chez ElevenLabs" });
-  const voixId = await clonerVoix(cle, { nom: `${perso.nom} (Feuilleton)`, description: perso.description.slice(0, 500), echantillons: fichiers }, ctx.f);
+  const voixId = await clonerVoix(cle, { nom: `${perso.nom} (Studio Vidéo IA)`, description: perso.description.slice(0, 500), echantillons: fichiers }, ctx.f);
   await ecrire(ctx.db.from("personnages").update({ voix_id: voixId, source_voix: "elevenlabs_clone" }).eq("id", perso.id), "voix clonée");
   await ctx.progression({ fait: 2, total: 2, etape: `Voix de ${perso.nom} clonée` });
 }

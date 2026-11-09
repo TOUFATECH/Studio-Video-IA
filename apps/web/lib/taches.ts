@@ -1,7 +1,7 @@
 // Mise en file des tâches du worker : SEUL point de création de tâches de l'app web.
 // L'appelant a déjà vérifié que l'espace (et l'épisode) appartiennent à l'utilisateur.
 import "server-only";
-import type { TypeTache } from "@feuilleton/core";
+import type { TypeTache } from "@studio-video-ia/core";
 import { ErreurUtilisateur } from "./erreurs";
 import { clientAdmin } from "./supabase/admin";
 

@@ -1,6 +1,6 @@
 // Étape 5 : publication. Version, comptes, livrable, date (maintenant, prochain créneau, date précise),
 // légende par réseau avec hashtags modifiables, et suivi des publications de l'épisode.
-import { MAX_HASHTAGS, MAX_LEGENDE, NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, legende, libelleLivrable, livrablePour, prochainCreneau, schemaLangue, verifierDureePublication } from "@feuilleton/core";
+import { MAX_HASHTAGS, MAX_LEGENDE, NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, legende, libelleLivrable, livrablePour, prochainCreneau, schemaLangue, verifierDureePublication } from "@studio-video-ia/core";
 import Link from "next/link";
 import { annulerPublication, enregistrerHashtagsEpisode, publier, reessayerPublication } from "@/app/actions/episodes";
 import { ecrireSuite } from "@/app/actions/series";

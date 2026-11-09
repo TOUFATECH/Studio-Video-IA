@@ -1,5 +1,5 @@
 {
-  "name": "feuilleton-studio",
+  "name": "studio-video-ia",
   "version": "0.1.0",
   "private": true,
   "description": "Studio de séries vidéo : scénario, images ChatGPT, clips Grok, voix ElevenLabs, montage ffmpeg, publication TikTok, Instagram et YouTube.",
@@ -12,9 +12,9 @@
     "test": "npm run test --workspaces --if-present",
     "test:live": "npm run test:live --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "dev:web": "npm run dev -w @feuilleton/web",
-    "dev:worker": "npm run dev -w @feuilleton/worker",
-    "diagnostic": "npm run diagnostic -w @feuilleton/worker"
+    "dev:web": "npm run dev -w @studio-video-ia/web",
+    "dev:worker": "npm run dev -w @studio-video-ia/worker",
+    "diagnostic": "npm run diagnostic -w @studio-video-ia/worker"
   },
   "engines": {
     "node": ">=20.11"

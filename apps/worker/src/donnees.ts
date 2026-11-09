@@ -14,7 +14,7 @@ import {
   type Saison,
   type Serie,
   type Tarifs,
-} from "@feuilleton/core";
+} from "@studio-video-ia/core";
 import type { Stockage } from "./stockage";
 import { ecrire, ligne, lignes, type Base } from "./supabase";
 

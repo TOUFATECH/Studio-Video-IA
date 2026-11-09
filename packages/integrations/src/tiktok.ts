@@ -1,5 +1,5 @@
 // Publication TikTok (Content Posting API, envoi direct) : infos du créateur, découpage, envoi par morceaux, suivi, statistiques.
-import type { StatsPublication } from "@feuilleton/core";
+import type { StatsPublication } from "@studio-video-ia/core";
 import { z } from "zod";
 import { ErreurApi, type Fetch } from "./contrat";
 import { appelJson, attendre as attendreReel, erreurDepuisReponse, erreurReponseInvalide, requete, type Attendre, type SourceEnvoi } from "./http";

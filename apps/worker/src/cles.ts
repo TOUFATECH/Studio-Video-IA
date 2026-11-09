@@ -1,8 +1,8 @@
 // Clés API d'un propriétaire, lues dans `cles_api` et déchiffrées (AES-GCM) avec ENCRYPTION_KEY.
 // Pour google, meta et tiktok, la valeur déchiffrée est un JSON {client_id, client_secret}.
-import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@feuilleton/core";
-import { dechiffrer } from "@feuilleton/core/chiffrement";
-import { fournisseurApp } from "@feuilleton/integrations";
+import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@studio-video-ia/core";
+import { dechiffrer } from "@studio-video-ia/core/chiffrement";
+import { fournisseurApp } from "@studio-video-ia/integrations";
 import { ligne, lignes, type Base } from "./supabase";
 
 /** Clés disponibles pour un propriétaire (absentes si non saisies). */

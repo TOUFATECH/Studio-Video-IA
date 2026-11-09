@@ -1,5 +1,5 @@
 // Tests des choix liés au format : orientation des images et des clips, choix des plans pour les miniatures.
-import type { Plan, TypePlan } from "@feuilleton/core";
+import type { Plan, TypePlan } from "@studio-video-ia/core";
 import { describe, expect, it } from "vitest";
 import { ratioClips } from "../src/taches/clips";
 import { plansPourMiniatures } from "../src/taches/rendu";

@@ -1,6 +1,6 @@
 "use server";
 // Actions des séries : création, saisons, épisodes, suite, bible, personnages, mémoire, rythme, hashtags, programmation.
-import { BORNES_DUREE, MAX_HASHTAGS, RESEAUX, normaliserHashtags, type Episode, type Langue, type Serie } from "@feuilleton/core";
+import { BORNES_DUREE, MAX_HASHTAGS, RESEAUX, normaliserHashtags, type Episode, type Langue, type Serie } from "@studio-video-ia/core";
 import { redirect } from "next/navigation";
 import { executer } from "@/lib/action";
 import { espaceAMoi, personnageAMoi, saisonAMoi, serieAMoi } from "@/lib/appartenance";

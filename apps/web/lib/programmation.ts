@@ -1,6 +1,6 @@
 // Programmation des épisodes prêts d'une série : un créneau par épisode, en suivant le rythme de la série.
 // Fonction pure, testée dans tests/programmation.test.ts.
-import { prochainCreneau, type Rythme } from "@feuilleton/core";
+import { prochainCreneau, type Rythme } from "@studio-video-ia/core";
 
 /** Un épisode et la date de sortie proposée. */
 export type Creneau<E> = { episode: E; instant: Date };

@@ -1,7 +1,7 @@
 // `npm run diagnostic` : vérifie variables d'environnement, Supabase, bucket, ffmpeg (libass, police), puis les clés
 // et les comptes connectés de chaque propriétaire. Affiche un tableau OK / ÉCHEC avec le correctif ; code 1 si un point bloquant échoue.
-import { lireCleMaitre } from "@feuilleton/core/chiffrement";
-import { testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "@feuilleton/integrations";
+import { lireCleMaitre } from "@studio-video-ia/core/chiffrement";
+import { testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
 import { chargerCles, dechiffrerValeur } from "./cles";
 import type { CompteReseau } from "./comptes";
 import { chargerFichierEnv, ErreurConfig, lireConfig, type Config } from "./config";

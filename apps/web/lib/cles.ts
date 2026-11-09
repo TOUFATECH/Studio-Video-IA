@@ -1,7 +1,7 @@
 // Lecture des clés API et des applications OAuth, déchiffrées côté serveur uniquement.
 import "server-only";
-import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@feuilleton/core";
-import { dechiffrer, lireCleMaitre } from "@feuilleton/core/chiffrement";
+import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@studio-video-ia/core";
+import { dechiffrer, lireCleMaitre } from "@studio-video-ia/core/chiffrement";
 import { lireEnv } from "./env";
 import { clientAdmin } from "./supabase/admin";
 

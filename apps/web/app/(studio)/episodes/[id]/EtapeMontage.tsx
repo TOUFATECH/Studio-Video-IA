@@ -1,5 +1,5 @@
 // Étape 4 : montage. Langues, sous-titres par version, musique, bruitages, accroche, miniatures, titres, rendu.
-import { LANGUES, NOMS_LANGUES, formaterDuree, propositionsTitres } from "@feuilleton/core";
+import { LANGUES, NOMS_LANGUES, formaterDuree, propositionsTitres } from "@studio-video-ia/core";
 import { choisirMiniature, choisirTitre, lancerRendu, modifierLangues, modifierMontage, modifierSousTitres } from "@/app/actions/episodes";
 import { ImportFichier } from "@/components/ImportFichier";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";

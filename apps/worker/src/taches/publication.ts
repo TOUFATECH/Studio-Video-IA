@@ -1,7 +1,7 @@
 // Tâche « publication » : envoi d'un livrable sur YouTube (programmation native), Instagram ou TikTok (publication immédiate).
 import { join } from "node:path";
-import { legende, verifierDureePublication, type Episode, type Fichier, type Publication, type Serie, type StatutPublication } from "@feuilleton/core";
-import { confidentialiteYoutube, definirMiniatureYoutube, envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@feuilleton/integrations";
+import { legende, verifierDureePublication, type Episode, type Fichier, type Publication, type Serie, type StatutPublication } from "@studio-video-ia/core";
+import { confidentialiteYoutube, definirMiniatureYoutube, envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@studio-video-ia/integrations";
 import { chargerCompte, ErreurReconnexion, jetonValide, marquerExpire, MESSAGE_RECONNEXION, type CompteReseau } from "../comptes";
 import type { Contexte } from "../contexte";
 import { erreurCourte, fichierPret } from "../donnees";

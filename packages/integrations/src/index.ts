@@ -1,4 +1,4 @@
-// Point d'entrée de @feuilleton/integrations : le contrat public utilisé par l'app web et les clients des API externes.
+// Point d'entrée de @studio-video-ia/integrations : le contrat public utilisé par l'app web et les clients des API externes.
 export * from "./contrat";
 export * from "./http";
 export * from "./openai";

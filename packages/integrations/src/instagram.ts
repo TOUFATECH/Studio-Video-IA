@@ -1,6 +1,6 @@
 // Publication Instagram (Reels) avec l'API Instagram « connexion Instagram » : conteneur, attente, publication, statistiques.
 // L'API ne programme pas : le worker publie à l'heure. La vidéo doit être à une URL publique (URL signée Supabase).
-import type { StatsPublication } from "@feuilleton/core";
+import type { StatsPublication } from "@studio-video-ia/core";
 import { z } from "zod";
 import { ErreurApi, type Fetch } from "./contrat";
 import { appelJson, attendre as attendreReel, requete, type Attendre } from "./http";

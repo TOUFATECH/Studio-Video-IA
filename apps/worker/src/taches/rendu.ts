@@ -2,8 +2,8 @@
 // bruitage et sous-titres ; puis passage des publications en attente à « programmée » et mémoire automatique.
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { dureesParPlan, indexerFichiers, livrablePour, planParleElevenLabs, prochainCreneau, promptBruitage, unitesRendu, verifierDureePublication, type Espace, type Fichier, type Langue, type Plan, type ReseauConnecte, estHorizontal, aGeneriques } from "@feuilleton/core";
-import { genererBruitage } from "@feuilleton/integrations";
+import { dureesParPlan, indexerFichiers, livrablePour, planParleElevenLabs, prochainCreneau, promptBruitage, unitesRendu, verifierDureePublication, type Espace, type Fichier, type Langue, type Plan, type ReseauConnecte, estHorizontal, aGeneriques } from "@studio-video-ia/core";
+import { genererBruitage } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";

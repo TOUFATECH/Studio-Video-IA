@@ -1,5 +1,5 @@
 // Statistiques : vue d'ensemble et un onglet par réseau, filtre par compte, abonnés, vidéos, revenus.
-import { NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, type Langue, type Reseau, type StatsCompte } from "@feuilleton/core";
+import { NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, type Langue, type Reseau, type StatsCompte } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { synchroniserStats } from "@/app/actions/statistiques";

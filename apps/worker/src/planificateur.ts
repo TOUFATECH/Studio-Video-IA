@@ -1,6 +1,6 @@
 // Planificateur (toutes les 30 s) : crée les tâches de publication à l'heure, clôt les publications YouTube programmées,
 // relance les tâches en pause quand le budget le permet. Ne crée jamais deux tâches pour la même publication.
-import type { Reseau, StatutPublication } from "@feuilleton/core";
+import type { Reseau, StatutPublication } from "@studio-video-ia/core";
 import { plafondAtteint, type AccesBudget } from "./budget";
 import { ErreurBase, lignes, ecrire, type Base } from "./supabase";
 

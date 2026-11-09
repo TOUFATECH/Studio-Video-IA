@@ -1,5 +1,5 @@
 // Petits calculs d'affichage communs aux épisodes : code « S1E2 », nom, ordre de lecture.
-import type { Episode, Saison } from "@feuilleton/core";
+import type { Episode, Saison } from "@studio-video-ia/core";
 
 /** Code court d'un épisode : « S1E2 », « S1·OP » ou « S1·ED ». */
 export function codeEpisode(episode: Pick<Episode, "genre" | "numero">, saison: Pick<Saison, "numero"> | undefined): string {

@@ -2,8 +2,8 @@
 // 1 image (OpenAI, qualité basse) → 1 clip de 2 s en 480p (xAI) → 1 voix courte (ElevenLabs) → rendu ffmpeg sous-titré.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { schemaLangue, type Langue, type Plan } from "@feuilleton/core";
-import { genererImage, genererVideo, listerVoix, synthetiserVoix } from "@feuilleton/integrations";
+import { schemaLangue, type Langue, type Plan } from "@studio-video-ia/core";
+import { genererImage, genererVideo, listerVoix, synthetiserVoix } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
@@ -16,11 +16,11 @@ export const schemaDonneesTest = z.object({ sous_titres: schemaLangue.default("f
 
 /** Phrase de test dite et sous-titrée dans chaque langue. */
 export const PHRASES_TEST: Record<Langue, string> = {
-  fr: "Ceci est un test de Feuilleton.",
-  en: "This is a Feuilleton test.",
+  fr: "Ceci est un test de Studio Vidéo IA.",
+  en: "This is a Studio Vidéo IA test.",
   ja: "これはフィユトンのテストです。",
   ko: "이것은 푀유통 테스트입니다.",
-  pt: "Isto é um teste do Feuilleton.",
+  pt: "Isto é um teste do Studio Vidéo IA.",
 };
 
 /** Résultat d'une étape du test. */

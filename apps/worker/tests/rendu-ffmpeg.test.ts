@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Plan } from "@feuilleton/core";
+import type { Plan } from "@studio-video-ia/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { aLibass, executerFfmpeg, MESSAGE_SANS_LIBASS, sonder } from "../src/rendu/executant";
 import { monter } from "../src/rendu/montage";
@@ -31,7 +31,7 @@ describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
 
   beforeAll(async () => {
     // Nom de dossier volontairement piégeux (espace, apostrophe, virgule, crochets) pour éprouver l'échappement du filtre.
-    dossier = await mkdtemp(join(tmpdir(), "feuilleton rendu l'essai, [1] "));
+    dossier = await mkdtemp(join(tmpdir(), "studio video ia rendu l'essai, [1] "));
     const genere = async (nom: string, args: string[]): Promise<string> => {
       const sortie = join(dossier, nom);
       await executerFfmpeg(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", ...args, sortie]);

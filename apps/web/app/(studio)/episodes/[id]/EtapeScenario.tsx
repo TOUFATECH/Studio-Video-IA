@@ -1,5 +1,5 @@
 // Étape 1 : scénario. Réglages de l'épisode, écriture par l'IA, continuité, vérifications, ligne de temps et plans éditables.
-import { BORNES_DUREE, DUREES_AUTORISEES, LISTE_TYPES_PLAN, NOMS_LANGUES, TYPES_PLAN, formaterDuree, sectionsDe } from "@feuilleton/core";
+import { BORNES_DUREE, DUREES_AUTORISEES, LISTE_TYPES_PLAN, NOMS_LANGUES, TYPES_PLAN, formaterDuree, sectionsDe } from "@studio-video-ia/core";
 import Link from "next/link";
 import { ajouterPlan, demanderModification, ecrireScenario, modifierEpisode, modifierPlan, supprimerPlan } from "@/app/actions/episodes";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";

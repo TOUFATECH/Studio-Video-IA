@@ -1,4 +1,4 @@
--- Schéma de Feuilleton : espaces (comptes), réseaux connectés, séries, épisodes, plans,
+-- Schéma de Studio Vidéo IA : espaces (comptes), réseaux connectés, séries, épisodes, plans,
 -- fichiers générés, file de tâches du worker, publications, mémoire des séries.
 -- Sécurité : chaque ligne appartient à un utilisateur via son espace (RLS).
 -- Les jetons et clés chiffrés ne sont jamais lisibles par le navigateur (droits de colonnes).

@@ -1,6 +1,6 @@
 // Tâche « memoire » : extraction des faits à retenir après un épisode, fermeture des mystères résolus.
-import { promptMemoire, schemaFaitsIA, type FaitMemoire } from "@feuilleton/core";
-import { demanderJson } from "@feuilleton/integrations";
+import { promptMemoire, schemaFaitsIA, type FaitMemoire } from "@studio-video-ia/core";
+import { demanderJson } from "@studio-video-ia/integrations";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
 import { chargerEpisode } from "../donnees";

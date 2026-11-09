@@ -1,7 +1,7 @@
 // Tests des fonctions pures des tâches et des outils : bande annonce, prises, personnages, traductions, mémoire,
 // vidéos des comptes, configuration, parallélisme et relance, tableau du diagnostic.
 import { describe, expect, it } from "vitest";
-import type { Episode, Fichier, FaitMemoire, Personnage, Plan, TypePlan } from "@feuilleton/core";
+import type { Episode, Fichier, FaitMemoire, Personnage, Plan, TypePlan } from "@studio-video-ia/core";
 import { analyserEnv, ErreurConfig, lireConfig } from "../src/config";
 import { avecRelance, enParallele, ErreurPlafond } from "../src/contexte";
 import { aEchecBloquant, formaterTableau } from "../src/diagnostic-cli";
@@ -13,7 +13,7 @@ import { clipDuPlan, selectionBandeAnnonce } from "../src/taches/rendu";
 import { trouverPersonnage } from "../src/taches/scenario";
 import { lignesVideos } from "../src/taches/stats";
 import { personnagesPresents, tailleImage } from "../src/taches/storyboard";
-import { indexerFichiers } from "@feuilleton/core";
+import { indexerFichiers } from "@studio-video-ia/core";
 
 /** Plan de test. */
 function plan(id: string, type: TypePlan, extra: Partial<Plan> = {}): Plan {

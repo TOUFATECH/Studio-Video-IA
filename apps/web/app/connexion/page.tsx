@@ -16,7 +16,7 @@ export default async function PageConnexion({ searchParams }: { searchParams: Pr
       <div className={styles.boite}>
         <p className={styles.marque}>
           <Logo />
-          <span className="h2">Feuilleton</span>
+          <span className="h2">Studio Vidéo IA</span>
         </p>
         <h1 className="h1">Connexion</h1>
         <p className="petit doux">Ton studio de séries : scénario, images, clips, voix, montage et publication.</p>

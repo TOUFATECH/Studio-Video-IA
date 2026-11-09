@@ -1,5 +1,5 @@
 // Tableau de toutes les vidéos d'un ou plusieurs comptes, triable par date, vues, j'aime, engagement ou revenu.
-import { NOMS_RESEAUX, type ReseauConnecte, type VideoReseau } from "@feuilleton/core";
+import { NOMS_RESEAUX, type ReseauConnecte, type VideoReseau } from "@studio-video-ia/core";
 import Link from "next/link";
 import { compact, jourCourt, pourcent } from "@/lib/format";
 import { engagement, trierVideos, type Sens, type TriVideos } from "@/lib/statistiques";
@@ -25,7 +25,7 @@ export function TableauVideos({ videos, comptes, tri, sens, base, fuseau }: { vi
       <h2 id="videos-h" className="h2">
         Toutes les vidéos <span className="tres-petit doux">({videos.length})</span>
       </h2>
-      <p className="tres-petit doux">Même celles publiées sans Feuilleton. Chiffres de la dernière synchronisation.</p>
+      <p className="tres-petit doux">Même celles publiées sans Studio Vidéo IA. Chiffres de la dernière synchronisation.</p>
       {videos.length === 0 ? (
         <p className="petit doux marge-haut">Aucune vidéo : lance une synchronisation.</p>
       ) : (
@@ -45,7 +45,7 @@ export function TableauVideos({ videos, comptes, tri, sens, base, fuseau }: { vi
                 <th scope="col" className="nombre">
                   Comment.
                 </th>
-                <th scope="col">Publiée par Feuilleton</th>
+                <th scope="col">Publiée par Studio Vidéo IA</th>
               </tr>
             </thead>
             <tbody>

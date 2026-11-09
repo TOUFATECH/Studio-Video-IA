@@ -1,5 +1,5 @@
 // Publication YouTube : envoi résumable par morceaux, programmation native (privé + publishAt) et statistiques.
-import { MARGE_PROGRAMMATION_YOUTUBE_MS, type StatsPublication } from "@feuilleton/core";
+import { MARGE_PROGRAMMATION_YOUTUBE_MS, type StatsPublication } from "@studio-video-ia/core";
 import { z } from "zod";
 import { ErreurApi, type Fetch } from "./contrat";
 import { appelJson, erreurDepuisReponse, lireJson, requete, type SourceEnvoi } from "./http";

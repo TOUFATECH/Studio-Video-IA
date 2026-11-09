@@ -1,5 +1,5 @@
 // Registre des tâches : chaque type de la file correspond à une fonction d'exécution.
-import type { TypeTache } from "@feuilleton/core";
+import type { TypeTache } from "@studio-video-ia/core";
 import type { Contexte } from "../contexte";
 import { tacheClips } from "./clips";
 import { tacheCloneVoix } from "./clone_voix";

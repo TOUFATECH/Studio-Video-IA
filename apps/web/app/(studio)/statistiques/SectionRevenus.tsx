@@ -1,6 +1,6 @@
 // Section « Ce que ça a rapporté » : revenus du mois et des 12 derniers mois, par réseau et par compte,
 // avec la saisie manuelle pour TikTok et Instagram (pas d'API de revenus chez eux).
-import { NOMS_RESEAUX, RESEAUX, type Reseau, type ReseauConnecte, type Revenu } from "@feuilleton/core";
+import { NOMS_RESEAUX, RESEAUX, type Reseau, type ReseauConnecte, type Revenu } from "@studio-video-ia/core";
 import { enregistrerRevenu, supprimerRevenu } from "@/app/actions/statistiques";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { BadgeReseau, Kpi } from "@/components/ui/elements";

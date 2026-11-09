@@ -1,6 +1,6 @@
 // Chargement de tout ce qu'affiche la page d'un épisode, avec les URL signées de ses médias.
 import "server-only";
-import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers, aGeneriques, DUREE_GENERIQUES } from "@feuilleton/core";
+import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers, aGeneriques, DUREE_GENERIQUES } from "@studio-video-ia/core";
 import { notFound } from "next/navigation";
 import { COLONNES_RESEAU } from "@/lib/appartenance";
 import { ordreLecture } from "@/lib/episodes";

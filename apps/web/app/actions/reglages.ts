@@ -1,8 +1,8 @@
 "use server";
 // Actions des réglages : espaces, réseaux connectés, clés API chiffrées, tarifs, plafonds et préférences.
-import { schemaAppOAuth, type Fournisseur } from "@feuilleton/core";
-import { apercu, chiffrer, dechiffrer } from "@feuilleton/core/chiffrement";
-import { testerElevenLabs, testerOpenAI, testerXai } from "@feuilleton/integrations";
+import { schemaAppOAuth, type Fournisseur } from "@studio-video-ia/core";
+import { apercu, chiffrer, dechiffrer } from "@studio-video-ia/core/chiffrement";
+import { testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { executer } from "@/lib/action";

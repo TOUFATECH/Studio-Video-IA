@@ -1,5 +1,5 @@
 // Accueil : chiffres clés, liste « À faire », générations en cours, publications, réseaux et séries.
-import { NOMS_RESEAUX, RESEAUX, type Reseau } from "@feuilleton/core";
+import { NOMS_RESEAUX, RESEAUX, type Reseau } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RafraichissementDirect } from "@/components/RafraichissementDirect";

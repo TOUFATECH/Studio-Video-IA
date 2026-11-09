@@ -70,7 +70,7 @@ export function verifierDureePublication(params: { reseau: Reseau; livrable: Liv
   }
   if (livrable === "court") {
     if (reseau === "youtube") return depasse(DUREE_MAX_PUBLICATION.youtube_short) ? `Short YouTube de ${mmss(duree)} : 3:00 maximum.` : null;
-    return depasse(DUREE_MAX_PUBLICATION[reseau]) ? `Vidéo de ${mmss(duree)} : ${reseau === "tiktok" ? "TikTok" : "Instagram"} est limité à 2:00 dans Feuilleton.` : null;
+    return depasse(DUREE_MAX_PUBLICATION[reseau]) ? `Vidéo de ${mmss(duree)} : ${reseau === "tiktok" ? "TikTok" : "Instagram"} est limité à 2:00 dans Studio Vidéo IA.` : null;
   }
   // Version 16:9 complète, seulement sur YouTube.
   if (reseau !== "youtube") return "La version 16:9 complète ne se publie que sur YouTube.";

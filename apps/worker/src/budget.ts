@@ -1,5 +1,5 @@
 // Plafond mensuel de dépense : contrôle avant une tâche payante et reprise des tâches mises en pause.
-import type { TypeTache } from "@feuilleton/core";
+import type { TypeTache } from "@studio-video-ia/core";
 import type { Base } from "./supabase";
 import { ligne } from "./supabase";
 

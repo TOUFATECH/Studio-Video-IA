@@ -13,7 +13,7 @@ import {
   type Episode,
   type Langue,
   type Plan,
-} from "@feuilleton/core";
+} from "@studio-video-ia/core";
 import { z } from "zod";
 import { executer } from "@/lib/action";
 import { COLONNES_RESEAU, episodeAMoi, planAMoi, publicationAMoi } from "@/lib/appartenance";

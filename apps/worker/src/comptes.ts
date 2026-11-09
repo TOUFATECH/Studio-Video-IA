@@ -1,7 +1,7 @@
 // Comptes de réseaux connectés : déchiffrement des jetons, renouvellement avant expiration, compte marqué « expiré ».
-import type { ReseauConnecte } from "@feuilleton/core";
-import { chiffrer } from "@feuilleton/core/chiffrement";
-import { doitRenouveler, estErreurJeton, renouvelerJeton, type Fetch } from "@feuilleton/integrations";
+import type { ReseauConnecte } from "@studio-video-ia/core";
+import { chiffrer } from "@studio-video-ia/core/chiffrement";
+import { doitRenouveler, estErreurJeton, renouvelerJeton, type Fetch } from "@studio-video-ia/integrations";
 import { dechiffrerValeur, exigerApp, type ClesProprietaire } from "./cles";
 import { journal } from "./journal";
 import { ecrire, ligne, type Base } from "./supabase";

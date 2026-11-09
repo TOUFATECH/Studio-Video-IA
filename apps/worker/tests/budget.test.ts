@@ -1,7 +1,7 @@
 // Tests du budget : tâches payantes, plafond atteint, pause d'une tâche et sort d'une tâche après une erreur.
 import { describe, expect, it } from "vitest";
-import { ErreurApi } from "@feuilleton/integrations";
-import type { Tache } from "@feuilleton/core";
+import { ErreurApi } from "@studio-video-ia/integrations";
+import type { Tache } from "@studio-video-ia/core";
 import { estPayante, plafondAtteint, type AccesBudget } from "../src/budget";
 import type { Config } from "../src/config";
 import { creerContexte, ErreurAnnulee, ErreurArret, ErreurPlafond } from "../src/contexte";

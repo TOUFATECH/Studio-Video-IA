@@ -1,8 +1,8 @@
 // Retour d'une connexion OAuth : vérifie le « state », échange le code contre des jetons,
 // les chiffre et enregistre le compte connecté (service_role), puis revient aux réglages.
-import { schemaReseau, type Langue } from "@feuilleton/core";
-import { chiffrer } from "@feuilleton/core/chiffrement";
-import { echangerCode } from "@feuilleton/integrations";
+import { schemaReseau, type Langue } from "@studio-video-ia/core";
+import { chiffrer } from "@studio-video-ia/core/chiffrement";
+import { echangerCode } from "@studio-video-ia/integrations";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { cleMaitre, lireAppOAuth } from "@/lib/cles";

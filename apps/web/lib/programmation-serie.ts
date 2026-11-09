@@ -1,6 +1,6 @@
 // Plan de programmation des épisodes prêts d'une série : calculé à l'identique pour l'aperçu et pour la confirmation.
 import "server-only";
-import { etatEpisode, livrablePour, type Episode, type Langue, type ReseauConnecte, type Serie } from "@feuilleton/core";
+import { etatEpisode, livrablePour, type Episode, type Langue, type ReseauConnecte, type Serie } from "@studio-video-ia/core";
 import { COLONNES_RESEAU } from "./appartenance";
 import { grouper } from "./donnees";
 import { ordreLecture } from "./episodes";

@@ -1,6 +1,6 @@
 // Chargement des chiffres des comptes connectés : historique quotidien, vidéos, revenus (lecture via RLS).
 import "server-only";
-import type { Revenu, StatsCompte, VideoReseau } from "@feuilleton/core";
+import type { Revenu, StatsCompte, VideoReseau } from "@studio-video-ia/core";
 import { enLots } from "./donnees";
 import { ligneRevenu, lignes, ligneStatsCompte, ligneVideo } from "./lignes";
 import { utilisateur } from "./session";

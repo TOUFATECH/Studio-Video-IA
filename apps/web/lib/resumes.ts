@@ -1,5 +1,5 @@
 // Résumés calculés à partir des données de production : avancement d'une série, épisodes prêts, publications.
-import type { Episode, EtatEpisode, Langue, Publication, Saison, Serie } from "@feuilleton/core";
+import type { Episode, EtatEpisode, Langue, Publication, Saison, Serie } from "@studio-video-ia/core";
 
 /** Données nécessaires au résumé d'une série. */
 type Source = { episodes: readonly Episode[]; saisons: readonly Saison[]; publications: readonly Publication[]; etats: ReadonlyMap<string, EtatEpisode> };

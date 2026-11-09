@@ -1,5 +1,5 @@
 // Étape 3 : clips Grok et voix ElevenLabs. Progression, temps, coût, prises, lecture, échecs et pause.
-import { NOMS_LANGUES, unitesClips } from "@feuilleton/core";
+import { NOMS_LANGUES, unitesClips } from "@studio-video-ia/core";
 import Link from "next/link";
 import { choisirPrise, choisirPrises, lancerClips, mettreEnPause } from "@/app/actions/episodes";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";

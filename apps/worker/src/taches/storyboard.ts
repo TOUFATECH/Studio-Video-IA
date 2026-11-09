@@ -1,6 +1,6 @@
 // Tâche « storyboard » : une image par plan (fiches personnages et plan précédent en références), une relance par plan.
-import { coutUnite, promptImage, type Personnage, type Plan, estHorizontal, type FormatEpisode } from "@feuilleton/core";
-import { genererImage, modifierImage, type ImageReference, type TailleImage } from "@feuilleton/integrations";
+import { coutUnite, promptImage, type Personnage, type Plan, estHorizontal, type FormatEpisode } from "@studio-video-ia/core";
+import { genererImage, modifierImage, type ImageReference, type TailleImage } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import { avecRelance, ErreurAnnulee, ErreurArret, ErreurPlafond, type Contexte } from "../contexte";

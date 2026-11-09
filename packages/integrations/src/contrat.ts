@@ -1,6 +1,6 @@
 // Contrat public utilisé par l'app web : connexion OAuth des réseaux, tests des clés, liste des voix.
 // Les signatures ci-dessous sont figées : l'implémentation les remplit sans les changer.
-import type { AppOAuth, Reseau } from "@feuilleton/core";
+import type { AppOAuth, Reseau } from "@studio-video-ia/core";
 
 /** Fonction fetch injectable, pour les tests (par défaut : fetch global). */
 export type Fetch = typeof fetch;

@@ -1,5 +1,5 @@
 // Onglet « Bible » : univers, fil rouge, style, langue, fil de l'histoire et personnages (fiche de référence, voix).
-import { listerVoix } from "@feuilleton/integrations";
+import { listerVoix } from "@studio-video-ia/integrations";
 import { ajouterPersonnage, genererFiche, modifierBible, modifierPersonnage, supprimerPersonnage } from "@/app/actions/series";
 import { ChoixVoix, type OptionVoix } from "@/components/ChoixVoix";
 import { ImportFichier } from "@/components/ImportFichier";

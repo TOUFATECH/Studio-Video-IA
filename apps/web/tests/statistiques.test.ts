@@ -1,5 +1,5 @@
 // Tests des statistiques : engagement, tri des vidéos, abonnés, agrégation des revenus et tracé des courbes.
-import type { Revenu, StatsCompte, VideoReseau } from "@feuilleton/core";
+import type { Revenu, StatsCompte, VideoReseau } from "@studio-video-ia/core";
 import { describe, expect, it } from "vitest";
 import { abonnesEtVariation, agregerRevenus, douzeDerniersMois, engagement, texteParDevise, traceCourbe, trierVideos, vuesSurPeriode } from "../lib/statistiques";
 

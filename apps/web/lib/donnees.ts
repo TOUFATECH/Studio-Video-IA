@@ -13,7 +13,7 @@ import {
   type Saison,
   type Serie,
   type Tache,
-} from "@feuilleton/core";
+} from "@studio-video-ia/core";
 import { cache } from "react";
 import { COLONNES_RESEAU } from "./appartenance";
 import { porteeCourante, type Portee } from "./espace-courant";

@@ -1,4 +1,4 @@
-# Worker Feuilleton dans Docker : docker compose up -d --build
+# Worker Studio Vidéo IA dans Docker : docker compose up -d --build
 # Les variables viennent de .env (copie de .env.example) ; ffmpeg et les polices sont dans l'image.
 services:
   worker:

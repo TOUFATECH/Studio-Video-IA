@@ -1,5 +1,5 @@
 // Connexion OAuth des réseaux (YouTube, Instagram, TikTok) : URL d'autorisation, échange du code, renouvellement, identité.
-import type { AppOAuth, Reseau } from "@feuilleton/core";
+import type { AppOAuth, Reseau } from "@studio-video-ia/core";
 import { z } from "zod";
 import { ErreurApi, type ContratIntegrations, type Fetch, type JetonsOAuth } from "./contrat";
 import { appelJson, erreurReponseInvalide, lireJson, requete, erreurDepuisReponse } from "./http";

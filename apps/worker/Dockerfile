@@ -1,4 +1,4 @@
-# Image du worker Feuilleton : Node 22, ffmpeg avec libass, polices Noto (dont japonais et coréen).
+# Image du worker Studio Vidéo IA : Node 22, ffmpeg avec libass, polices Noto (dont japonais et coréen).
 # Contexte de build : la racine du dépôt (docker compose up -d --build).
 
 # Étape 1 : ne garder que les package.json et le verrou, pour que « npm ci » reste en cache tant qu'ils ne changent pas.
@@ -25,7 +25,7 @@ ENV NODE_ENV=production \
 
 COPY --from=manifestes /out/ ./
 # Dépendances du worker seulement (tsx compris), sans les outils de développement.
-RUN npm ci --workspace @feuilleton/worker --include-workspace-root --omit=dev --no-audit --no-fund \
+RUN npm ci --workspace @studio-video-ia/worker --include-workspace-root --omit=dev --no-audit --no-fund \
  && npm cache clean --force
 
 COPY tsconfig.base.json ./

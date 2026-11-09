@@ -1,6 +1,6 @@
 // Espace (« compte ») choisi dans le sélecteur du haut, mémorisé dans le cookie « espace » (un id ou « tous »).
 import "server-only";
-import type { Espace } from "@feuilleton/core";
+import type { Espace } from "@studio-video-ia/core";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { ligneEspace, lignes } from "./lignes";

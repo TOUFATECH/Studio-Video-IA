@@ -1,9 +1,9 @@
 // Vérifications de la page Diagnostic. Chaque vérification renvoie OK ou Échec et la marche à suivre ;
 // aucune valeur secrète n'est jamais renvoyée.
 import "server-only";
-import { NOMS_RESEAUX, schemaReseau, type Fournisseur } from "@feuilleton/core";
-import { chiffrer, dechiffrer, lireCleMaitre } from "@feuilleton/core/chiffrement";
-import { renouvelerJeton, testerCompte, testerElevenLabs, testerOpenAI, testerXai, type Fetch } from "@feuilleton/integrations";
+import { NOMS_RESEAUX, schemaReseau, type Fournisseur } from "@studio-video-ia/core";
+import { chiffrer, dechiffrer, lireCleMaitre } from "@studio-video-ia/core/chiffrement";
+import { renouvelerJeton, testerCompte, testerElevenLabs, testerOpenAI, testerXai, type Fetch } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { cleMaitre, lireAppOAuth, lireCle } from "./cles";
 import { lireEnv, NOMS_ENV } from "./env";

@@ -1,6 +1,6 @@
 // Tâche « stats » (par espace) : pour chaque compte connecté, chiffres du jour, toutes ses vidéos, revenus YouTube,
 // et statistiques des publications faites par l'app. Un compte en erreur n'empêche pas la synchronisation des autres.
-import { dateLocale, type Publication, type StatsPublication } from "@feuilleton/core";
+import { dateLocale, type Publication, type StatsPublication } from "@studio-video-ia/core";
 import {
   chiffresChaineYoutube,
   chiffresCompteInstagram,
@@ -17,7 +17,7 @@ import {
   type ChiffresCompte,
   type RevenusYoutube,
   type VideoExterne,
-} from "@feuilleton/integrations";
+} from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { ErreurReconnexion, jetonValide, marquerExpire, type CompteReseau } from "../comptes";
 import type { Contexte } from "../contexte";

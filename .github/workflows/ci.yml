@@ -25,4 +25,4 @@ jobs:
       - name: Tests
         run: npm test
       - name: Build du site
-        run: npm run build -w @feuilleton/web
+        run: npm run build -w @studio-video-ia/web

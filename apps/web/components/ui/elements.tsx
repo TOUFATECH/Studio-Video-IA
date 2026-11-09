@@ -1,5 +1,5 @@
 // Petits éléments d'interface partagés : puce de statut, jauge, badge de réseau, pastille.
-import { NOMS_RESEAUX, type Reseau, type Ton } from "@feuilleton/core";
+import { NOMS_RESEAUX, type Reseau, type Ton } from "@studio-video-ia/core";
 import type { CSSProperties, ReactNode } from "react";
 
 /** Puce de statut colorée selon le ton sémantique. */

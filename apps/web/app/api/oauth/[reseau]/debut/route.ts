@@ -1,7 +1,7 @@
 // Début d'une connexion OAuth (YouTube, Instagram, TikTok) : vérifie la session et l'espace,
 // pose un cookie « state » signé, puis redirige vers la page d'autorisation du réseau.
-import { schemaReseau } from "@feuilleton/core";
-import { urlAutorisation } from "@feuilleton/integrations";
+import { schemaReseau } from "@studio-video-ia/core";
+import { urlAutorisation } from "@studio-video-ia/integrations";
 import { type NextRequest, NextResponse } from "next/server";
 import { cleMaitre, lireAppOAuth } from "@/lib/cles";
 import { messageErreur } from "@/lib/erreurs";

@@ -1,6 +1,6 @@
 // Tâche « fiche_personnage » : image de référence d'un personnage (face, profil, dos) utilisée ensuite pour chaque plan.
-import { promptFiche, type Personnage, type Serie } from "@feuilleton/core";
-import { genererImage } from "@feuilleton/integrations";
+import { promptFiche, type Personnage, type Serie } from "@studio-video-ia/core";
+import { genererImage } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import { avecRelance, type Contexte } from "../contexte";

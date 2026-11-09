@@ -1,6 +1,6 @@
-# Feuilleton — studio de séries vidéo
+# Studio Vidéo IA
 
-Feuilleton écrit, génère, monte et publie des séries vidéo :
+Studio Vidéo IA écrit, génère, monte et publie des séries vidéo :
 
 **histoire (OpenAI) → images (OpenAI Images) → clips (xAI Grok) → voix (ElevenLabs) → montage et sous-titres (ffmpeg) → publication programmée (TikTok, Instagram, YouTube) → statistiques.**
 

@@ -11,8 +11,8 @@ import {
   type Fichier,
   type Personnage,
   type Plan,
-} from "@feuilleton/core";
-import { demanderJson } from "@feuilleton/integrations";
+} from "@studio-video-ia/core";
+import { demanderJson } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";

@@ -1,5 +1,5 @@
 // Tests de la construction de la liste « À faire » avec des données factices.
-import { etatEpisode, type Episode, type Espace, type Fichier, type Personnage, type Plan, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache } from "@feuilleton/core";
+import { etatEpisode, type Episode, type Espace, type Fichier, type Personnage, type Plan, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache } from "@studio-video-ia/core";
 import { describe, expect, it } from "vitest";
 import { construireAFaire, type EntreeAFaire } from "../lib/a-faire";
 

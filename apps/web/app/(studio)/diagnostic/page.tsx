@@ -1,5 +1,5 @@
 // Diagnostic : configuration, base, stockage, worker, clés, comptes connectés, quotas, et test complet de la chaîne.
-import { LANGUES, NOMS_LANGUES } from "@feuilleton/core";
+import { LANGUES, NOMS_LANGUES } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import { lancerTestComplet } from "@/app/actions/diagnostic";
 import { RafraichissementDirect } from "@/components/RafraichissementDirect";
@@ -53,7 +53,7 @@ export default async function PageDiagnostic() {
     return (
       <div className="pile pile--large">
         <header>
-          <p className="surtitre">Feuilleton</p>
+          <p className="surtitre">Studio Vidéo IA</p>
           <h1 className="h1">Diagnostic</h1>
           <p className="petit doux marge-haut">Supabase n’est pas configuré : complète les variables ci-dessous, puis redémarre l’app.</p>
         </header>

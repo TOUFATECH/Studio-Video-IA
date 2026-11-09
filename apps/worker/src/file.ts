@@ -1,7 +1,7 @@
 // Boucle principale du worker : prise des tâches (concurrence WORKER_CONCURRENCY), battement de cœur, libération des
 // tâches bloquées, planificateur, synchronisation des statistiques, arrêt propre sur SIGINT / SIGTERM.
-import type { Tache, TypeTache } from "@feuilleton/core";
-import { ErreurApi, type Fetch } from "@feuilleton/integrations";
+import type { Tache, TypeTache } from "@studio-video-ia/core";
+import { ErreurApi, type Fetch } from "@studio-video-ia/integrations";
 import { accesBudgetSupabase, estPayante, plafondAtteint, type AccesBudget } from "./budget";
 import { ErreurReconnexion } from "./comptes";
 import { VERSION_WORKER, type Config } from "./config";

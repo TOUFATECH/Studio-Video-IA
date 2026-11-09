@@ -1,5 +1,5 @@
 {
-  "name": "@feuilleton/web",
+  "name": "@studio-video-ia/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@feuilleton/core": "0.1.0",
-    "@feuilleton/integrations": "0.1.0",
+    "@studio-video-ia/core": "0.1.0",
+    "@studio-video-ia/integrations": "0.1.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "next": "^15.5.29",

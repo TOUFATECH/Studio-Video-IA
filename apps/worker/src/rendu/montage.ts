@@ -2,7 +2,7 @@
 // Indépendant de Supabase : utilisé par la tâche rendu, par le test complet et par le test d'intégration ffmpeg.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { construireReperes, versSrt, type Langue, type Plan } from "@feuilleton/core";
+import { construireReperes, versSrt, type Langue, type Plan } from "@studio-video-ia/core";
 import { argumentsConcat, argumentsFinal, argumentsSegment, listeConcat, VOLUMES, type Orientation, type VoixPlacee } from "./arguments";
 import { aLibass, ErreurOutil, executerFfmpeg, MESSAGE_SANS_LIBASS, sonder } from "./executant";
 

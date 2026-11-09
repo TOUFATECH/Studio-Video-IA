@@ -1,7 +1,7 @@
 // Tâche « clips » : traductions manquantes, puis un clip Grok par plan (deux si 2 prises) et une voix ElevenLabs
 // par réplique et par langue. Une relance automatique par unité, puis échec lisible ; le coût de chaque fichier est enregistré.
-import { coutUnite, dureesParPlan, languesATraduire, LANGUES, promptTraduction, promptVideo, repliqueEn, unitesClips, type Episode, type Langue, type Personnage, type Plan, type Unite, estHorizontal } from "@feuilleton/core";
-import { demanderJson, genererVideo, synthetiserVoix, type RatioVideo } from "@feuilleton/integrations";
+import { coutUnite, dureesParPlan, languesATraduire, LANGUES, promptTraduction, promptVideo, repliqueEn, unitesClips, type Episode, type Langue, type Personnage, type Plan, type Unite, estHorizontal } from "@studio-video-ia/core";
+import { demanderJson, genererVideo, synthetiserVoix, type RatioVideo } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import { avecRelance, enParallele, ErreurAnnulee, ErreurArret, ErreurPlafond, type Contexte } from "../contexte";

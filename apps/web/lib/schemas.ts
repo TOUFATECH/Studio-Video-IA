@@ -1,6 +1,6 @@
 // Schémas Zod de toutes les entrées : formulaires des Server Actions et paramètres d'URL.
 // Module pur (sans accès réseau), testé dans tests/schemas.test.ts.
-import { DUREES_AUTORISEES, FOURNISSEURS, LANGUES, schemaLangue, schemaSousTitres, schemaTypePlan } from "@feuilleton/core";
+import { DUREES_AUTORISEES, FOURNISSEURS, LANGUES, schemaLangue, schemaSousTitres, schemaTypePlan } from "@studio-video-ia/core";
 import { z } from "zod";
 import { fuseauValide, schemaSaisieLocale } from "./dates";
 

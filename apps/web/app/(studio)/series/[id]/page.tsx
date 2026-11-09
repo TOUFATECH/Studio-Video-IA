@@ -1,5 +1,5 @@
 // Fiche d'une série : épisodes par saison, bible, mémoire et publication (rythme, hashtags, programmation).
-import { NOMS_LANGUES } from "@feuilleton/core";
+import { NOMS_LANGUES } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ecrireSuite } from "@/app/actions/series";

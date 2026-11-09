@@ -1,9 +1,9 @@
 {
-  "name": "@feuilleton/worker",
+  "name": "@studio-video-ia/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Worker de Feuilleton : file de tâches, génération IA, rendu ffmpeg, publication programmée et statistiques.",
+  "description": "Worker de Studio Vidéo IA : file de tâches, génération IA, rendu ffmpeg, publication programmée et statistiques.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
@@ -13,8 +13,8 @@
     "test:live": "vitest run tests/live --passWithNoTests"
   },
   "dependencies": {
-    "@feuilleton/core": "0.1.0",
-    "@feuilleton/integrations": "0.1.0",
+    "@studio-video-ia/core": "0.1.0",
+    "@studio-video-ia/integrations": "0.1.0",
     "@supabase/supabase-js": "^2.119.0",
     "tsx": "^4.23.15",
     "zod": "^3.24.1"

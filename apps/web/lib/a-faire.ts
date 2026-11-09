@@ -1,6 +1,6 @@
 // Construction de la liste « À faire » de l'accueil (et du badge du menu), à partir des données déjà chargées.
 // Fonction pure : testée avec des données factices dans tests/a-faire.test.ts.
-import { NOMS_RESEAUX, etapeDeTache, type Episode, type EtatEpisode, type Espace, type Personnage, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache, type Ton, type TypeTache } from "@feuilleton/core";
+import { NOMS_RESEAUX, etapeDeTache, type Episode, type EtatEpisode, type Espace, type Personnage, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache, type Ton, type TypeTache } from "@studio-video-ia/core";
 import { codeEpisode, nomEpisode } from "./episodes";
 import { euros } from "./format";
 

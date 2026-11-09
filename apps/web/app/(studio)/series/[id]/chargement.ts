@@ -1,6 +1,6 @@
 // Chargement de tout ce qu'affiche la fiche d'une série (lecture via RLS).
 import "server-only";
-import { etatEpisode, type EtatEpisode } from "@feuilleton/core";
+import { etatEpisode, type EtatEpisode } from "@studio-video-ia/core";
 import { notFound } from "next/navigation";
 import { COLONNES_RESEAU } from "@/lib/appartenance";
 import { enLots, grouper } from "@/lib/donnees";

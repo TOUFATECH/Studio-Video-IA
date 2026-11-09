@@ -1,5 +1,5 @@
 // Onglet « Publication » : rythme, prochain créneau, hashtags par réseau et programmation des épisodes prêts.
-import { MAX_HASHTAGS, NOMS_RESEAUX, RESEAUX, hashtagsParDefaut, prochainCreneau } from "@feuilleton/core";
+import { MAX_HASHTAGS, NOMS_RESEAUX, RESEAUX, hashtagsParDefaut, prochainCreneau } from "@studio-video-ia/core";
 import Link from "next/link";
 import { enregistrerHashtagsSerie, modifierRythme, programmerEpisodesPrets } from "@/app/actions/series";
 import { CompteurHashtags } from "@/components/CompteurHashtags";

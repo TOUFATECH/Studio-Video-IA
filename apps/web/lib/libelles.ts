@@ -1,5 +1,5 @@
 // Libellés et tons des statuts affichés (publications, tâches, comptes).
-import { LANGUES, NOMS_LANGUES, type Langue, type Publication, type ReseauConnecte, type Ton } from "@feuilleton/core";
+import { LANGUES, NOMS_LANGUES, type Langue, type Publication, type ReseauConnecte, type Ton } from "@studio-video-ia/core";
 
 /** Libellé et ton d'une publication. */
 export function statutPublication(p: Pick<Publication, "statut" | "progression">): { texte: string; ton: Ton } {
