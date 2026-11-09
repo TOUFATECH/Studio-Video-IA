@@ -1,0 +1,8 @@
+// Clients des API externes (OpenAI, xAI, ElevenLabs, YouTube, Instagram, TikTok).
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "tests"]
+}
