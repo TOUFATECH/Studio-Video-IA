@@ -1,0 +1,21 @@
+# Worker Feuilleton dans Docker : docker compose up -d --build
+# Les variables viennent de .env (copie de .env.example) ; ffmpeg et les polices sont dans l'image.
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: .env
+    environment:
+      # Chemins propres à l'image : ils remplacent ceux du .env, prévus pour un PC.
+      WORKER_TMP_DIR: /data/tmp
+      FFMPEG_PATH: ffmpeg
+      FFPROBE_PATH: ffprobe
+    volumes:
+      - worker-tmp:/data/tmp
+    restart: unless-stopped
+    # Laisse au worker le temps de remettre ses tâches en file avant l'arrêt forcé.
+    stop_grace_period: 40s
+
+volumes:
+  worker-tmp:

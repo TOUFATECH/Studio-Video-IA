@@ -1,19 +1,21 @@
-// Point d'entrée de @feuilleton/integrations.
-// Provisoire : les fonctions du contrat lèvent « non implémenté » tant que le lot worker ne les a pas écrites.
-import type { ContratIntegrations } from "./contrat";
-
+// Point d'entrée de @feuilleton/integrations : le contrat public utilisé par l'app web et les clients des API externes.
 export * from "./contrat";
+export * from "./http";
+export * from "./openai";
+export * from "./xai";
+export * from "./elevenlabs";
+export * from "./oauth";
+export * from "./youtube";
+export * from "./instagram";
+export * from "./tiktok";
+export * from "./statistiques";
+export * from "./diagnostic";
 
-/** Erreur provisoire, remplacée par les vraies implémentations. */
-function nonImplemente(nom: string): never {
-  throw new Error(`${nom} : non implémenté`);
-}
+import type { ContratIntegrations } from "./contrat";
+import { testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "./diagnostic";
+import { listerVoix } from "./elevenlabs";
+import { echangerCode, renouvelerJeton, urlAutorisation } from "./oauth";
 
-export const urlAutorisation: ContratIntegrations["urlAutorisation"] = () => nonImplemente("urlAutorisation");
-export const echangerCode: ContratIntegrations["echangerCode"] = async () => nonImplemente("echangerCode");
-export const renouvelerJeton: ContratIntegrations["renouvelerJeton"] = async () => nonImplemente("renouvelerJeton");
-export const testerOpenAI: ContratIntegrations["testerOpenAI"] = async () => nonImplemente("testerOpenAI");
-export const testerXai: ContratIntegrations["testerXai"] = async () => nonImplemente("testerXai");
-export const testerElevenLabs: ContratIntegrations["testerElevenLabs"] = async () => nonImplemente("testerElevenLabs");
-export const testerCompte: ContratIntegrations["testerCompte"] = async () => nonImplemente("testerCompte");
-export const listerVoix: ContratIntegrations["listerVoix"] = async () => nonImplemente("listerVoix");
+/** Vérification à la compilation : les fonctions exportées respectent le contrat figé utilisé par l'app web. */
+const contratRespecte = { urlAutorisation, echangerCode, renouvelerJeton, testerOpenAI, testerXai, testerElevenLabs, testerCompte, listerVoix } satisfies ContratIntegrations;
+void contratRespecte;
