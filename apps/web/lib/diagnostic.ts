@@ -59,7 +59,7 @@ export async function verifierSupabase(supabase: ClientSupabase): Promise<Verifi
 }
 
 /** Infos publiées par le worker dans workers_etat.infos. */
-const schemaInfosWorker = z.object({ libass: z.union([z.boolean(), z.string()]).optional(), police: z.string().optional(), version: z.string().optional() }).passthrough().catch({});
+const schemaInfosWorker = z.object({ libass: z.union([z.boolean(), z.string()]).optional(), police: z.string().optional(), police_presente: z.boolean().nullable().optional(), version: z.string().optional() }).passthrough().catch({});
 
 /** Workers vus récemment, version de ffmpeg, libass et police des sous-titres. */
 export async function verifierWorkers(supabase: ClientSupabase): Promise<Verification[]> {
@@ -74,7 +74,8 @@ export async function verifierWorkers(supabase: ClientSupabase): Promise<Verific
       { groupe: "Worker", nom: `${w.nom} en ligne`, ok: age < 120, detail: age < 120 ? `Vu il y a ${Math.round(age)} s` : `Dernier signe il y a ${Math.round(age / 60)} min`, aFaire: age < 120 ? undefined : "Démarre le worker : les tâches restent en file tant qu’il est éteint." },
       { groupe: "Worker", nom: `${w.nom} · ffmpeg`, ok: !!w.version_ffmpeg, detail: w.version_ffmpeg ?? "Version inconnue", aFaire: w.version_ffmpeg ? undefined : "Installe ffmpeg ou renseigne FFMPEG_PATH." },
       { groupe: "Worker", nom: `${w.nom} · libass (sous-titres)`, ok: libass, detail: libass ? "Disponible" : "Absent ou inconnu", aFaire: libass ? undefined : "Installe un ffmpeg compilé avec libass." },
-      { groupe: "Worker", nom: `${w.nom} · police des sous-titres`, ok: !!infos.police, detail: infos.police ?? "Inconnue", aFaire: infos.police ? undefined : "Installe une police CJK (ex. Noto Sans CJK JP) et renseigne SUBTITLE_FONT." },
+      // police_presente vaut false quand le worker n'a pas trouvé la police sur sa machine (null : vérification impossible).
+      { groupe: "Worker", nom: `${w.nom} · police des sous-titres`, ok: !!infos.police && infos.police_presente !== false, detail: infos.police ? `${infos.police}${infos.police_presente === false ? " (introuvable sur la machine)" : ""}` : "Inconnue", aFaire: infos.police && infos.police_presente !== false ? undefined : "Installe une police CJK (ex. Noto Sans CJK JP) et renseigne SUBTITLE_FONT." },
     ];
   });
 }

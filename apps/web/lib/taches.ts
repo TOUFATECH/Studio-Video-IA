@@ -33,12 +33,12 @@ const NOMS: Record<TypeTache, string> = {
 };
 
 /**
- * Met une tâche en file. Refuse un doublon : même type et même épisode déjà « en_file » ou « en_cours ».
+ * Met une tâche en file. Refuse un doublon : même type et même épisode déjà « en_file », « en_cours » ou « en_pause ».
  * Sans épisode, le doublon se juge sur l'espace et, pour une fiche ou une voix, sur le personnage.
  */
 export async function mettreEnFile(d: DemandeTache): Promise<ResultatFile> {
   const admin = clientAdmin();
-  let requete = admin.from("taches").select("id").eq("espace_id", d.espace_id).eq("type", d.type).in("statut", ["en_file", "en_cours"]);
+  let requete = admin.from("taches").select("id").eq("espace_id", d.espace_id).eq("type", d.type).in("statut", ["en_file", "en_cours", "en_pause"]);
   requete = d.episode_id ? requete.eq("episode_id", d.episode_id) : requete.is("episode_id", null);
   const personnage = d.donnees?.personnage_id;
   if (!d.episode_id && typeof personnage === "string") requete = requete.contains("donnees", { personnage_id: personnage });
@@ -57,6 +57,8 @@ export async function mettreEnFile(d: DemandeTache): Promise<ResultatFile> {
     })
     .select("id")
     .single();
+  // 23505 : l'index unique de la base a bloqué un doublon créé au même instant (double clic) : même message.
+  if (error?.code === "23505") return { ok: false, raison: `${NOMS[d.type]} est déjà en file ou en cours.` };
   if (error || !data) throw new Error(`Mise en file impossible : ${error?.message ?? "réponse vide"}`);
   return { ok: true, id: String(data.id) };
 }

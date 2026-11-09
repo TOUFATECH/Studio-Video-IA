@@ -1,13 +1,36 @@
-// Layout racine : polices IBM Plex (téléchargées au build, servies par le site), thème, styles globaux.
+// Layout racine : polices IBM Plex (fichiers woff2 du dépôt, licence OFL, aucune requête externe), thème, styles globaux.
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
+import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "../styles/main.scss";
 
-const texte = IBM_Plex_Sans({ subsets: ["latin", "latin-ext"], weight: ["400", "500", "600"], variable: "--police-texte", display: "swap" });
-const titre = IBM_Plex_Sans_Condensed({ subsets: ["latin", "latin-ext"], weight: ["500", "600"], variable: "--police-titre", display: "swap" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--police-mono", display: "swap" });
+// Polices rangées dans app/polices : le build marche sans internet et le site ne dépend d'aucun service tiers.
+const texte = localFont({
+  src: [
+    { path: "./polices/ibm-plex-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./polices/ibm-plex-sans-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./polices/ibm-plex-sans-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--police-texte",
+  display: "swap",
+});
+const titre = localFont({
+  src: [
+    { path: "./polices/ibm-plex-sans-condensed-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./polices/ibm-plex-sans-condensed-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--police-titre",
+  display: "swap",
+});
+const mono = localFont({
+  src: [
+    { path: "./polices/ibm-plex-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./polices/ibm-plex-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--police-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "Feuilleton", template: "%s · Feuilleton" },

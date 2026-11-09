@@ -92,6 +92,8 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
     return { valeur: local, message: `voix « ${choisie.nom} »` };
   });
 
+  // Chemin du rendu de test, transmis à la page Diagnostic pour qu'elle puisse le lire.
+  let cheminRendu: string | null = null;
   if (clip) {
     await etape(`Rendu ffmpeg sous-titré (${langue})`, async () => {
       const plan: Plan = { id: "test", episode_id: "test", position: 0, section: "principal", type: "dialogue", texte: "", personnage_id: "test", replique: PHRASES_TEST[langue], repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A" };
@@ -107,6 +109,7 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
         signal: ctx.signal,
       });
       const chemin = cheminEspace(espace, "test", nomUnique(`rendu-${langue}`, "mp4"));
+      cheminRendu = chemin;
       await ctx.stockage.envoyerFichier(chemin, r.chemin, "video/mp4");
       await enregistrerFichier(ctx.db, { espace_id: espace, episode_id: null, genre: "rendu", langue, chemin, duree_s: Math.round(r.duree * 100) / 100 });
       return { valeur: chemin, message: `${r.duree.toFixed(1)} s, 1080x1920${r.avecSousTitres ? ", sous-titres incrustés" : ""}` };
@@ -114,5 +117,5 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
   } else sauter(`Rendu ffmpeg sous-titré (${langue})`, "pas de clip");
 
   const ok = etapes.every((x) => x.ok);
-  await ctx.progression({ fait: total, total, etape: ok ? "Test complet réussi" : `Test terminé : ${etapes.filter((x) => !x.ok).length} étape(s) en échec`, ok, etapes, langue });
+  await ctx.progression({ fait: total, total, etape: ok ? "Test complet réussi" : `Test terminé : ${etapes.filter((x) => !x.ok).length} étape(s) en échec`, ok, etapes, langue, rendu: cheminRendu });
 }
