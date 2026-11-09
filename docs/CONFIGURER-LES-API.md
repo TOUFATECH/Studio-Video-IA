@@ -33,12 +33,13 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 ## YouTube (Google Cloud)
 
 1. https://console.cloud.google.com → crée un projet.
-2. **API et services → Bibliothèque** : active « YouTube Data API v3 ».
-3. **Écran de consentement OAuth** : type Externe. Tant que l'app est « En test », ajoute ton adresse Google dans les utilisateurs de test.
+2. **API et services → Bibliothèque** : active « YouTube Data API v3 » et « YouTube Analytics API » (vues détaillées et revenus).
+3. **Écran de consentement OAuth** : type Externe, avec les autorisations `youtube.upload`, `youtube.readonly`, `yt-analytics.readonly` et `yt-analytics-monetary.readonly`. Tant que l'app est « En test », ajoute ton adresse Google dans les utilisateurs de test.
 4. **Identifiants → Créer → ID client OAuth → Application Web**, avec l'adresse de retour YouTube ci-dessus.
 5. Dans Feuilleton : Réglages → Clés API → Google : identifiant client et secret client. Puis Réglages → Comptes → Connecter YouTube (une fois par chaîne).
 6. Programmation : YouTube publie lui-même à la date choisie (vidéo envoyée en privé avec une date de publication).
-7. Limites : le quota d'envoi par jour est limité par Google. Google peut exiger un audit de ton projet (« YouTube API Services ») avant que les vidéos envoyées par l'API soient publiques : si elles restent privées, c'est la raison.
+7. Revenus : lus automatiquement par l'API YouTube Analytics si la chaîne est monétisée (Programme Partenaire YouTube). Sinon, l'app indique « revenus indisponibles ».
+8. Limites : le quota d'envoi par jour est limité par Google. Google peut exiger un audit de ton projet (« YouTube API Services ») avant que les vidéos envoyées par l'API soient publiques : si elles restent privées, c'est la raison.
 
 ## Instagram (Meta)
 
@@ -47,12 +48,14 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 3. Autorisations : `instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights`. Déclare l'adresse de retour Instagram.
 4. Ton compte Instagram doit être **professionnel** (Créateur ou Entreprise). En mode développement, ajoute-le comme testeur de l'app.
 5. Dans Feuilleton : Réglages → Clés API → Meta : identifiant et secret de l'app Instagram. Puis Réglages → Comptes → Connecter Instagram.
-6. Limite : 100 publications par API sur 24 h. L'API n'a pas de programmation : le worker publie à l'heure exacte, il doit être allumé.
+6. Statistiques : abonnés, vues, j'aime et commentaires de toutes les vidéos du compte. Instagram n'a pas d'API pour les revenus : saisis-les chaque mois dans Statistiques → Revenus.
+7. Limite : 100 publications par API sur 24 h. L'API n'a pas de programmation : le worker publie à l'heure exacte, il doit être allumé.
 
 ## TikTok
 
 1. https://developers.tiktok.com → Manage apps → Connect an app.
-2. Ajoute **Login Kit** et **Content Posting API** (active « Direct Post »). Scopes : `user.info.basic`, `video.publish`, `video.list`. Déclare l'adresse de retour TikTok.
+2. Ajoute **Login Kit** et **Content Posting API** (active « Direct Post »). Scopes : `user.info.basic`, `user.info.stats` (abonnés), `video.publish`, `video.list` (vidéos du compte et leurs vues). Déclare l'adresse de retour TikTok.
 3. Dans Feuilleton : Réglages → Clés API → TikTok : client key et client secret. Puis Réglages → Comptes → Connecter TikTok.
 4. **Tant que ton app n'a pas passé l'audit de TikTok, les vidéos publiées par l'API restent privées** (visibles par toi seul). Une fois l'audit validé, coche « Audit TikTok validé » sur le compte dans Réglages → Comptes.
 5. L'API n'a pas de programmation : le worker publie à l'heure exacte. Les vidéos sont marquées comme contenu généré par IA.
+6. Statistiques : abonnés, j'aime totaux et vues de chaque vidéo publique. TikTok n'a pas d'API pour les revenus : saisis-les chaque mois dans Statistiques → Revenus.
