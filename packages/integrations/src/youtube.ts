@@ -197,3 +197,34 @@ export async function statsYoutube(jeton: string, ids: readonly string[], f: Fet
   }
   return out;
 }
+
+/** Réponse de lecture du statut de confidentialité d'une vidéo. */
+const schemaConfidentialite = z.object({ items: z.array(z.object({ id: z.string(), status: z.object({ privacyStatus: z.string(), publishAt: z.string().optional() }).optional() })) });
+
+/**
+ * Confidentialité réelle d'une vidéo après l'envoi (« public », « private », « unlisted »), ou null si introuvable.
+ * Sert à repérer les vidéos que YouTube garde privées (projet Google non vérifié par l'audit YouTube API Services).
+ */
+export async function confidentialiteYoutube(jeton: string, id: string, f: Fetch = fetch): Promise<{ privacyStatus: string; publishAt: string | null } | null> {
+  const url = `${URL_VIDEOS_YOUTUBE}?${new URLSearchParams({ part: "status", id }).toString()}`;
+  const rep = await appelJson(f, FOURNISSEUR, url, { headers: { Authorization: `Bearer ${jeton}` } }, schemaConfidentialite, [jeton]);
+  const s = rep.items[0]?.status;
+  return s ? { privacyStatus: s.privacyStatus, publishAt: s.publishAt ?? null } : null;
+}
+
+/** Adresse d'envoi d'une miniature personnalisée. */
+export const URL_MINIATURE_YOUTUBE = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set";
+
+/**
+ * Envoie la miniature (JPEG, 2 Mo au plus) d'une vidéo. YouTube n'accepte les miniatures personnalisées
+ * que sur une chaîne validée (vérification par téléphone) : l'appelant traite l'échec comme un simple avertissement.
+ */
+export async function definirMiniatureYoutube(jeton: string, videoId: string, jpeg: Uint8Array, f: Fetch = fetch): Promise<void> {
+  const url = `${URL_MINIATURE_YOUTUBE}?${new URLSearchParams({ videoId }).toString()}`;
+  const rep = await requete(f, FOURNISSEUR, url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jeton}`, "Content-Type": "image/jpeg" },
+    body: new Blob([new Uint8Array(jpeg)], { type: "image/jpeg" }),
+  });
+  if (!rep.ok) throw await erreurDepuisReponse(FOURNISSEUR, rep, [jeton]);
+}

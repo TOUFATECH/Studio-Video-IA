@@ -72,7 +72,11 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
                 <legend className="etiquette">Format</legend>
                 <label className="segment">
                   <input type="radio" name="format" value="court" defaultChecked={episode.format === "court"} />
-                  Court · 1:00 à 1:30 · vertical
+                  Court · 1:00 à 2:00 · vertical
+                </label>
+                <label className="segment">
+                  <input type="radio" name="format" value="moyen" defaultChecked={episode.format === "moyen"} />
+                  YouTube · 2:00 à 4:00 · 16:9
                 </label>
                 <label className="segment">
                   <input type="radio" name="format" value="long" defaultChecked={episode.format === "long"} />

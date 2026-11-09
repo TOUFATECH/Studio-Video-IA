@@ -39,6 +39,9 @@ export const TYPES_PLAN = {
 export type TypePlan = keyof typeof TYPES_PLAN;
 export const LISTE_TYPES_PLAN = Object.keys(TYPES_PLAN) as TypePlan[];
 
+/** Genres d'épisode : un vrai épisode, ou le générique de début ou de fin d'une saison. */
+export type GenreEpisode = "episode" | "opening" | "ending";
+
 /** Durées de clip proposées. Grok accepte 1 à 15 s ; on se limite à ces paliers pour un montage régulier. */
 export const DUREES_AUTORISEES = [3, 5, 8, 10, 15] as const;
 export type DureeAutorisee = (typeof DUREES_AUTORISEES)[number];
@@ -46,17 +49,53 @@ export type DureeAutorisee = (typeof DUREES_AUTORISEES)[number];
 /** Durée réservée dans un film long à l'opening (30 s) et à l'ending (30 s) de la saison. */
 export const DUREE_GENERIQUES = 60;
 
-/** Bornes de durée cible par format, en secondes. */
+/**
+ * Bornes de durée cible par format, en secondes.
+ * court : épisode vertical pour TikTok, Instagram et Short YouTube (1:00 à 2:00).
+ * moyen : épisode YouTube 16:9 (2:00 à 4:00), avec bande annonce verticale pour TikTok et Instagram.
+ * long : film 16:9 (5 à 20 min) avec opening, ending et bande annonce.
+ */
 export const BORNES_DUREE = {
-  court: { min: 60, max: 90, pas: 5, defaut: 75 },
+  court: { min: 60, max: 120, pas: 15, defaut: 75 },
+  moyen: { min: 120, max: 240, pas: 30, defaut: 180 },
   long: { min: 300, max: 1200, pas: 60, defaut: 1200 },
   generique: { min: 15, max: 45, pas: 5, defaut: 30 },
 } as const;
 
-/** Formats d'épisode. */
-export type FormatEpisode = "court" | "long";
-/** Genres d'épisode : un vrai épisode, ou le générique de début ou de fin d'une saison. */
-export type GenreEpisode = "episode" | "opening" | "ending";
+/** Formats d'épisode (voir BORNES_DUREE). */
+export type FormatEpisode = "court" | "moyen" | "long";
+
+/** Libellé de chaque format dans l'interface. */
+export const NOMS_FORMATS: Record<FormatEpisode, string> = {
+  court: "Court · 1:00 à 2:00 · vertical · TikTok, Instagram, Short YouTube",
+  moyen: "YouTube · 2:00 à 4:00 · 16:9 · bande annonce verticale pour TikTok et Instagram",
+  long: "Film · 5 à 20 min · 16:9 · opening, ending et bande annonce",
+};
+
+/** Vrai si le format est tourné en 16:9 (épisode YouTube et film). */
+export function estHorizontal(format: FormatEpisode): boolean {
+  return format !== "court";
+}
+
+/** Vrai si l'épisode a une bande annonce verticale (épisode YouTube et film). */
+export function aBandeAnnonce(format: FormatEpisode, genre: GenreEpisode): boolean {
+  return genre === "episode" && format !== "court";
+}
+
+/** Vrai si l'épisode est encadré par l'opening et l'ending de la saison (film seulement). */
+export function aGeneriques(format: FormatEpisode, genre: GenreEpisode): boolean {
+  return genre === "episode" && format === "long";
+}
+
+/** Durée maximale d'une bande annonce, en secondes. */
+export const DUREE_MAX_BANDE_ANNONCE = 60;
+
+/**
+ * Durées maximales de publication, en secondes, voulues pour la série :
+ * TikTok et Instagram 2 min, Short YouTube 3 min, épisode YouTube 4 min. Le film long n'a pas de limite ici
+ * (YouTube exige seulement un compte validé au-delà de 15 min).
+ */
+export const DUREE_MAX_PUBLICATION = { tiktok: 120, instagram: 120, youtube_short: 180, youtube_episode: 240 } as const;
 
 /** Origine de la voix d'un personnage. */
 export type SourceVoix = "elevenlabs" | "elevenlabs_clone" | "grok";

@@ -1,10 +1,11 @@
 // Tâche « publication » : envoi d'un livrable sur YouTube (programmation native), Instagram ou TikTok (publication immédiate).
 import { join } from "node:path";
-import { legende, type Episode, type Fichier, type Publication, type Serie, type StatutPublication } from "@feuilleton/core";
-import { envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@feuilleton/integrations";
+import { legende, verifierDureePublication, type Episode, type Fichier, type Publication, type Serie, type StatutPublication } from "@feuilleton/core";
+import { confidentialiteYoutube, definirMiniatureYoutube, envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@feuilleton/integrations";
 import { chargerCompte, ErreurReconnexion, jetonValide, marquerExpire, MESSAGE_RECONNEXION, type CompteReseau } from "../comptes";
 import type { Contexte } from "../contexte";
 import { erreurCourte, fichierPret } from "../donnees";
+import { executerFfmpeg } from "../rendu/executant";
 import { ecrire, ligne, lignes } from "../supabase";
 
 /** Clé du fichier à publier selon le livrable : la version de la langue, ou la bande annonce. */
@@ -31,6 +32,13 @@ export async function tachePublication(ctx: Contexte): Promise<void> {
     await ctx.progression({ fait: 1, total: 1, etape: `Rien à faire : publication déjà ${pub.statut}` });
     return;
   }
+  // Envoi interrompu (worker arrêté en plein envoi) : la vidéo est peut-être déjà en ligne. On ne renvoie pas
+  // tout seul pour éviter un doublon public ; l'utilisateur vérifie sur le réseau puis clique « Réessayer ».
+  if (pub.statut === "envoi" || pub.statut === "traitement") {
+    await majPublication(ctx, pub.id, { statut: "echec", erreur: "Envoi interrompu : vérifie sur le réseau si la vidéo est en ligne avant de cliquer Réessayer (sinon elle sortirait deux fois)." });
+    await ctx.progression({ fait: 1, total: 1, etape: "Envoi interrompu : vérification manuelle demandée" });
+    return;
+  }
   const compte = await chargerCompte(ctx.db, pub.reseau_connecte_id);
   try {
     await publier(ctx, pub, compte);
@@ -46,9 +54,14 @@ export async function tachePublication(ctx: Contexte): Promise<void> {
 async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): Promise<void> {
   const episode = await ligne<Episode>(ctx.db.from("episodes").select("*").eq("id", pub.episode_id).limit(1), "épisode");
   const serie = await ligne<Serie>(ctx.db.from("series").select("*").eq("id", episode.serie_id).limit(1), "série");
+  // Garde-fou : on ne publie qu'avec un compte du même espace que la série.
+  if (compte.espace_id !== serie.espace_id) throw new Error("Ce compte réseau n'appartient pas au même compte que la série : publication refusée.");
   const fichiers = await lignes<Fichier>(ctx.db.from("fichiers").select("*").eq("episode_id", episode.id).in("genre", ["rendu", "bande_annonce"]), "rendus");
   const fichier = fichierPret(fichiers, cleLivrable(pub));
   if (!fichier?.chemin) throw new Error(`Le rendu ${pub.livrable === "bande_annonce" ? "de la bande annonce" : pub.langue} n'existe pas : lance le rendu avant de publier.`);
+  // Durée maximale voulue par réseau (TikTok et Instagram 2:00, Short YouTube 3:00, épisode YouTube 4:00).
+  const trop = verifierDureePublication({ reseau: compte.reseau, livrable: pub.livrable, format: episode.format, duree: Number(fichier.duree_s ?? 0) });
+  if (trop) throw new Error(trop);
   const texte = legende({ ...episode, hashtags: episode.hashtags ?? {} }, { ...serie, hashtags: serie.hashtags ?? {} }, pub.langue, compte.reseau);
   const jeton = await jetonValide({ db: ctx.db, cleMaitre: ctx.cleMaitre, cles: await ctx.cles(), compte, f: ctx.f });
 
@@ -81,6 +94,14 @@ async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): P
       ctx.f,
     );
     const url = urlYoutube(r.id, pub.livrable !== "film");
+    await miniatureYoutube(ctx, episode, jeton, r.id);
+    // YouTube peut garder privée une vidéo envoyée par un projet Google non audité : on lit le statut réel.
+    const reel = r.programmee ? null : await confidentialiteYoutube(jeton, r.id, ctx.f).catch(() => null);
+    if (reel?.privacyStatus === "private") {
+      await majPublication(ctx, pub.id, { statut: "privee", id_externe: r.id, url, progression: 100, publiee_le: new Date().toISOString(), erreur: "YouTube a gardé la vidéo privée : projet Google non audité (YouTube API Services) ou chaîne non validée." });
+      await ctx.progression({ fait: 100, total: 100, etape: "Envoyée sur YouTube, mais restée privée" });
+      return;
+    }
     await majPublication(ctx, pub.id, r.programmee ? { statut: "programmee", id_externe: r.id, url, progression: 100 } : { statut: "publiee", id_externe: r.id, url, progression: 100, publiee_le: new Date().toISOString() });
     await ctx.progression({ fait: 100, total: 100, etape: r.programmee ? `Programmée sur YouTube pour ${programmeeLe.toISOString()}` : "Publiée sur YouTube" });
     return;
@@ -128,6 +149,28 @@ async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): P
   const statut = statutTiktok(r.confidentialite);
   const pseudo = r.pseudo ?? (typeof compte.infos?.username === "string" ? compte.infos.username : null);
   const url = r.idPublic && pseudo ? `https://www.tiktok.com/@${pseudo}/video/${r.idPublic}` : null;
-  await majPublication(ctx, pub.id, { statut, id_externe: r.idPublic ?? r.publishId, url, progression: 100, publiee_le: new Date().toISOString() });
+  // Seul l'identifiant public de la vidéo permet de retrouver ses statistiques (le publish_id ne sert qu'à l'envoi).
+  await majPublication(ctx, pub.id, { statut, id_externe: r.idPublic ?? null, url, progression: 100, publiee_le: new Date().toISOString() });
   await ctx.progression({ fait: 100, total: 100, etape: statut === "privee" ? "Publiée sur TikTok en privé (application non auditée)" : "Publiée sur TikTok" });
+}
+
+/**
+ * Envoie la miniature choisie dans l'étape Montage (si l'épisode en a une), convertie en JPEG 1280x720.
+ * Ne bloque jamais la publication : YouTube refuse les miniatures personnalisées sur une chaîne non validée.
+ */
+async function miniatureYoutube(ctx: Contexte, episode: Episode, jeton: string, videoId: string): Promise<void> {
+  const choix = episode.miniature;
+  const chemin = choix ? choix.chemins[choix.choix] : undefined;
+  if (!chemin) return;
+  try {
+    const dossier = await ctx.dossier();
+    const source = await ctx.stockage.telechargerVers(chemin, join(dossier, "miniature-source"));
+    const jpeg = join(dossier, "miniature.jpg");
+    // 1280x720 recadré au centre, qualité JPEG élevée mais sous la limite de 2 Mo de YouTube.
+    await executerFfmpeg(ctx.config.ffmpeg, ["-y", "-i", source, "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720", "-q:v", "3", jpeg], ctx.signal);
+    const { readFile } = await import("node:fs/promises");
+    await definirMiniatureYoutube(jeton, videoId, await readFile(jpeg), ctx.f);
+  } catch (e) {
+    ctx.journal(`miniature YouTube non envoyée : ${erreurCourte(e)}`);
+  }
 }

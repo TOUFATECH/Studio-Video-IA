@@ -13,7 +13,8 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
   const champ = <input type="hidden" name="episode_id" value={episode.id} />;
   const tache = d.taches.find((t) => t.type === "rendu");
   const clipsOk = plans.length > 0 && plans.every((p) => index.get(`${p.id}:clip:${p.prise_choisie}`)?.statut === "pret");
-  const long = episode.format === "long" && episode.genre === "episode";
+  // Épisode YouTube et film : tournés en 16:9, avec une bande annonce verticale.
+  const long = episode.format !== "court" && episode.genre === "episode";
   // Voix Grok : le clip parle dans la langue d'origine, les autres versions n'auront pas cette réplique doublée.
   const grokParle = plans.some((p) => p.type === "dialogue" && personnages.find((c) => c.id === p.personnage_id)?.source_voix === "grok");
   const premier = plans[0];
@@ -155,7 +156,7 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
           {bandeAnnonce?.statut === "pret" && bandeAnnonce.chemin && urls.get(bandeAnnonce.chemin) ? (
             <video className={styles.lecteurRendu} src={urls.get(bandeAnnonce.chemin)} controls preload="none" playsInline aria-label="Bande annonce" />
           ) : (
-            <p className="petit doux">Montée avec le rendu à partir des plans forts du film. Publiée sur TikTok et Instagram ; le film entier part sur YouTube.</p>
+            <p className="petit doux">Montée avec le rendu à partir des plans forts (1:00 maximum). Publiée sur TikTok et Instagram ; la version 16:9 entière part sur YouTube.</p>
           )}
         </section>
       ) : null}

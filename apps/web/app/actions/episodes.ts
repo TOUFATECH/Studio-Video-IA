@@ -6,6 +6,7 @@ import {
   LANGUES,
   dureesParPlan,
   livrablePour,
+  verifierDureePublication,
   normaliserHashtags,
   prochainCreneau,
   schemaReseau,
@@ -71,13 +72,29 @@ async function fichiersDe(episodeId: string) {
   return lignes(ligneFichier, (await supabase.from("fichiers").select("*").eq("episode_id", episodeId)).data, "fichiers");
 }
 
-/** Les publications programmées de ces langues attendront le nouveau rendu. */
+/**
+ * Les publications programmées de ces langues attendront le nouveau rendu.
+ * Cas particulier : une vidéo déjà envoyée sur YouTube (programmée chez YouTube) contient l'ANCIEN montage ;
+ * l'app ne peut pas la supprimer (autorisation non demandée), donc la publication passe en échec avec la marche à suivre.
+ */
 async function remettreEnAttente(episodeId: string, langues?: readonly Langue[]): Promise<void> {
   const { supabase } = await utilisateur();
-  let q = supabase.from("publications").update({ statut: "attend_rendu" }).eq("episode_id", episodeId).eq("statut", "programmee");
+  let q = supabase.from("publications").update({ statut: "attend_rendu" }).eq("episode_id", episodeId).eq("statut", "programmee").is("id_externe", null);
   if (langues) q = q.in("langue", [...langues]);
   await q;
+  let deja = supabase
+    .from("publications")
+    .update({ statut: "echec", id_externe: null, url: null, erreur: MESSAGE_YOUTUBE_PERIME })
+    .eq("episode_id", episodeId)
+    .eq("statut", "programmee")
+    .not("id_externe", "is", null);
+  if (langues) deja = deja.in("langue", [...langues]);
+  await deja;
 }
+
+/** Message affiché quand une vidéo déjà programmée sur YouTube ne correspond plus au montage. */
+const MESSAGE_YOUTUBE_PERIME =
+  "Le montage a changé après l’envoi sur YouTube : supprime l’ancienne vidéo (ou passe-la en privé sans date) dans YouTube Studio, puis clique Réessayer pour envoyer le nouveau montage.";
 
 /** Bornes de durée selon le genre et le format. */
 function bornes(ep: Pick<Episode, "genre">, format: Episode["format"]) {
@@ -445,6 +462,17 @@ export async function publier(fd: FormData): Promise<void> {
     }
 
     const fichiers = (await fichiersDe(episode.id)).filter((f) => f.statut === "pret");
+    // Durée maximale par réseau : durée réelle du rendu, sinon la durée cible (le worker revérifie avant l'envoi).
+    const tropLongs = comptes
+      .map((c) => {
+        const livrable = livrablePour(episode, c.reseau);
+        const f = livrable === "bande_annonce" ? fichiers.find((x) => x.genre === "bande_annonce") : fichiers.find((x) => x.genre === "rendu" && x.langue === d.langue);
+        const duree = f?.duree_s !== null && f?.duree_s !== undefined ? Number(f.duree_s) : livrable === "bande_annonce" ? 60 : episode.duree_cible;
+        const message = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree });
+        return message ? `${c.nom_compte} : ${message}` : null;
+      })
+      .filter((x): x is string => x !== null);
+    if (tropLongs.length) throw new ErreurUtilisateur(tropLongs.join(" "));
     const lignesPub = comptes.map((c) => {
       const livrable = livrablePour(episode, c.reseau);
       // La bande annonce est un fichier à part ; le court et le film sont le rendu de la langue.
@@ -463,6 +491,8 @@ export async function annulerPublication(fd: FormData): Promise<void> {
     const { publication_id } = valider(schemaPublicationSeule, fd);
     const { publication } = await publicationAMoi(publication_id);
     if (!["attend_rendu", "programmee", "echec"].includes(publication.statut)) throw new ErreurUtilisateur("Cette publication est déjà partie : supprime-la directement sur le réseau.");
+    // Une vidéo déjà programmée chez YouTube sortirait quand même à l'heure : l'annulation doit se faire dans YouTube Studio.
+    if (publication.id_externe && publication.statut === "programmee") throw new ErreurUtilisateur("Cette vidéo est déjà envoyée et programmée sur YouTube : supprime-la ou passe-la en privé sans date dans YouTube Studio.");
     const { supabase } = await utilisateur();
     verifier((await supabase.from("publications").update({ statut: "annulee" }).eq("id", publication.id)).error, "Annulation");
     await clientAdmin().from("taches").update({ statut: "annulee" }).eq("publication_id", publication.id).eq("statut", "en_file");
@@ -480,7 +510,8 @@ export async function reessayerPublication(fd: FormData): Promise<void> {
     const pret = publication.livrable === "bande_annonce" ? fichiers.some((f) => f.genre === "bande_annonce") : fichiers.some((f) => f.genre === "rendu" && f.langue === publication.langue);
     const { supabase } = await utilisateur();
     verifier(
-      (await supabase.from("publications").update({ statut: pret ? "programmee" : "attend_rendu", programmee_le: new Date().toISOString(), erreur: null, progression: 0 }).eq("id", publication.id)).error,
+      // id_externe vidé : un nouvel essai renvoie la vidéo au lieu de croire l'ancien envoi valable.
+      (await supabase.from("publications").update({ statut: pret ? "programmee" : "attend_rendu", programmee_le: new Date().toISOString(), erreur: null, progression: 0, id_externe: null, url: null }).eq("id", publication.id)).error,
       "Nouvel essai",
     );
     return { message: "Publication relancée." };

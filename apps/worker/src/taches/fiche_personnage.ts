@@ -23,7 +23,7 @@ export async function tacheFichePersonnage(ctx: Contexte): Promise<void> {
   const debut = Date.now();
   try {
     // Trois vues côte à côte : un format horizontal leur laisse la place.
-    const { valeur: png, essais } = await avecRelance(() => genererImage(cle, { modele: ctx.config.modeles.image, prompt: promptFiche(perso, serie), taille: "1536x1024" }, ctx.f));
+    const { valeur: png, essais } = await avecRelance(() => genererImage(cle, { modele: ctx.config.modeles.image, prompt: promptFiche(perso, serie), taille: "1536x1024", qualite: ctx.config.modeles.qualiteImage }, ctx.f));
     const chemin = cheminEspace(serie.espace_id, "personnages", nomUnique(`fiche-${perso.id}`, "png"));
     await ctx.stockage.envoyer(chemin, png, "image/png");
     await enregistrerFichier(ctx.db, {

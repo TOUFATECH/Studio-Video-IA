@@ -65,3 +65,31 @@ select pg_temp.comme('00000000-0000-0000-0000-00000000000a');
 set role authenticated;
 select * from prendre_tache('pirate', null); -- doit échouer
 reset role;
+
+-- ---------- Protections ajoutées par la migration 0005 ----------
+reset role;
+insert into auth.users values ('00000000-0000-0000-0000-00000000000c');
+set role service_role;
+insert into espaces (proprietaire, nom) values ('00000000-0000-0000-0000-00000000000c', 'Studio C');
+insert into reseaux_connectes (espace_id, reseau, nom_compte) select id, 'youtube', '@c' from espaces where nom = 'Studio C';
+reset role;
+select pg_temp.comme('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+-- A tente de publier son épisode sur le compte YouTube de C : doit échouer
+insert into publications (episode_id, reseau_connecte_id, langue, programmee_le)
+  select (select id from episodes limit 1), (select id from reseaux_connectes where nom_compte = '@c'), 'fr', now();
+-- A tente de pointer sa fiche personnage vers un fichier d'un autre espace : doit échouer
+insert into personnages (serie_id, nom, fiche_chemin) select id, 'Pirate', '00000000-dead-beef-0000-000000000000/fiche.png' from series;
+insert into personnages (serie_id, nom, fiche_chemin) select s.id, 'Kaï', s.espace_id || '/fiches/kai.png' from series s returning 'A enregistre une fiche dans son propre espace';
+-- Format « YouTube » accepté, format inconnu refusé
+update episodes set format = 'moyen', duree_cible = 180 returning 'Épisode passé au format YouTube : ' || format;
+update episodes set format = 'carre'; -- doit échouer
+reset role;
+-- Tâche abandonnée : relancée tant que essais < 3, puis échec
+set role service_role;
+update taches set statut = 'en_cours', verrouille_le = now() - interval '1 hour', essais = 1;
+select 'Remises en file : ' || liberer_taches_bloquees();
+update taches set statut = 'en_cours', verrouille_le = now() - interval '1 hour', essais = 3;
+select liberer_taches_bloquees();
+select 'Après 3 essais : ' || statut from taches limit 1;
+reset role;

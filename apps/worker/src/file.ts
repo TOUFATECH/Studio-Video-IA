@@ -236,6 +236,12 @@ export class FileDeTaches {
       this.d.db.from("workers_etat").upsert({ nom: this.d.config.nom, vu_le: new Date().toISOString(), version_ffmpeg: this.outils.versionFfmpeg, infos: this.infos("actif") }, { onConflict: "nom" }),
       "battement de cœur",
     );
+    // Rafraîchit le verrou des tâches en cours : une tâche longue (film, gros envoi) n'est jamais
+    // prise pour une tâche abandonnée par liberer_taches_bloquees, donc jamais relancée ni payée deux fois.
+    const ids = [...this.enCours.keys()];
+    if (ids.length) {
+      await ecrire(this.d.db.from("taches").update({ verrouille_le: new Date().toISOString() }).in("id", ids).eq("verrouille_par", this.d.config.nom), "verrou des tâches en cours");
+    }
   }
 
   /** Remet en file les tâches d'un worker arrêté en plein travail. */

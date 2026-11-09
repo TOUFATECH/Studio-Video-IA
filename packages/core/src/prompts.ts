@@ -67,7 +67,9 @@ export function promptScenario(params: {
   const forme =
     episode.genre !== "episode"
       ? `Générique ${episode.genre === "opening" ? "d'ouverture" : "de fin"} de saison, ${params.nombrePlans} plans, sans dialogue.`
-      : episode.format === "long"
+      : episode.format === "moyen"
+        ? `Épisode YouTube de ${Math.round(episode.duree_cible / 60)} minutes en 16:9, ${params.nombrePlans} plans, section "principal". Le rythme peut prendre le temps d'installer une scène, mais garde une accroche forte et une fin qui appelle la suite.`
+        : episode.format === "long"
         ? `Film de ${Math.round(episode.duree_cible / 60)} minutes en ${params.nombreChapitres} chapitres (sections "ch1", "ch2"…), environ ${params.nombrePlans} plans au total. Donne la liste "chapitres" [{section, titre}] et la section de chaque plan.`
         : `Épisode court de ${episode.duree_cible} secondes, ${params.nombrePlans} plans, section "principal".`;
   const user = [

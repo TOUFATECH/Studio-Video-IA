@@ -12,6 +12,7 @@ import {
   instantLocal,
   legende,
   normaliserHashtags,
+  verifierDureePublication,
   languesATraduire,
   livrablePour,
   prochainCreneau,
@@ -191,5 +192,28 @@ describe("hashtags", () => {
     const l = legende(episode({ hashtags: { instagram: "#reel" } }), { nom: "Série", hashtags: { instagram: "#serie" } }, "fr", "instagram");
     expect(l.tags).toBe("#reel");
     expect(l.description.endsWith("#reel")).toBe(true);
+  });
+});
+
+describe("durées par réseau", () => {
+  it("accepte un court de 2:00 sur TikTok et refuse 2:30", () => {
+    expect(verifierDureePublication({ reseau: "tiktok", livrable: "court", format: "court", duree: 120 })).toBeNull();
+    expect(verifierDureePublication({ reseau: "instagram", livrable: "court", format: "court", duree: 150 })).toContain("2:00");
+  });
+  it("limite le Short YouTube à 3:00 et l'épisode YouTube à 4:00", () => {
+    expect(verifierDureePublication({ reseau: "youtube", livrable: "court", format: "court", duree: 179 })).toBeNull();
+    expect(verifierDureePublication({ reseau: "youtube", livrable: "film", format: "moyen", duree: 240 })).toBeNull();
+    expect(verifierDureePublication({ reseau: "youtube", livrable: "film", format: "moyen", duree: 260 })).toContain("4:00");
+  });
+  it("publie l'épisode YouTube en entier sur YouTube et en bande annonce ailleurs", () => {
+    expect(livrablePour({ format: "moyen" }, "youtube")).toBe("film");
+    expect(livrablePour({ format: "moyen" }, "tiktok")).toBe("bande_annonce");
+    expect(unitesRendu(episode({ format: "moyen", langues: ["fr"] })).map((u) => u.cle)).toEqual(["rendu:fr", "bande_annonce"]);
+  });
+  it("atteint 2:00 en court et 4:00 en épisode YouTube", () => {
+    const types: TypePlan[] = ["accroche", "decor", "action", "dialogue", "action", "decor", "action", "climax", "dialogue", "action", "decor", "action", "climax", "action", "dialogue", "action", "final"];
+    const plans = types.map((t, i) => ({ id: String(i), type: t, duree_fixee: null }));
+    expect(repartirDurees(plans, 120).reduce((a, b) => a + b, 0)).toBe(120);
+    expect(dureeTotale(plans, 240, "moyen", true)).toBe(240);
   });
 });

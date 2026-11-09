@@ -1,6 +1,6 @@
 // Chargement de tout ce qu'affiche la page d'un épisode, avec les URL signées de ses médias.
 import "server-only";
-import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers } from "@feuilleton/core";
+import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers, aGeneriques, DUREE_GENERIQUES } from "@feuilleton/core";
 import { notFound } from "next/navigation";
 import { COLONNES_RESEAU } from "@/lib/appartenance";
 import { ordreLecture } from "@/lib/episodes";
@@ -45,6 +45,10 @@ export async function chargerEpisode(brut: string) {
   const etat = etatEpisode({ episode, plans, personnages, fichiers, taches, publications: pubsActives });
   const durees = dureesParPlan(plans, episode.duree_cible, episode.format);
   const index = indexerFichiers(fichiers);
+  // Durée totale calculée (génériques compris pour un film) : sert au contrôle de durée par réseau avant le rendu.
+  let dureeTotale = 0;
+  for (const v of durees.values()) dureeTotale += v;
+  if (aGeneriques(episode.format, episode.genre)) dureeTotale += DUREE_GENERIQUES;
   const fiches = personnages.map((p) => p.fiche_chemin);
   const miniatures = episode.miniature?.chemins ?? [];
   const urls = await urlsSignees([...fichiers.filter((f) => f.statut === "pret").map((f) => f.chemin), ...fiches, ...miniatures]);
@@ -65,6 +69,7 @@ export async function chargerEpisode(brut: string) {
     personnages,
     fichiers,
     index,
+    dureeTotale,
     taches,
     recentes,
     publications,

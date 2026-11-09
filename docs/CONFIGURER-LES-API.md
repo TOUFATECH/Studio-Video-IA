@@ -39,7 +39,9 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 5. Dans Feuilleton : Réglages → Clés API → Google : identifiant client et secret client. Puis Réglages → Comptes → Connecter YouTube (une fois par chaîne).
 6. Programmation : YouTube publie lui-même à la date choisie (vidéo envoyée en privé avec une date de publication).
 7. Revenus : lus automatiquement par l'API YouTube Analytics si la chaîne est monétisée (Programme Partenaire YouTube). Sinon, l'app indique « revenus indisponibles ».
-8. Limites : le quota d'envoi par jour est limité par Google. Google peut exiger un audit de ton projet (« YouTube API Services ») avant que les vidéos envoyées par l'API soient publiques : si elles restent privées, c'est la raison.
+8. Miniatures : l'app envoie la miniature choisie dans Montage. YouTube ne l'accepte que sur une chaîne validée (vérification par téléphone) ; sinon la vidéo garde la miniature automatique.
+9. Vidéos de plus de 15 min (films) : YouTube exige un compte validé.
+10. Limites : le quota d'envoi par jour est limité par Google. Google peut exiger un audit de ton projet (« YouTube API Services ») avant que les vidéos envoyées par l'API soient publiques : si elles restent privées, c'est la raison.
 
 ## Instagram (Meta)
 

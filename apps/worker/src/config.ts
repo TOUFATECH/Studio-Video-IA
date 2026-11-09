@@ -19,6 +19,8 @@ export const schemaConfig = z.object({
   ),
   OPENAI_TEXT_MODEL: texte("gpt-4.1"),
   OPENAI_IMAGE_MODEL: texte("gpt-image-1"),
+  // Qualité fixée explicitement : sans elle, le modèle choisit « auto », souvent la plus chère.
+  OPENAI_IMAGE_QUALITY: texte("medium").pipe(z.enum(["low", "medium", "high"])),
   XAI_VIDEO_MODEL: texte("grok-imagine-video"),
   XAI_VIDEO_RESOLUTION: texte("720p").pipe(z.enum(["480p", "720p", "1080p"])),
   ELEVENLABS_TTS_MODEL: texte("eleven_multilingual_v2"),
@@ -36,7 +38,7 @@ export type Config = {
   supabaseUrl: string;
   supabaseCle: string;
   cleChiffrement: string;
-  modeles: { texte: string; image: string; video: string; resolutionVideo: "480p" | "720p" | "1080p"; voix: string };
+  modeles: { texte: string; image: string; qualiteImage: "low" | "medium" | "high"; video: string; resolutionVideo: "480p" | "720p" | "1080p"; voix: string };
   nom: string;
   dossierTemp: string;
   ffmpeg: string;
@@ -66,7 +68,7 @@ export function lireConfig(env: Record<string, string | undefined> = process.env
     supabaseUrl: c.NEXT_PUBLIC_SUPABASE_URL,
     supabaseCle: c.SUPABASE_SERVICE_ROLE_KEY,
     cleChiffrement: c.ENCRYPTION_KEY,
-    modeles: { texte: c.OPENAI_TEXT_MODEL, image: c.OPENAI_IMAGE_MODEL, video: c.XAI_VIDEO_MODEL, resolutionVideo: c.XAI_VIDEO_RESOLUTION, voix: c.ELEVENLABS_TTS_MODEL },
+    modeles: { texte: c.OPENAI_TEXT_MODEL, image: c.OPENAI_IMAGE_MODEL, qualiteImage: c.OPENAI_IMAGE_QUALITY, video: c.XAI_VIDEO_MODEL, resolutionVideo: c.XAI_VIDEO_RESOLUTION, voix: c.ELEVENLABS_TTS_MODEL },
     nom: c.WORKER_NAME,
     dossierTemp: resolve(c.WORKER_TMP_DIR),
     ffmpeg: c.FFMPEG_PATH,

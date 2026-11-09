@@ -1,5 +1,5 @@
 // Tâche « storyboard » : une image par plan (fiches personnages et plan précédent en références), une relance par plan.
-import { coutUnite, promptImage, type Personnage, type Plan } from "@feuilleton/core";
+import { coutUnite, promptImage, type Personnage, type Plan, estHorizontal, type FormatEpisode } from "@feuilleton/core";
 import { genererImage, modifierImage, type ImageReference, type TailleImage } from "@feuilleton/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
@@ -10,9 +10,9 @@ import { cheminMedia, nomUnique } from "../stockage";
 /** Données acceptées : liste de plans à (re)générer, sinon tous les plans sans image prête. */
 export const schemaDonneesStoryboard = z.object({ plan_ids: z.array(z.string()).optional() });
 
-/** Taille d'image selon le format : verticale pour un court ou un générique, horizontale pour un film. */
-export function tailleImage(format: "court" | "long"): TailleImage {
-  return format === "long" ? "1536x1024" : "1024x1536";
+/** Taille d'image selon le format : verticale pour un court ou un générique, horizontale pour un épisode YouTube ou un film. */
+export function tailleImage(format: FormatEpisode): TailleImage {
+  return estHorizontal(format) ? "1536x1024" : "1024x1536";
 }
 
 /** Personnages présents dans un plan : celui qui parle, et ceux dont le nom apparaît dans la description. */
@@ -61,7 +61,7 @@ export async function tacheStoryboard(ctx: Contexte): Promise<void> {
       serie: e.serie,
       personnagesPresents: presents,
       plan,
-      vertical: e.episode.format !== "long",
+      vertical: !estHorizontal(e.episode.format),
       planPrecedent: precedent ? precedent.texte : null,
       avecFiches,
     });
@@ -70,8 +70,8 @@ export async function tacheStoryboard(ctx: Contexte): Promise<void> {
     try {
       const { valeur: png, essais } = await avecRelance(() =>
         references.length
-          ? modifierImage(cle, { modele: ctx.config.modeles.image, prompt, taille, references }, ctx.f)
-          : genererImage(cle, { modele: ctx.config.modeles.image, prompt, taille }, ctx.f),
+          ? modifierImage(cle, { modele: ctx.config.modeles.image, prompt, taille, references, qualite: ctx.config.modeles.qualiteImage }, ctx.f)
+          : genererImage(cle, { modele: ctx.config.modeles.image, prompt, taille, qualite: ctx.config.modeles.qualiteImage }, ctx.f),
       );
       const chemin = cheminMedia(e.serie.espace_id, e.episode.id, "image", nomUnique(plan.id, "png"));
       await ctx.stockage.envoyer(chemin, png, "image/png");

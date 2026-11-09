@@ -1,20 +1,6 @@
 // Tâche « clips » : traductions manquantes, puis un clip Grok par plan (deux si 2 prises) et une voix ElevenLabs
 // par réplique et par langue. Une relance automatique par unité, puis échec lisible ; le coût de chaque fichier est enregistré.
-import {
-  coutUnite,
-  dureesParPlan,
-  languesATraduire,
-  LANGUES,
-  promptTraduction,
-  promptVideo,
-  repliqueEn,
-  unitesClips,
-  type Episode,
-  type Langue,
-  type Personnage,
-  type Plan,
-  type Unite,
-} from "@feuilleton/core";
+import { coutUnite, dureesParPlan, languesATraduire, LANGUES, promptTraduction, promptVideo, repliqueEn, unitesClips, type Episode, type Langue, type Personnage, type Plan, type Unite, estHorizontal } from "@feuilleton/core";
 import { demanderJson, genererVideo, synthetiserVoix, type RatioVideo } from "@feuilleton/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
@@ -32,9 +18,9 @@ export const schemaTraductionIA = z.object({
   repliques: z.record(z.record(z.string())).default({}),
 });
 
-/** Ratio des clips : 16:9 pour un film, 9:16 pour un court ou un générique. */
+/** Ratio des clips : 16:9 pour un épisode YouTube ou un film, 9:16 pour un court ou un générique. */
 export function ratioClips(format: Episode["format"]): RatioVideo {
-  return format === "long" ? "16:9" : "9:16";
+  return estHorizontal(format) ? "16:9" : "9:16";
 }
 
 /** Vrai si l'audio du clip doit être généré par Grok : dialogue d'un personnage dont la voix est « grok ». */

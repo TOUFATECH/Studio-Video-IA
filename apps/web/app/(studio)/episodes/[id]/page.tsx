@@ -89,7 +89,11 @@ export default async function PageEpisode({ params, searchParams }: { params: Pr
   ] as const;
   const actif = !!etat.tacheEnCours || d.publications.some((x) => x.statut === "envoi" || x.statut === "traitement");
   const formatTexte =
-    episode.genre !== "episode" ? `Générique · ${formaterDuree(episode.duree_cible)}` : episode.format === "long" ? `Film ${formaterDuree(total)} · 16:9 + bande annonce verticale` : `Court ${formaterDuree(total)} · vertical 9:16`;
+    episode.genre !== "episode" ? `Générique · ${formaterDuree(episode.duree_cible)}` : episode.format === "long"
+        ? `Film ${formaterDuree(total)} · 16:9 + bande annonce verticale`
+        : episode.format === "moyen"
+          ? `Épisode YouTube ${formaterDuree(total)} · 16:9 + bande annonce verticale`
+          : `Court ${formaterDuree(total)} · vertical 9:16`;
 
   return (
     <div className="pile pile--large">

@@ -1,6 +1,6 @@
 // Étape 5 : publication. Version, comptes, livrable, date (maintenant, prochain créneau, date précise),
 // légende par réseau avec hashtags modifiables, et suivi des publications de l'épisode.
-import { MAX_HASHTAGS, MAX_LEGENDE, NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, legende, libelleLivrable, livrablePour, prochainCreneau, schemaLangue } from "@feuilleton/core";
+import { MAX_HASHTAGS, MAX_LEGENDE, NOMS_LANGUES, NOMS_RESEAUX, RESEAUX, legende, libelleLivrable, livrablePour, prochainCreneau, schemaLangue, verifierDureePublication } from "@feuilleton/core";
 import Link from "next/link";
 import { annulerPublication, enregistrerHashtagsEpisode, publier, reessayerPublication } from "@/app/actions/episodes";
 import { ecrireSuite } from "@/app/actions/series";
@@ -75,7 +75,12 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
               ) : null}
               {comptes.map((c) => {
                 const st = statutCompte(c);
-                const ok = c.statut === "connecte";
+                const livrable = livrablePour(episode, c.reseau);
+                // Durée réelle du rendu si elle existe, sinon la durée calculée de l'épisode.
+                const fichierLivrable = index.get(livrable === "bande_annonce" ? "bande_annonce" : `rendu:${langue}`);
+                const duree = fichierLivrable?.statut === "pret" && fichierLivrable.duree_s !== null ? Number(fichierLivrable.duree_s) : livrable === "bande_annonce" ? 60 : d.dureeTotale;
+                const tropLong = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree });
+                const ok = c.statut === "connecte" && !tropLong;
                 return (
                   <label key={c.id} className="liste-ligne case">
                     <input type="checkbox" name="comptes" value={c.id} disabled={!ok} defaultChecked={ok && serie.rythme.reseaux.includes(c.id)} />
@@ -84,8 +89,14 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
                       {c.nom_compte}
                       <br />
                       <span className="tres-petit doux">
-                        {libelleLivrable(livrablePour(episode, c.reseau), c.reseau)} · {NOTES[c.reseau]}
+                        {libelleLivrable(livrable, c.reseau, episode.format)} · {NOTES[c.reseau]}
                       </span>
+                      {tropLong ? (
+                        <>
+                          <br />
+                          <span className="tres-petit texte-attention">{tropLong}</span>
+                        </>
+                      ) : null}
                     </span>
                     <span className="tres-petit mono doux">{c.langue.toUpperCase()}</span>
                     <Puce ton={st.ton}>{st.texte}</Puce>
@@ -189,7 +200,7 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
                   {c?.nom_compte ?? "Compte retiré"}
                   <br />
                   <span className="tres-petit doux">
-                    {p.langue.toUpperCase()} · {c ? libelleLivrable(p.livrable, c.reseau) : p.livrable}
+                    {p.langue.toUpperCase()} · {c ? libelleLivrable(p.livrable, c.reseau, episode.format) : p.livrable}
                   </span>
                 </span>
                 <span className="mono tres-petit doux">{jourHeure(p.publiee_le ?? p.programmee_le, espace.fuseau)}</span>

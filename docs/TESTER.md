@@ -7,7 +7,7 @@ Chaque niveau valide le précédent. Les niveaux 0 à 2 sont **gratuits**. À pa
 ```bash
 npm install
 npm run typecheck                    # 0 erreur attendue
-npm test                             # 221 tests attendus, tous verts
+npm test                             # 227 tests attendus, tous verts
 npm run build -w @feuilleton/web     # le site se compile, sans .env
 bash supabase/tests/lancer.sh        # migrations + sécurité sur un PostgreSQL local (si PostgreSQL est installé)
 ```
@@ -22,7 +22,7 @@ Dans `supabase/tests/lancer.sh`, les lignes `ERROR` affichées sont des refus **
 
 ## Niveau 1 — Base, site et worker en marche (gratuit, 15 min)
 
-1. Supabase : exécute les 4 fichiers de `supabase/migrations/` dans l'ordre (SQL Editor), puis configure l'URL du site (voir le README).
+1. Supabase : exécute les 5 fichiers de `supabase/migrations/` dans l'ordre (SQL Editor), puis configure l'URL du site (voir le README).
 2. Remplis `.env` et `apps/web/.env.local` (README, étape 2).
 3. Lance `npm run dev:web`, puis le worker : `npm run dev:worker` (PC) ou `docker compose up -d --build` (Docker).
 4. Crée ton compte sur http://localhost:3000/connexion.

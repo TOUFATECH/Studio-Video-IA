@@ -2,24 +2,16 @@
 // bruitage et sous-titres ; puis passage des publications en attente à « programmée » et mémoire automatique.
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  dureesParPlan,
-  indexerFichiers,
-  planParleElevenLabs,
-  promptBruitage,
-  unitesRendu,
-  type Fichier,
-  type Langue,
-  type Plan,
-} from "@feuilleton/core";
+import { dureesParPlan, indexerFichiers, livrablePour, planParleElevenLabs, prochainCreneau, promptBruitage, unitesRendu, verifierDureePublication, type Espace, type Fichier, type Langue, type Plan, type ReseauConnecte, estHorizontal, aGeneriques } from "@feuilleton/core";
 import { genererBruitage } from "@feuilleton/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
 import { chargerEpisode, chargerReglages, enregistrerFichier, erreurCourte, fichierPret, nomPlan, type EpisodeComplet } from "../donnees";
+import { executerFfmpeg } from "../rendu/executant";
 import { monter, type PlanAMonter } from "../rendu/montage";
 import { cheminMedia, nomUnique } from "../stockage";
-import { ecrire, lignes, ligneOuNull } from "../supabase";
+import { ecrire, ligne, lignes, ligneOuNull } from "../supabase";
 
 /** Données acceptées : langues à rendre (toutes par défaut) et bande annonce (vraie par défaut pour un film). */
 export const schemaDonneesRendu = z.object({ langues: z.array(z.string()).optional(), bande_annonce: z.boolean().optional() });
@@ -122,7 +114,9 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
 
   const dossier = await ctx.dossier();
   const local = telechargeur(ctx, dossier);
-  const film = e.episode.format === "long";
+  // 16:9 pour un épisode YouTube ou un film ; opening et ending seulement autour d'un film.
+  const horizontal = estHorizontal(e.episode.format);
+  const generiques = aGeneriques(e.episode.format, e.episode.genre);
   const musique = e.episode.musique
     ? await ligneOuNull<Fichier>(ctx.db.from("fichiers").select("*").eq("espace_id", e.serie.espace_id).eq("genre", "musique").eq("statut", "pret").order("cree_le", { ascending: false }).limit(1), "musique")
     : null;
@@ -149,16 +143,16 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
     const choix = bande ? langue : (e.episode.sous_titres[langue] ?? "aucun");
     const sousDossier = join(dossier, bande ? "bande-annonce" : langue);
     await mkdir(sousDossier, { recursive: true });
-    const avant = film && !bande ? await generique(ctx, e.saison.opening_id, "opening", langue) : null;
-    const apres = film && !bande ? await generique(ctx, e.saison.ending_id, "ending", langue) : null;
+    const avant = generiques && !bande ? await generique(ctx, e.saison.opening_id, "opening", langue) : null;
+    const apres = generiques && !bande ? await generique(ctx, e.saison.ending_id, "ending", langue) : null;
     const resultat = await monter({
       ffmpeg: ctx.config.ffmpeg,
       ffprobe: ctx.config.ffprobe,
       dossier: sousDossier,
       sortie: join(sousDossier, "sortie.mp4"),
-      // La bande annonce d'un film est recadrée en 9:16 pour TikTok et Instagram.
-      orientation: film && !bande ? "horizontal" : "vertical",
-      recadrer: bande && film,
+      // La bande annonce (épisode YouTube ou film, tournés en 16:9) est recadrée en 9:16 pour TikTok et Instagram.
+      orientation: horizontal && !bande ? "horizontal" : "vertical",
+      recadrer: bande && horizontal,
       plans,
       avant: avant ? await local(avant) : null,
       apres: apres ? await local(apres) : null,
@@ -196,6 +190,8 @@ async function apresRendu(ctx: Contexte, e: EpisodeComplet, rendues: readonly st
       "publications programmées",
     );
   }
+  await creerMiniatures(ctx, e).catch((err) => ctx.journal(`miniatures non créées : ${erreurCourte(err)}`));
+  await programmerSelonRythme(ctx, e).catch((err) => ctx.journal(`programmation automatique impossible : ${erreurCourte(err)}`));
   const { preferences } = await chargerReglages(ctx.db, await ctx.proprietaire());
   if (preferences.memoire_auto && !e.episode.memoire_faite && e.episode.genre === "episode") {
     const actives = await lignes<{ id: string }>(
@@ -205,5 +201,73 @@ async function apresRendu(ctx: Contexte, e: EpisodeComplet, rendues: readonly st
     if (actives.length === 0) {
       await ecrire(ctx.db.from("taches").insert({ espace_id: e.serie.espace_id, episode_id: e.episode.id, type: "memoire", donnees: {} }), "tâche mémoire");
     }
+  }
+}
+
+/** Images des plans les plus forts, dans l'ordre de préférence pour une miniature. */
+export function plansPourMiniatures(plans: readonly Plan[]): Plan[] {
+  const ordre = ["climax", "accroche", "action", "decor", "dialogue", "final"] as const;
+  return [...plans].sort((a, b) => ordre.indexOf(a.type) - ordre.indexOf(b.type) || a.position - b.position).slice(0, 3);
+}
+
+/**
+ * Trois miniatures YouTube (JPEG 1280x720) tirées des images des plans forts, si l'épisode n'en a pas encore.
+ * Gratuit : on recadre les images du storyboard, aucune nouvelle génération.
+ */
+async function creerMiniatures(ctx: Contexte, e: EpisodeComplet): Promise<void> {
+  if (e.episode.genre !== "episode" || e.episode.miniature?.chemins.length) return;
+  const index = indexerFichiers(e.fichiers);
+  const dossier = join(await ctx.dossier(), "miniatures");
+  await mkdir(dossier, { recursive: true });
+  const chemins: string[] = [];
+  for (const [i, plan] of plansPourMiniatures(e.plans).entries()) {
+    const image = index.get(`${plan.id}:image`);
+    if (image?.statut !== "pret" || !image.chemin) continue;
+    const source = await ctx.stockage.telechargerVers(image.chemin, join(dossier, `source-${i}`));
+    const sortie = join(dossier, `miniature-${i}.jpg`);
+    await executerFfmpeg(ctx.config.ffmpeg, ["-y", "-i", source, "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720", "-q:v", "3", sortie], ctx.signal);
+    const chemin = cheminMedia(e.serie.espace_id, e.episode.id, "miniature", nomUnique(`miniature-${i + 1}`, "jpg"));
+    await ctx.stockage.envoyerFichier(chemin, sortie, "image/jpeg");
+    chemins.push(chemin);
+  }
+  if (chemins.length) await ecrire(ctx.db.from("episodes").update({ miniature: { choix: 0, chemins } }).eq("id", e.episode.id), "miniatures");
+}
+
+/**
+ * Case « Programmer tout seul les épisodes prêts » du rythme de la série : si l'épisode n'a encore aucune
+ * publication, il prend le prochain créneau sur les comptes du rythme (même espace, connectés, durée permise).
+ */
+async function programmerSelonRythme(ctx: Contexte, e: EpisodeComplet): Promise<void> {
+  if (e.episode.genre !== "episode" || !e.serie.rythme.auto || e.serie.rythme.reseaux.length === 0) return;
+  const existantes = await lignes<{ id: string }>(ctx.db.from("publications").select("id").eq("episode_id", e.episode.id).neq("statut", "annulee"), "publications de l'épisode");
+  if (existantes.length) return;
+  const espace = await ligne<Espace>(ctx.db.from("espaces").select("*").eq("id", e.serie.espace_id).limit(1), "espace");
+  const comptes = await lignes<ReseauConnecte>(
+    ctx.db.from("reseaux_connectes").select("id, espace_id, reseau, nom_compte, langue, statut").in("id", e.serie.rythme.reseaux).eq("espace_id", e.serie.espace_id).eq("statut", "connecte"),
+    "comptes du rythme",
+  );
+  if (!comptes.length) return;
+  // Dernière date déjà prise par la série : le nouvel épisode passe N jours après.
+  const episodesSerie = await lignes<{ id: string }>(ctx.db.from("episodes").select("id").eq("serie_id", e.serie.id), "épisodes de la série");
+  const futures = await lignes<{ programmee_le: string }>(
+    ctx.db.from("publications").select("programmee_le").in("episode_id", episodesSerie.map((x) => x.id)).in("statut", ["programmee", "attend_rendu"]),
+    "publications futures",
+  );
+  const maintenant = new Date();
+  const derniere = futures.map((p) => Date.parse(p.programmee_le)).filter((t) => t > maintenant.getTime());
+  const creneau = prochainCreneau(e.serie.rythme, derniere.length ? new Date(Math.max(...derniere)) : null, maintenant, espace.fuseau);
+  const fichiers = await lignes<Fichier>(ctx.db.from("fichiers").select("*").eq("episode_id", e.episode.id).in("genre", ["rendu", "bande_annonce"]).eq("statut", "pret"), "rendus");
+  const nouvelles = comptes.flatMap((c) => {
+    // Version dans la langue du compte si elle existe, sinon la langue d'origine.
+    const langue: Langue = e.episode.langues.includes(c.langue) ? c.langue : e.episode.langue;
+    const livrable = livrablePour(e.episode, c.reseau);
+    const f = livrable === "bande_annonce" ? fichiers.find((x) => x.genre === "bande_annonce") : fichiers.find((x) => x.genre === "rendu" && x.langue === langue);
+    if (!f) return [];
+    if (verifierDureePublication({ reseau: c.reseau, livrable, format: e.episode.format, duree: Number(f.duree_s ?? 0) })) return [];
+    return [{ episode_id: e.episode.id, reseau_connecte_id: c.id, langue, livrable, programmee_le: creneau.toISOString(), statut: "programmee" }];
+  });
+  if (nouvelles.length) {
+    await ecrire(ctx.db.from("publications").insert(nouvelles), "programmation automatique");
+    ctx.journal(`${nouvelles.length} publication(s) programmée(s) automatiquement pour ${creneau.toISOString()}`);
   }
 }

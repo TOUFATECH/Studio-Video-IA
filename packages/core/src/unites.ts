@@ -1,5 +1,5 @@
 // Unités de génération d'un épisode (une image, un clip, une voix, un rendu) et leur coût estimé.
-import type { Langue } from "./constantes";
+import { aBandeAnnonce, type Langue } from "./constantes";
 import type { Episode, Fichier, Personnage, Plan, Tarifs } from "./types";
 
 /** Genre d'unité produite par le worker. */
@@ -56,10 +56,10 @@ export function unitesClips(episode: Pick<Episode, "prises" | "langues">, plans:
   return out;
 }
 
-/** Étape 4 : un rendu par langue, plus la bande annonce pour un film. */
+/** Étape 4 : un rendu par langue, plus la bande annonce pour un épisode YouTube ou un film. */
 export function unitesRendu(episode: Pick<Episode, "langues" | "format" | "genre">): Unite[] {
   const out: Unite[] = episode.langues.map((l) => ({ cle: `rendu:${l}`, genre: "rendu" as const, plan: null, langue: l, prise: null }));
-  if (episode.format === "long" && episode.genre === "episode") out.push({ cle: "bande_annonce", genre: "bande_annonce", plan: null, langue: null, prise: null });
+  if (aBandeAnnonce(episode.format, episode.genre)) out.push({ cle: "bande_annonce", genre: "bande_annonce", plan: null, langue: null, prise: null });
   return out;
 }
 

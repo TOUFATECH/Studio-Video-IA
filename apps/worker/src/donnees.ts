@@ -19,7 +19,7 @@ import type { Stockage } from "./stockage";
 import { ecrire, ligne, lignes, type Base } from "./supabase";
 
 /** Tarifs par défaut (ceux de la migration), si les réglages sont absents ou invalides. */
-export const TARIFS_DEFAUT: Tarifs = { image: 0.04, video_seconde: 0.05, voix_1000_car: 0.3 };
+export const TARIFS_DEFAUT: Tarifs = { image: 0.07, video_seconde: 0.05, voix_1000_car: 0.3 };
 /** Préférences par défaut (celles de la migration). */
 export const PREFERENCES_DEFAUT: Preferences = { parallele: 2, sous_titres: "aucun", prises: 1, memoire_auto: true };
 

@@ -1,5 +1,5 @@
 // Titres, légendes et livrables d'une publication selon la langue et le réseau.
-import { ACCROCHES_TITRE, motEpisode, type Langue, type Livrable, type Reseau } from "./constantes";
+import { ACCROCHES_TITRE, DUREE_MAX_BANDE_ANNONCE, DUREE_MAX_PUBLICATION, motEpisode, type FormatEpisode, type Langue, type Livrable, type Reseau } from "./constantes";
 import { hashtagsParDefaut, hashtagsPour } from "./hashtags";
 import type { Episode, Serie } from "./types";
 
@@ -24,15 +24,15 @@ export function titreChoisi(episode: Pick<Episode, "titre" | "titres_traduits" |
   return options[i] ?? options[0];
 }
 
-/** Ce qu'on publie sur un réseau : un film part en entier sur YouTube et en bande annonce ailleurs. */
+/** Ce qu'on publie sur un réseau : un épisode YouTube ou un film part en entier sur YouTube et en bande annonce ailleurs. */
 export function livrablePour(episode: Pick<Episode, "format">, reseau: Reseau): Livrable {
-  if (episode.format !== "long") return "court";
+  if (episode.format === "court") return "court";
   return reseau === "youtube" ? "film" : "bande_annonce";
 }
 
-/** Libellé lisible d'un livrable pour un réseau. */
-export function libelleLivrable(livrable: Livrable, reseau: Reseau): string {
-  if (livrable === "film") return "Film 16:9";
+/** Libellé lisible d'un livrable pour un réseau (`format` précise « Épisode » ou « Film » pour la version 16:9). */
+export function libelleLivrable(livrable: Livrable, reseau: Reseau, format?: FormatEpisode): string {
+  if (livrable === "film") return format === "moyen" ? "Épisode YouTube 16:9" : "Film 16:9";
   if (livrable === "bande_annonce") return "Bande annonce 9:16";
   if (reseau === "youtube") return "Short 9:16";
   if (reseau === "instagram") return "Reel 9:16";
@@ -54,4 +54,26 @@ export function legende(
     ? hashtagsPour({ reseau, langue, nomSerie: serie.nom, serie: serie.hashtags ?? {}, episode: episode.hashtags ?? {} })
     : hashtags(serie, langue);
   return { titre, description: `${titre}\n\n${tags}`, tags };
+}
+
+/**
+ * Vérifie qu'une vidéo respecte la durée maximale voulue pour le réseau.
+ * Renvoie null si c'est bon, sinon un message à afficher. `duree` en secondes.
+ */
+export function verifierDureePublication(params: { reseau: Reseau; livrable: Livrable; format: FormatEpisode; duree: number }): string | null {
+  const { reseau, livrable, format, duree } = params;
+  const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  // Une seconde de tolérance : le rendu peut dépasser la cible de quelques images.
+  const depasse = (max: number): boolean => duree > max + 1;
+  if (livrable === "bande_annonce") {
+    return depasse(DUREE_MAX_BANDE_ANNONCE) ? `La bande annonce dure ${mmss(duree)} : 1:00 maximum.` : null;
+  }
+  if (livrable === "court") {
+    if (reseau === "youtube") return depasse(DUREE_MAX_PUBLICATION.youtube_short) ? `Short YouTube de ${mmss(duree)} : 3:00 maximum.` : null;
+    return depasse(DUREE_MAX_PUBLICATION[reseau]) ? `Vidéo de ${mmss(duree)} : ${reseau === "tiktok" ? "TikTok" : "Instagram"} est limité à 2:00 dans Feuilleton.` : null;
+  }
+  // Version 16:9 complète, seulement sur YouTube.
+  if (reseau !== "youtube") return "La version 16:9 complète ne se publie que sur YouTube.";
+  if (format === "moyen" && depasse(DUREE_MAX_PUBLICATION.youtube_episode)) return `Épisode YouTube de ${mmss(duree)} : 4:00 maximum.`;
+  return null;
 }

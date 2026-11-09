@@ -6,7 +6,7 @@ Feuilleton écrit, génère, monte et publie des séries vidéo :
 
 - Plusieurs **comptes** (espaces), chacun avec ses propres comptes TikTok, Instagram et YouTube, ses séries et son budget.
 - Séries, saisons, épisodes, opening et ending, avec une **bible** (univers, personnages, voix) et une **mémoire** mise à jour après chaque épisode, pour que les histoires se suivent.
-- Épisodes courts (1:00 à 1:30, vertical) ou films (5 à 20 min, 16:9, avec bande annonce verticale).
+- Trois formats : **court** (1:00 à 2:00, vertical : TikTok, Instagram, Short YouTube), **YouTube** (2:00 à 4:00, 16:9, avec bande annonce verticale pour TikTok et Instagram) et **film** (5 à 20 min, 16:9, opening, ending, bande annonce). Une vidéo trop longue pour un réseau est refusée avant l'envoi.
 - Voix en français, anglais, japonais, coréen et portugais ; **sous-titres incrustés au choix pour chaque version** (ou aucun).
 - Publication à une date précise : YouTube programme lui-même ; TikTok et Instagram sont publiés à l'heure exacte par le worker.
 
@@ -26,7 +26,7 @@ Feuilleton écrit, génère, monte et publie des séries vidéo :
 ### 1. Supabase
 
 1. Crée un projet sur https://supabase.com.
-2. **SQL Editor** : colle et exécute `supabase/migrations/0001_init.sql` (ou `supabase db push` avec la CLI).
+2. **SQL Editor** : exécute dans l'ordre les fichiers `supabase/migrations/0001` à `0005` (ou `supabase db push` avec la CLI).
 3. **Authentication → URL Configuration** : *Site URL* = ton `APP_URL`, et ajoute `<APP_URL>/auth/callback` dans les *Redirect URLs*.
 4. **Project Settings → API** : note l'URL, la clé `anon` et la clé `service_role`.
 

@@ -86,7 +86,8 @@ export function dureeTotale(plans: readonly PlanDuree[], cible: number, format: 
 /** Nombre de plans à demander à l'IA pour une durée cible (environ 7 s par plan). */
 export function nombrePlansCible(format: FormatEpisode, cible: number): number {
   if (format === "long") return Math.max(12, Math.round((cible - DUREE_GENERIQUES) / 7));
-  return Math.min(16, Math.max(4, Math.round(cible / 7)));
+  if (format === "moyen") return Math.min(40, Math.max(16, Math.round(cible / 7)));
+  return Math.min(18, Math.max(4, Math.round(cible / 7)));
 }
 
 /** Nombre de chapitres d'un film : un toutes les 2 minutes environ. */

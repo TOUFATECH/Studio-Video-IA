@@ -26,8 +26,11 @@ export function chiffrer(texte: string, cle: Buffer): string {
 export function dechiffrer(chiffre: string, cle: Buffer): string {
   const [version, iv, tag, donnees] = chiffre.split(".");
   if (version !== VERSION || !iv || !tag || donnees === undefined) throw new Error("Format de valeur chiffrée inconnu.");
-  const d = createDecipheriv("aes-256-gcm", cle, Buffer.from(iv, "base64"));
-  d.setAuthTag(Buffer.from(tag, "base64"));
+  const etiquette = Buffer.from(tag, "base64");
+  // Une étiquette GCM tronquée affaiblirait l'authentification : on exige les 16 octets complets.
+  if (etiquette.length !== 16) throw new Error("Valeur chiffrée invalide.");
+  const d = createDecipheriv("aes-256-gcm", cle, Buffer.from(iv, "base64"), { authTagLength: 16 });
+  d.setAuthTag(etiquette);
   return Buffer.concat([d.update(Buffer.from(donnees, "base64")), d.final()]).toString("utf8");
 }
 

@@ -29,6 +29,10 @@ export async function POST(requete: NextRequest) {
     const supabase = await clientServeur();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return reponse("Non connecté.", 401);
+    // Refus avant lecture du corps : un envoi annoncé au-delà du plus gros fichier permis (20 Mo + marge du formulaire) n'est pas lu.
+    const annonce = Number(requete.headers.get("content-length") ?? "0");
+    const plusGros = Math.max(...Object.values(REGLES_IMPORT).map((r) => r.maxOctets));
+    if (annonce > plusGros + 1024 * 1024) return reponse("Fichier trop lourd.", 413);
     const fd = await requete.formData();
     const champs = schemaImport.safeParse({ genre: fd.get("genre"), cible: fd.get("cible") });
     if (!champs.success) return reponse("Demande d’import invalide.", 400);

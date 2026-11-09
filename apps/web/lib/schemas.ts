@@ -143,7 +143,7 @@ export const schemaEpisodeFormulaire = z.object({
   id,
   titre: texte(200),
   idee: texte(6000),
-  format: z.enum(["court", "long"]).default("court"),
+  format: z.enum(["court", "moyen", "long"]).default("court"),
   duree_cible: z.coerce.number().int().min(15).max(1200),
   langue: schemaLangue,
   enchainer: caseACocher,
