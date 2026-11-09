@@ -32,6 +32,7 @@ export const schemaUtilisateur = z.object({
     })
     .nullish(),
 });
+/** Compte ElevenLabs tel que lu par le diagnostic. */
 export type UtilisateurElevenLabs = z.infer<typeof schemaUtilisateur>;
 
 /** En-têtes d'authentification ElevenLabs. */

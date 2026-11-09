@@ -17,8 +17,9 @@ export const URLS_TIKTOK = {
 /** Nombre maximal d'initialisations de publication par minute et par jeton. */
 export const LIMITE_INIT_TIKTOK_PAR_MINUTE = 6;
 
-/** Taille à partir de laquelle on découpe (64 Mo) et taille des morceaux (10 Mo). */
+/** Taille jusqu'à laquelle le fichier part en un seul morceau (64 Mo). */
 export const LIMITE_MORCEAU_UNIQUE_TIKTOK = 64 * 1024 * 1024;
+/** Taille d'un morceau quand le fichier dépasse 64 Mo. */
 export const TAILLE_MORCEAU_TIKTOK = 10 * 1024 * 1024;
 
 /** Niveaux de confidentialité proposés par TikTok. */
@@ -34,7 +35,7 @@ export type DecoupageEnvoi = { tailleMorceau: number; nombre: number; morceaux: 
 export type InfosCreateur = { confidentialites: string[]; dureeMax: number | null; pseudo: string | null };
 
 /** Résultat d'une publication. */
-export type ResultatTiktok = { publishId: string; statut: StatutTiktok; idPublic: string | null; confidentialite: ConfidentialiteTiktok };
+export type ResultatTiktok = { publishId: string; statut: StatutTiktok; idPublic: string | null; confidentialite: ConfidentialiteTiktok; pseudo: string | null };
 
 /** Erreur commune des réponses TikTok : `error.code` vaut « ok » quand tout va bien. */
 const schemaErreur = z.object({ code: z.string(), message: z.string().optional(), log_id: z.string().optional() }).optional();
@@ -231,7 +232,7 @@ export async function publierTiktok(
   for (;;) {
     const s = await statutPublication(jeton, publishId, f);
     if (s.statut === "PUBLISH_COMPLETE" || s.statut === "SEND_TO_USER_INBOX") {
-      return { publishId, statut: s.statut, idPublic: s.idsPublics[0] ?? null, confidentialite };
+      return { publishId, statut: s.statut, idPublic: s.idsPublics[0] ?? null, confidentialite, pseudo: infos.pseudo };
     }
     if (s.statut === "FAILED") throw new ErreurApi(FOURNISSEUR, 422, `publication refusée : ${s.raison ?? "raison inconnue"}`, s.raison ?? "failed");
     ecoule += intervalle;

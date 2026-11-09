@@ -43,6 +43,7 @@ export const schemaSuiviVideo = z.object({
   model: z.string().optional(),
   error: z.object({ code: z.string().optional(), message: z.string().optional() }).nullish(),
 });
+/** État d'une génération vidéo. */
 export type SuiviVideo = z.infer<typeof schemaSuiviVideo>;
 
 const schemaModeles = z.object({ data: z.array(z.object({ id: z.string() })) });

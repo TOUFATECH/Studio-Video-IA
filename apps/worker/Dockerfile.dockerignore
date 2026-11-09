@@ -1,0 +1,11 @@
+# Fichiers exclus du contexte de build du worker (lu par BuildKit à côté du Dockerfile).
+**/node_modules
+**/.next
+**/tmp
+**/dist
+**/coverage
+.git
+.env
+.env.*
+**/.env
+**/.env.local

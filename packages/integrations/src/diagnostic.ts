@@ -5,6 +5,7 @@ import { ErreurApi } from "./contrat";
 import { listerVoix, lireUtilisateurElevenLabs } from "./elevenlabs";
 import { estErreurJeton, identite, NOMS_FOURNISSEURS } from "./oauth";
 import { listerModelesOpenAI } from "./openai";
+import { chiffresCompteTiktok, estScopeManquant } from "./statistiques";
 import { listerModelesXai } from "./xai";
 
 /** Message lisible pour une erreur pendant un test de clé. */
@@ -72,8 +73,20 @@ export const testerCompte: ContratIntegrations["testerCompte"] = async (reseau, 
     if (idExterne && id.idExterne !== idExterne) {
       return { ok: false, message: `Le jeton ${nom} correspond à un autre compte (${id.nomCompte}) : reconnecte le bon compte.`, details: { compte: id.nomCompte } };
     }
+    if (reseau === "tiktok") {
+      // Les statistiques du compte demandent l'autorisation user.info.stats, ajoutée après les premières connexions.
+      try {
+        await chiffresCompteTiktok(jetonAcces, f);
+      } catch (e) {
+        if (estScopeManquant(e)) {
+          return { ok: false, message: `Compte TikTok « ${id.nomCompte} » connecté, mais l'autorisation des statistiques (user.info.stats) manque : reconnecte le compte.`, details: { compte: id.nomCompte, scope_manquant: "user.info.stats" } };
+        }
+        throw e;
+      }
+    }
     return { ok: true, message: `Compte ${nom} « ${id.nomCompte} » connecté.`, details: { compte: id.nomCompte, id: id.idExterne } };
   } catch (e) {
+    if (estScopeManquant(e)) return { ok: false, message: `Autorisation ${nom} incomplète : reconnecte le compte pour accorder toutes les autorisations.` };
     if (estErreurJeton(e)) return { ok: false, message: `Jeton ${nom} expiré ou révoqué : reconnecte le compte dans Réglages → Réseaux.` };
     return { ok: false, message: messageEchec(nom, e) };
   }

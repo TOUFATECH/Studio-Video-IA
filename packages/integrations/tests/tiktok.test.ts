@@ -49,7 +49,7 @@ describe("TikTok : publication", () => {
     const etapes: string[] = [];
     let suivis = 0;
     const { f, appels } = fauxFetch((a) => {
-      if (a.url.endsWith("/creator_info/query/")) return json({ data: { privacy_level_options: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"], max_video_post_duration_sec: 600 }, error: { code: "ok" } });
+      if (a.url.endsWith("/creator_info/query/")) return json({ data: { privacy_level_options: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"], max_video_post_duration_sec: 600, creator_username: "studio" }, error: { code: "ok" } });
       if (a.url.endsWith("/video/init/")) return json({ data: { publish_id: "v_pub_1", upload_url: "https://open-upload.tiktokapis.com/video/?upload_id=1" }, error: { code: "ok" } });
       if (a.url.startsWith("https://open-upload")) return vide(201);
       return new Response(
@@ -60,7 +60,7 @@ describe("TikTok : publication", () => {
       );
     });
     const r = await publierTiktok(JETON, { source: sourceBuffer(Buffer.alloc(2000)), titre: "Ép. 1", duree: 75, auditValide: true, surEtape: (e) => etapes.push(e) }, { attendre: sansAttente }, f);
-    expect(r).toEqual({ publishId: "v_pub_1", statut: "PUBLISH_COMPLETE", idPublic: "7311234567890123456", confidentialite: "PUBLIC_TO_EVERYONE" });
+    expect(r).toEqual({ publishId: "v_pub_1", statut: "PUBLISH_COMPLETE", idPublic: "7311234567890123456", confidentialite: "PUBLIC_TO_EVERYONE", pseudo: "studio" });
     const init = appels.find((a) => a.url.endsWith("/video/init/"))!;
     expect(init.entetes["content-type"]).toBe("application/json; charset=UTF-8");
     expect(init.entetes.authorization).toBe(`Bearer ${JETON}`);

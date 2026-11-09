@@ -36,9 +36,16 @@ export const URLS_OAUTH = {
 
 /** Droits demandés à chaque réseau. */
 export const SCOPES = {
-  youtube: "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly",
+  youtube: [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+    // Revenus et statistiques détaillées (YouTube Analytics).
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
+    "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+  ].join(" "),
   instagram: "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights",
-  tiktok: "user.info.basic,video.publish,video.list",
+  // user.info.stats : abonnés, j'aime et nombre de vidéos du compte.
+  tiktok: "user.info.basic,user.info.stats,video.publish,video.list",
 } as const;
 
 /** Nom du fournisseur dans les messages d'erreur. */
@@ -280,4 +287,5 @@ export function fournisseurApp(reseau: Reseau): "google" | "meta" | "tiktok" {
   return reseau === "youtube" ? "google" : reseau === "instagram" ? "meta" : "tiktok";
 }
 
+/** Type de l'application OAuth (identifiant et secret), réexporté pour les appelants. */
 export type { AppOAuth };

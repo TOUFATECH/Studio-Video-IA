@@ -26,8 +26,9 @@ export function masquerSecrets(texte: string, secrets: readonly (string | null |
     .replace(/(access_token|refresh_token|client_secret|code|key)=([^&\s"']+)/gi, "$1=••••")
     .replace(/\b(sk|xai|sk-proj|sk_)[-_][A-Za-z0-9_*-]{6,}/g, "••••")
     .replace(/\b(ya29\.|1\/\/|EAA|IGQ|IGA|act\.|rft\.)[A-Za-z0-9._-]{8,}/g, "••••")
-    // Toute suite de 40 caractères ou plus sans espace ressemble davantage à un jeton qu'à du texte.
-    .replace(/[A-Za-z0-9._~+/=-]{40,}/g, "••••");
+    // Toute suite de 40 caractères ou plus sans espace ni « / » ressemble davantage à un jeton qu'à du texte
+    // (les chemins de fichiers, eux, gardent leurs « / » et restent lisibles dans le journal).
+    .replace(/[A-Za-z0-9._~+=-]{40,}/g, "••••");
 }
 
 /** Lit un champ texte d'un objet inconnu. */

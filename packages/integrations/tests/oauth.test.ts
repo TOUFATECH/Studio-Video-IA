@@ -7,7 +7,7 @@ const APP = { client_id: "id-app-123", client_secret: "secret-app-tres-long-9876
 const RETOUR = "https://studio.exemple/api/oauth/retour";
 
 describe("URL d'autorisation", () => {
-  it("YouTube : accès hors ligne, consentement forcé, deux scopes", () => {
+  it("YouTube : accès hors ligne, consentement forcé, scopes publication et analytics", () => {
     const u = new URL(urlAutorisation("youtube", APP, RETOUR, "etat-1"));
     expect(u.origin + u.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(u.searchParams.get("client_id")).toBe(APP.client_id);
@@ -16,7 +16,9 @@ describe("URL d'autorisation", () => {
     expect(u.searchParams.get("access_type")).toBe("offline");
     expect(u.searchParams.get("prompt")).toBe("consent");
     expect(u.searchParams.get("state")).toBe("etat-1");
-    expect(u.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly");
+    expect(u.searchParams.get("scope")).toBe(
+      "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+    );
     expect(u.toString()).not.toContain(APP.client_secret);
   });
   it("Instagram : scopes business", () => {
@@ -29,7 +31,7 @@ describe("URL d'autorisation", () => {
     expect(u.origin + u.pathname).toBe("https://www.tiktok.com/v2/auth/authorize/");
     expect(u.searchParams.get("client_key")).toBe(APP.client_id);
     expect(u.searchParams.get("client_id")).toBeNull();
-    expect(u.searchParams.get("scope")).toBe("user.info.basic,video.publish,video.list");
+    expect(u.searchParams.get("scope")).toBe("user.info.basic,user.info.stats,video.publish,video.list");
   });
 });
 

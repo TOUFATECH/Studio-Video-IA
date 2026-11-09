@@ -8,6 +8,7 @@ export * from "./oauth";
 export * from "./youtube";
 export * from "./instagram";
 export * from "./tiktok";
+export * from "./statistiques";
 export * from "./diagnostic";
 
 import type { ContratIntegrations } from "./contrat";

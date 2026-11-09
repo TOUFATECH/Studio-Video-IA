@@ -1,0 +1,8 @@
+// Réglages TypeScript du worker (Node, exécuté par tsx).
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "tests"]
+}
