@@ -1,0 +1,248 @@
+// Coquille de l'app : barre du haut collante, menu latéral (en haut sur mobile), menus déroulants, notifications.
+@use "../../styles/mixins" as *;
+
+.barre {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: couleur("fond");
+  border-bottom: 1px solid couleur("bordure");
+
+  @include des("moyen") {
+    padding: 10px 24px;
+    gap: 10px;
+  }
+}
+
+.marque {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: couleur("texte");
+  text-decoration: none;
+  font-family: var(--police-titre), sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.espaceur {
+  flex: 1;
+}
+
+.masqueMobile {
+  display: none;
+
+  @include des("moyen") {
+    display: inline;
+  }
+}
+
+.corps {
+  display: flex;
+  flex-direction: column;
+
+  @include des("large") {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.lateral {
+  padding: 8px 12px;
+  border-bottom: 1px solid couleur("bordure");
+
+  @include des("large") {
+    flex: 0 0 230px;
+    padding: 18px 12px;
+    border-bottom: 0;
+    border-right: 1px solid couleur("bordure");
+  }
+}
+
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+
+  @include des("large") {
+    flex-direction: column;
+  }
+}
+
+.lienNav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: couleur("texte-discret");
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 15px;
+
+  span:first-child {
+    flex: 1;
+  }
+
+  &:hover {
+    background: couleur("surface-2");
+    color: couleur("texte");
+  }
+
+  &[aria-current="page"] {
+    background: couleur("surface-2");
+    color: couleur("texte");
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 couleur("accent");
+  }
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: couleur("accent");
+  color: couleur("accent-texte");
+}
+
+.episodeOuvert {
+  display: none;
+
+  @include des("large") {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px;
+    border-radius: 10px;
+    background: couleur("surface");
+    border: 1px solid couleur("bordure");
+    color: couleur("texte");
+    text-decoration: none;
+
+    &:hover {
+      border-color: couleur("bordure-forte");
+    }
+  }
+}
+
+.principal {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 16px 80px;
+
+  @include des("moyen") {
+    padding: 28px clamp(16px, 3.5vw, 40px) 80px;
+  }
+}
+
+.contenu {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.menuConteneur {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 40;
+  background: couleur("surface-2");
+  border: 1px solid couleur("bordure-forte");
+  border-radius: 10px;
+  padding: 6px;
+  width: min(320px, calc(100vw - 24px));
+  box-shadow: 0 14px 36px couleur("ombre-portee");
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .surtitre {
+    padding: 6px 10px 4px;
+  }
+}
+
+.menuGauche {
+  left: 0;
+}
+
+.menuDroite {
+  right: 0;
+}
+
+.elementMenu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: couleur("texte");
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover {
+    background: couleur("bordure");
+  }
+}
+
+.elementTexte {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.separateur {
+  border: 0;
+  border-top: 1px solid couleur("bordure-forte");
+  margin: 4px 0;
+  width: 100%;
+}
+
+.notifications {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  max-width: min(400px, calc(100vw - 32px));
+}
+
+.notification {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 8px 8px 14px;
+  border-radius: 10px;
+  background: couleur("surface-3");
+  border: 1px solid couleur("bordure-forte");
+  box-shadow: 0 10px 28px couleur("ombre-portee");
+  color: couleur("texte");
+
+  .petit {
+    flex: 1;
+  }
+}

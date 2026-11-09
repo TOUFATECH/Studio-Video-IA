@@ -1,0 +1,30 @@
+// Génère les variables CSS --couleur-* des deux thèmes à partir de la palette.
+// Les variantes « -doux » (fonds de puces) et l'ombre translucide sont dérivées ici, sans nouvelle couleur.
+@use "sass:color";
+@use "sass:map";
+@use "palette";
+
+/// Couleurs dont on dérive un fond translucide pour les puces et les bandeaux.
+$semantiques: ("info", "succes", "attention", "erreur", "violet", "accent");
+
+/// Écrit toutes les variables d'un thème.
+@mixin variables($theme, $opacite-doux) {
+  @each $nom, $valeur in $theme {
+    --couleur-#{$nom}: #{$valeur};
+  }
+  @each $nom in $semantiques {
+    --couleur-#{$nom}-doux: #{color.change(map.get($theme, $nom), $alpha: $opacite-doux)};
+  }
+  --couleur-ombre-portee: #{color.change(map.get($theme, "ombre"), $alpha: 0.45)};
+}
+
+:root,
+:root[data-theme="sombre"] {
+  @include variables(palette.$sombre, 0.14);
+  color-scheme: dark;
+}
+
+:root[data-theme="clair"] {
+  @include variables(palette.$clair, 0.16);
+  color-scheme: light;
+}

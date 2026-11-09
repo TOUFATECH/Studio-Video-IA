@@ -1,0 +1,38 @@
+// Styles des statistiques : en-têtes triables, miniatures des vidéos, barres horizontales.
+@use "../../../styles/mixins" as *;
+
+.entete {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+
+  &:hover {
+    color: couleur("texte");
+    text-decoration: underline;
+  }
+}
+
+.miniature {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: couleur("surface-3");
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.barre {
+  padding: 10px 0;
+  border-top: 1px solid couleur("bordure");
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
