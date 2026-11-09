@@ -94,6 +94,8 @@ export type Serie = {
   univers: string;
   fil_rouge: string;
   rythme: Rythme;
+  /** Hashtags par défaut de la série, par réseau. */
+  hashtags: Partial<Record<Reseau, string>>;
   cree_le: string;
 };
 
@@ -143,6 +145,8 @@ export type Episode = {
   choix_titres: Partial<Record<Langue, number>>;
   miniature: { choix: number; chemins: string[] } | null;
   memoire_faite: boolean;
+  /** Hashtags propres à l'épisode (remplacent ceux de la série pour ce réseau). */
+  hashtags: Partial<Record<Reseau, string>>;
   cree_le: string;
 };
 
@@ -272,6 +276,52 @@ export type FaitMemoire = {
   genre: "fait" | "personnage" | "lieu" | "objet" | "mystere";
   texte: string;
   ouvert: boolean;
+  cree_le: string;
+};
+
+/** Une vidéo présente sur un compte connecté (publiée par l'app ou non), avec ses derniers chiffres. */
+export type VideoReseau = {
+  id: string;
+  reseau_connecte_id: string;
+  id_externe: string;
+  publication_id: string | null;
+  titre: string;
+  url: string | null;
+  miniature_url: string | null;
+  publiee_le: string | null;
+  duree_s: number | null;
+  vues: number;
+  jaime: number;
+  commentaires: number;
+  partages: number;
+  revenu_estime: number | null;
+  devise: string | null;
+  maj_le: string;
+};
+
+/** Chiffres d'un compte pour un jour donné (abonnés, vues totales, revenus estimés). */
+export type StatsCompte = {
+  id: string;
+  reseau_connecte_id: string;
+  jour: string;
+  abonnes: number | null;
+  abonnements: number | null;
+  jaime_total: number | null;
+  videos: number | null;
+  vues_total: number | null;
+  revenu_estime: number | null;
+  devise: string | null;
+};
+
+/** Revenu d'un mois pour un compte : lu par l'API (YouTube) ou saisi à la main (TikTok, Instagram). */
+export type Revenu = {
+  id: string;
+  reseau_connecte_id: string;
+  mois: string;
+  montant: number;
+  devise: string;
+  source: "api" | "manuel";
+  note: string;
   cree_le: string;
 };
 
