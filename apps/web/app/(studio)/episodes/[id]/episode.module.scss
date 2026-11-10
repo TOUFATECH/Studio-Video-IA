@@ -303,3 +303,20 @@
 .boutonValider {
   padding: 0 8px;
 }
+
+// ---------- Clips musicaux ----------
+
+// Lecteur de la chanson : toute la largeur de la carte.
+.lecteurAudio {
+  width: 100%;
+}
+
+// Paroles synchronisées : liste qui défile au-delà d'une vingtaine de lignes.
+.paroles {
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}

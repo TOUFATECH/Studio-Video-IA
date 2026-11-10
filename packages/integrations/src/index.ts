@@ -2,6 +2,7 @@
 export * from "./contrat";
 export * from "./http";
 export * from "./openai";
+export * from "./anthropic";
 export * from "./xai";
 export * from "./elevenlabs";
 export * from "./oauth";
@@ -12,10 +13,10 @@ export * from "./statistiques";
 export * from "./diagnostic";
 
 import type { ContratIntegrations } from "./contrat";
-import { testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "./diagnostic";
+import { testerAnthropic, testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "./diagnostic";
 import { listerVoix } from "./elevenlabs";
 import { echangerCode, renouvelerJeton, urlAutorisation } from "./oauth";
 
 /** Vérification à la compilation : les fonctions exportées respectent le contrat figé utilisé par l'app web. */
-const contratRespecte = { urlAutorisation, echangerCode, renouvelerJeton, testerOpenAI, testerXai, testerElevenLabs, testerCompte, listerVoix } satisfies ContratIntegrations;
+const contratRespecte = { urlAutorisation, echangerCode, renouvelerJeton, testerOpenAI, testerXai, testerElevenLabs, testerAnthropic, testerCompte, listerVoix } satisfies ContratIntegrations;
 void contratRespecte;

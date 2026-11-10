@@ -10,6 +10,7 @@ export type ClesProprietaire = {
   openai?: string;
   xai?: string;
   elevenlabs?: string;
+  anthropic?: string;
   google?: AppOAuth;
   meta?: AppOAuth;
   tiktok?: AppOAuth;
@@ -20,6 +21,7 @@ export const NOMS_FOURNISSEURS_CLES: Record<Fournisseur, string> = {
   openai: "OpenAI",
   xai: "xAI (Grok)",
   elevenlabs: "ElevenLabs",
+  anthropic: "Anthropic (Claude)",
   google: "Google (YouTube)",
   meta: "Meta (Instagram)",
   tiktok: "TikTok",
@@ -49,7 +51,7 @@ export async function chargerCles(db: Base, cleMaitre: Buffer, proprietaire: str
   const cles: ClesProprietaire = {};
   for (const r of rangs) {
     const valeur = dechiffrerValeur(r.valeur_chiffree, cleMaitre, `la clé ${NOMS_FOURNISSEURS_CLES[r.fournisseur]}`);
-    if (r.fournisseur === "openai" || r.fournisseur === "xai" || r.fournisseur === "elevenlabs") {
+    if (r.fournisseur === "openai" || r.fournisseur === "xai" || r.fournisseur === "elevenlabs" || r.fournisseur === "anthropic") {
       cles[r.fournisseur] = valeur.trim();
     } else {
       let brut: unknown;
@@ -66,7 +68,7 @@ export async function chargerCles(db: Base, cleMaitre: Buffer, proprietaire: str
 }
 
 /** Clé obligatoire d'un fournisseur d'IA ; message clair si elle manque. */
-export function exigerCle(cles: ClesProprietaire, fournisseur: "openai" | "xai" | "elevenlabs"): string {
+export function exigerCle(cles: ClesProprietaire, fournisseur: "openai" | "xai" | "elevenlabs" | "anthropic"): string {
   const c = cles[fournisseur];
   if (!c) throw new Error(`Clé ${NOMS_FOURNISSEURS_CLES[fournisseur]} manquante : ajoute-la dans Réglages → Clés API.`);
   return c;

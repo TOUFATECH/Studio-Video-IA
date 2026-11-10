@@ -8,6 +8,7 @@ import { Copier } from "@/components/ui/Copier";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { BadgeReseau, Jauge, Puce } from "@/components/ui/elements";
 import { saisieDepuisInstant } from "@/lib/dates";
+import { lienEpisode } from "@/lib/episodes";
 import { compact, jourHeure } from "@/lib/format";
 import { statutCompte, statutPublication } from "@/lib/libelles";
 import type { DonneesEpisode } from "./chargement";
@@ -79,7 +80,7 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
                 // Durée réelle du rendu si elle existe, sinon la durée calculée de l'épisode.
                 const fichierLivrable = index.get(livrable === "bande_annonce" ? "bande_annonce" : `rendu:${langue}`);
                 const duree = fichierLivrable?.statut === "pret" && fichierLivrable.duree_s !== null ? Number(fichierLivrable.duree_s) : livrable === "bande_annonce" ? 60 : d.dureeTotale;
-                const tropLong = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree });
+                const tropLong = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree, genre: episode.genre });
                 const ok = c.statut === "connecte" && !tropLong;
                 return (
                   <label key={c.id} className="liste-ligne case">
@@ -89,7 +90,7 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
                       {c.nom_compte}
                       <br />
                       <span className="tres-petit doux">
-                        {libelleLivrable(livrable, c.reseau, episode.format)} · {NOTES[c.reseau]}
+                        {libelleLivrable(livrable, c.reseau, episode.format, episode.genre)} · {NOTES[c.reseau]}
                       </span>
                       {tropLong ? (
                         <>
@@ -143,7 +144,7 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
           </div>
           <nav className="ligne ligne--serree" aria-label="Version de l’aperçu">
             {episode.langues.map((l) => (
-              <Link key={l} href={`/episodes/${episode.id}?etape=publication&version=${l}`} className="segment" aria-current={l === langue ? "true" : undefined}>
+              <Link key={l} href={lienEpisode(episode, `publication&version=${l}`)} className="segment" aria-current={l === langue ? "true" : undefined}>
                 {l.toUpperCase()}
               </Link>
             ))}
@@ -200,7 +201,7 @@ export function EtapePublication({ d, version }: { d: DonneesEpisode; version: s
                   {c?.nom_compte ?? "Compte retiré"}
                   <br />
                   <span className="tres-petit doux">
-                    {p.langue.toUpperCase()} · {c ? libelleLivrable(p.livrable, c.reseau, episode.format) : p.livrable}
+                    {p.langue.toUpperCase()} · {c ? libelleLivrable(p.livrable, c.reseau, episode.format, episode.genre) : p.livrable}
                   </span>
                 </span>
                 <span className="mono tres-petit doux">{jourHeure(p.publiee_le ?? p.programmee_le, espace.fuseau)}</span>

@@ -8,7 +8,7 @@ import { Courbe } from "@/components/ui/Courbe";
 import { BadgeReseau, Jauge, Kpi, Puce } from "@/components/ui/elements";
 import { chargerProduction } from "@/lib/donnees";
 import { chargerRevenus, chargerStatsComptes, chargerVideos } from "@/lib/donnees-stats";
-import { codeEpisode, nomEpisode } from "@/lib/episodes";
+import { codeEpisode, lienEpisode, nomEpisode } from "@/lib/episodes";
 import { fuseauReference } from "@/lib/espace-courant";
 import { compact, ilYa, pourcent } from "@/lib/format";
 import { statutCompte } from "@/lib/libelles";
@@ -283,7 +283,7 @@ export default async function PageStatistiques({ searchParams }: { searchParams:
                   return (
                     <tr key={x.id}>
                       <td>
-                        <Link href={`/episodes/${ep.id}?etape=publication`} className="petit">
+                        <Link href={lienEpisode(ep, "publication")} className="petit">
                           {series.get(ep.serie_id)?.nom} · {codeEpisode(ep, saison)} {nomEpisode(ep, saison)}
                         </Link>
                         <br />

@@ -7,7 +7,7 @@ import { BadgeReseau, Jauge, Kpi, Pastille, Puce } from "@/components/ui/element
 import { construireAFaire } from "@/lib/a-faire";
 import { chargerProduction } from "@/lib/donnees";
 import { chargerRevenus, chargerStatsComptes, chargerVideos } from "@/lib/donnees-stats";
-import { codeEpisode, nomEpisode } from "@/lib/episodes";
+import { codeEpisode, lienEpisode, nomEpisode } from "@/lib/episodes";
 import { fuseauReference } from "@/lib/espace-courant";
 import { compact, dureeLisible, euros, jourHeure, jourLong } from "@/lib/format";
 import { statutPublication } from "@/lib/libelles";
@@ -79,7 +79,7 @@ export default async function PageAccueil() {
       <li key={p.id} className="liste-ligne">
         {!avecVues ? <span className="mono tres-petit doux">{jourHeure(p.programmee_le, fuseau)}</span> : null}
         <BadgeReseau reseau={compte.reseau} />
-        <Link href={`/episodes/${ep.id}?etape=publication`} className="lien-ligne petit">
+        <Link href={lienEpisode(ep, "publication")} className="lien-ligne petit">
           <span className="gras">
             {serie?.nom} · {codeEpisode(ep, saisons.get(ep.saison_id))}
           </span>
@@ -220,7 +220,7 @@ export default async function PageAccueil() {
               return (
                 <li key={t.id} className="liste-ligne">
                   {ep ? (
-                    <Link href={`/episodes/${ep.id}`} className="lien-ligne pile--serree" style={{ display: "flex", gap: 8 }}>
+                    <Link href={lienEpisode(ep)} className="lien-ligne pile--serree" style={{ display: "flex", gap: 8 }}>
                       {contenu}
                     </Link>
                   ) : (
@@ -271,7 +271,7 @@ export default async function PageAccueil() {
             Toutes les séries
           </Link>
         </div>
-        {prod.series.length === 0 ? (
+        {prod.series.filter((s) => s.genre === "serie").length === 0 ? (
           <div className="ligne" style={{ paddingTop: 14 }}>
             <p className="petit doux">Ce compte n’a pas encore de série.</p>
             <Link href="/series?nouvelle=1" className="btn btn--principal">
@@ -280,7 +280,9 @@ export default async function PageAccueil() {
           </div>
         ) : null}
         <ul className="liste-nue">
-          {prod.series.map((s) => {
+          {prod.series
+            .filter((s) => s.genre === "serie")
+            .map((s) => {
             const r = resumeSerie(s, prod);
             const prochaineEp = r.prochaine ? episodes.get(r.prochaine.episode_id) : undefined;
             return (

@@ -5,13 +5,15 @@
 export type TypeDetecte = "png" | "jpeg" | "webp" | "mp3" | "wav" | "m4a" | "svg";
 
 /** Genres d'import acceptés par /api/import. */
-export type GenreImport = "echantillon_voix" | "musique" | "fiche";
+export type GenreImport = "echantillon_voix" | "musique" | "fiche" | "chanson";
 
 /** Types et taille maximale autorisés par genre d'import. */
 export const REGLES_IMPORT: Record<GenreImport, { types: readonly TypeDetecte[]; maxOctets: number; libelle: string }> = {
   echantillon_voix: { types: ["mp3", "wav", "m4a"], maxOctets: 20 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 20 Mo maximum" },
   musique: { types: ["mp3", "wav", "m4a"], maxOctets: 20 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 20 Mo maximum" },
   fiche: { types: ["png", "jpeg", "webp"], maxOctets: 10 * 1024 * 1024, libelle: "PNG, JPG ou WebP, 10 Mo maximum" },
+  // Chanson d'un clip : envoyée directement au stockage (adresse signée), sous la limite de 50 Mo du plan gratuit Supabase.
+  chanson: { types: ["mp3", "wav", "m4a"], maxOctets: 45 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 45 Mo maximum" },
 };
 
 /** Extension et type MIME enregistrés pour chaque type détecté. */

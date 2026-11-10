@@ -96,6 +96,9 @@ async function remettreEnAttente(episodeId: string, langues?: readonly Langue[])
 const MESSAGE_YOUTUBE_PERIME =
   "Le montage a changé après l’envoi sur YouTube : supprime l’ancienne vidéo (ou passe-la en privé sans date) dans YouTube Studio, puis clique Réessayer pour envoyer le nouveau montage.";
 
+/** Dans un clip, chaque plan couvre un passage précis de la chanson : on n'en ajoute ni n'en retire à la main. */
+const MESSAGE_PLANS_CLIP = "Dans un clip, les plans suivent la chanson : change l’extrait ou le tempo puis « Redécouper » pour en avoir plus ou moins.";
+
 /** Bornes de durée selon le genre et le format. */
 function bornes(ep: Pick<Episode, "genre">, format: Episode["format"]) {
   return ep.genre !== "episode" ? BORNES_DUREE.generique : BORNES_DUREE[format];
@@ -108,6 +111,7 @@ export async function modifierEpisode(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(schemaEpisodeFormulaire, fd);
     const { episode } = await episodeAMoi(d.id);
+    if (episode.genre === "clip") throw new ErreurUtilisateur("Les réglages d’un clip se changent dans l’étape « Son et paroles ».");
     // Un générique reste court ; la durée est ramenée dans les bornes du format.
     const format = episode.genre === "episode" ? d.format : "court";
     const b = bornes(episode, format);
@@ -141,7 +145,7 @@ export async function ecrireScenario(fd: FormData): Promise<void> {
   await executer(async () => {
     const { episode_id } = valider(schemaEpisodeSeul, fd);
     const { episode, serie } = await episodeAMoi(episode_id);
-    await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "scenario", donnees: { mode: "ecriture" }, priorite: 1 });
+    await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "scenario", donnees: { mode: "ecrire" }, priorite: 1 });
     return { message: "Écriture en file. Les plans apparaîtront ici." };
   });
 }
@@ -170,6 +174,7 @@ export async function ajouterPlan(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(z.object({ episode_id: schemaId, section: z.string().max(40).optional() }), fd);
     const { episode } = await episodeAMoi(d.episode_id);
+    if (episode.genre === "clip") throw new ErreurUtilisateur(MESSAGE_PLANS_CLIP);
     const plans = await plansDe(episode.id);
     const { supabase } = await utilisateur();
     const position = Math.max(-1, ...plans.map((p) => p.position)) + 1;
@@ -194,12 +199,15 @@ export async function modifierPlan(fd: FormData): Promise<void> {
       const { data } = await supabase.from("personnages").select("id").eq("id", d.personnage_id).eq("serie_id", serie.id).maybeSingle();
       if (!data) throw new ErreurUtilisateur("Personnage introuvable dans cette série.");
     }
+    // Dans un clip, personne ne parle (seule la chanson s'entend) ; le personnage choisi est celui qu'on voit.
+    const clip = episode.genre === "clip";
+    if (clip && d.type === "dialogue") throw new ErreurUtilisateur("Pas de dialogue dans un clip : choisis un autre type de plan.");
     const dialogue = d.type === "dialogue";
     const replique = dialogue ? d.replique : "";
     const maj = {
       type: d.type,
       texte: d.texte,
-      personnage_id: dialogue ? d.personnage_id : null,
+      personnage_id: dialogue || clip ? d.personnage_id : null,
       replique,
       // Une réplique réécrite rend ses traductions caduques.
       repliques_traduites: replique === plan.replique ? plan.repliques_traduites : {},
@@ -219,6 +227,7 @@ export async function supprimerPlan(fd: FormData): Promise<void> {
   await executer(async () => {
     const { plan_id } = valider(schemaPlanSeul, fd);
     const { plan, episode } = await planAMoi(plan_id);
+    if (episode.genre === "clip") throw new ErreurUtilisateur(MESSAGE_PLANS_CLIP);
     const chemins = await cheminsDuPlan(plan.id);
     const { supabase } = await utilisateur();
     verifier((await supabase.from("plans").delete().eq("id", plan.id)).error, "Suppression du plan");
@@ -468,7 +477,7 @@ export async function publier(fd: FormData): Promise<void> {
         const livrable = livrablePour(episode, c.reseau);
         const f = livrable === "bande_annonce" ? fichiers.find((x) => x.genre === "bande_annonce") : fichiers.find((x) => x.genre === "rendu" && x.langue === d.langue);
         const duree = f?.duree_s !== null && f?.duree_s !== undefined ? Number(f.duree_s) : livrable === "bande_annonce" ? 60 : episode.duree_cible;
-        const message = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree });
+        const message = verifierDureePublication({ reseau: c.reseau, livrable, format: episode.format, duree, genre: episode.genre });
         return message ? `${c.nom_compte} : ${message}` : null;
       })
       .filter((x): x is string => x !== null);

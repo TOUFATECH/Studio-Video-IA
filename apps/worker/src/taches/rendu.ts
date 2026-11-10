@@ -2,16 +2,36 @@
 // bruitage et sous-titres ; puis passage des publications en attente à « programmée » et mémoire automatique.
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { dureesParPlan, indexerFichiers, livrablePour, planParleElevenLabs, prochainCreneau, promptBruitage, unitesRendu, verifierDureePublication, type Espace, type Fichier, type Langue, type Plan, type ReseauConnecte, estHorizontal, aGeneriques } from "@studio-video-ia/core";
+import {
+  aGeneriques,
+  dureesParPlan,
+  estHorizontal,
+  extraitClip,
+  indexerFichiers,
+  livrablePour,
+  planParleElevenLabs,
+  prochainCreneau,
+  promptBruitage,
+  reperesParoles,
+  unitesRendu,
+  verifierDureePublication,
+  type Espace,
+  type Fichier,
+  type Langue,
+  type Plan,
+  type Repere,
+  type ReseauConnecte,
+} from "@studio-video-ia/core";
 import { genererBruitage } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
-import { chargerEpisode, chargerReglages, enregistrerFichier, erreurCourte, fichierPret, nomPlan, type EpisodeComplet } from "../donnees";
-import { executerFfmpeg } from "../rendu/executant";
+import { chansonDuClip, chargerEpisode, chargerReglages, enregistrerFichier, erreurCourte, fichierPret, nomPlan, type EpisodeComplet } from "../donnees";
+import { executerFfmpeg, sonder } from "../rendu/executant";
 import { monter, type PlanAMonter } from "../rendu/montage";
 import { cheminMedia, nomUnique } from "../stockage";
 import { ecrire, ligne, lignes, ligneOuNull } from "../supabase";
+import { traduireParoles } from "./decoupage";
 
 /** Données acceptées : langues à rendre (toutes par défaut) et bande annonce (vraie par défaut pour un film). */
 export const schemaDonneesRendu = z.object({ langues: z.array(z.string()).optional(), bande_annonce: z.boolean().optional() });
@@ -114,14 +134,34 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
 
   const dossier = await ctx.dossier();
   const local = telechargeur(ctx, dossier);
+  // Clip musical : la chanson remplace voix, musique et ambiance ; les plans couvrent l'extrait choisi.
+  const estClip = e.episode.genre === "clip";
+  let chanson: { chemin: string; debut: number; duree: number } | null = null;
+  let extrait: { debut: number; fin: number } | null = null;
+  if (estClip) {
+    const f = chansonDuClip(e.fichiers);
+    if (!f?.chemin) throw new Error("Rendu impossible : le clip n'a pas de chanson. Ajoute-la dans l'étape « Son et paroles ».");
+    const cheminLocal = await local(f.chemin);
+    const dureeChanson = f.duree_s ? Number(f.duree_s) : (await sonder(ctx.config.ffprobe, cheminLocal, ctx.signal)).duree;
+    extrait = extraitClip(e.episode, dureeChanson);
+    // Sous-titres choisis dans une autre langue après le découpage : la traduction manquante est faite maintenant.
+    try {
+      await traduireParoles(ctx, e);
+    } catch (err) {
+      ctx.journal(`traduction des paroles impossible, rendu sans ces sous-titres : ${erreurCourte(err)}`);
+    }
+    const debut = Math.min(...e.plans.map((p) => p.debut ?? extrait!.debut));
+    const total = e.plans.reduce((s, p) => s + (durees.get(p.id) ?? 0), 0);
+    chanson = { chemin: cheminLocal, debut, duree: total };
+  }
   // 16:9 pour un épisode YouTube ou un film ; opening et ending seulement autour d'un film.
   const horizontal = estHorizontal(e.episode.format);
   const generiques = aGeneriques(e.episode.format, e.episode.genre);
-  const musique = e.episode.musique
+  const musique = e.episode.musique && !estClip
     ? await ligneOuNull<Fichier>(ctx.db.from("fichiers").select("*").eq("espace_id", e.serie.espace_id).eq("genre", "musique").eq("statut", "pret").order("cree_le", { ascending: false }).limit(1), "musique")
     : null;
   await ctx.progression({ fait: 0, total: unites.length, etape: "Préparation des fichiers" });
-  const cheminBruitage = await bruitage(ctx, e);
+  const cheminBruitage = estClip ? null : await bruitage(ctx, e);
   const rendues: string[] = [];
 
   for (const [n, u] of unites.entries()) {
@@ -143,6 +183,18 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
     const choix = bande ? langue : (e.episode.sous_titres[langue] ?? "aucun");
     const sousDossier = join(dossier, bande ? "bande-annonce" : langue);
     await mkdir(sousDossier, { recursive: true });
+    let paroles: Repere[] | null = null;
+    if (estClip && chanson && extrait) {
+      // Les sous-titres d'un clip sont les paroles (ou leur traduction), calées sur le début réel du premier plan.
+      paroles = reperesParoles({
+        lignes: e.episode.paroles_alignees ?? [],
+        traductions: e.episode.paroles_traduites,
+        extrait: { debut: chanson.debut, fin: chanson.debut + chanson.duree },
+        choix,
+        langueChanson: e.episode.langue,
+      });
+      if (choix !== "aucun" && paroles.length === 0) ctx.journal(`pas de paroles à afficher en ${choix} : rendu sans sous-titres`);
+    }
     const avant = generiques && !bande ? await generique(ctx, e.saison.opening_id, "opening", langue) : null;
     const apres = generiques && !bande ? await generique(ctx, e.saison.ending_id, "ending", langue) : null;
     const resultat = await monter({
@@ -158,7 +210,9 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
       apres: apres ? await local(apres) : null,
       musique: musique?.chemin ? await local(musique.chemin) : null,
       bruitage: cheminBruitage ? await local(cheminBruitage) : null,
-      sousTitres: choix === "aucun" ? null : { choix, langueOrigine: e.episode.langue },
+      sousTitres: choix === "aucun" || estClip ? null : { choix, langueOrigine: e.episode.langue },
+      chanson,
+      reperesParoles: paroles,
       police: ctx.config.police,
       signal: ctx.signal,
       surEtape: (etape) => void ctx.progression({ fait: n, total: unites.length, etape: `${libelle} : ${etape}` }).catch(() => undefined),
@@ -215,7 +269,7 @@ export function plansPourMiniatures(plans: readonly Plan[]): Plan[] {
  * Gratuit : on recadre les images du storyboard, aucune nouvelle génération.
  */
 async function creerMiniatures(ctx: Contexte, e: EpisodeComplet): Promise<void> {
-  if (e.episode.genre !== "episode" || e.episode.miniature?.chemins.length) return;
+  if ((e.episode.genre !== "episode" && e.episode.genre !== "clip") || e.episode.miniature?.chemins.length) return;
   const index = indexerFichiers(e.fichiers);
   const dossier = join(await ctx.dossier(), "miniatures");
   await mkdir(dossier, { recursive: true });
@@ -238,7 +292,7 @@ async function creerMiniatures(ctx: Contexte, e: EpisodeComplet): Promise<void> 
  * publication, il prend le prochain créneau sur les comptes du rythme (même espace, connectés, durée permise).
  */
 async function programmerSelonRythme(ctx: Contexte, e: EpisodeComplet): Promise<void> {
-  if (e.episode.genre !== "episode" || !e.serie.rythme.auto || e.serie.rythme.reseaux.length === 0) return;
+  if ((e.episode.genre !== "episode" && e.episode.genre !== "clip") || !e.serie.rythme.auto || e.serie.rythme.reseaux.length === 0) return;
   const existantes = await lignes<{ id: string }>(ctx.db.from("publications").select("id").eq("episode_id", e.episode.id).neq("statut", "annulee"), "publications de l'épisode");
   if (existantes.length) return;
   const espace = await ligne<Espace>(ctx.db.from("espaces").select("*").eq("id", e.serie.espace_id).limit(1), "espace");
@@ -263,7 +317,7 @@ async function programmerSelonRythme(ctx: Contexte, e: EpisodeComplet): Promise<
     const livrable = livrablePour(e.episode, c.reseau);
     const f = livrable === "bande_annonce" ? fichiers.find((x) => x.genre === "bande_annonce") : fichiers.find((x) => x.genre === "rendu" && x.langue === langue);
     if (!f) return [];
-    if (verifierDureePublication({ reseau: c.reseau, livrable, format: e.episode.format, duree: Number(f.duree_s ?? 0) })) return [];
+    if (verifierDureePublication({ reseau: c.reseau, livrable, format: e.episode.format, duree: Number(f.duree_s ?? 0), genre: e.episode.genre })) return [];
     return [{ episode_id: e.episode.id, reseau_connecte_id: c.id, langue, livrable, programmee_le: creneau.toISOString(), statut: "programmee" }];
   });
   if (nouvelles.length) {

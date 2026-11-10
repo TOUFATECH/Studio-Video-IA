@@ -15,8 +15,14 @@ export const IPS = 30;
 /** Fréquence d'échantillonnage de tous les sons. */
 export const FREQ_AUDIO = 48000;
 
-/** Volumes du mixage. */
-export const VOLUMES = { clipsAvecVoix: 0.35, clipsSansVoix: 1, musique: 0.15, bruitage: 0.25 } as const;
+/** Volumes du mixage. Dans un clip musical, le son des clips Grok est coupé : seule la chanson s'entend. */
+export const VOLUMES = { clipsAvecVoix: 0.35, clipsSansVoix: 1, clipsMusicaux: 0, musique: 0.15, bruitage: 0.25, chanson: 1 } as const;
+
+/** Durée du fondu de fin de la chanson d'un clip (secondes). */
+export const FONDU_CHANSON = 1.5;
+
+/** Extrait de chanson placé sous un clip musical : fichier, début dans le fichier et durée. */
+export type ChansonPlacee = { chemin: string; debut: number; duree: number };
 
 /** Arguments communs : pas de bannière, peu de bruit, jamais d'attente au clavier, écrasement autorisé. */
 const DEBUT = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"];
@@ -153,6 +159,8 @@ export type ParamsFinal = {
   orientation: Orientation;
   dureeTotale: number;
   sortie: string;
+  /** Clip musical : l'extrait de la chanson, lu à partir de son début, avec un fondu de fin. */
+  chanson?: ChansonPlacee | null;
 };
 
 /**
@@ -182,6 +190,16 @@ export function argumentsFinal(p: ParamsFinal): string[] {
   };
   fond(p.musique, "musique", VOLUMES.musique);
   fond(p.bruitage, "bruitage", VOLUMES.bruitage);
+  if (p.chanson) {
+    // -ss avant -i : lecture rapide à partir du début de l'extrait ; -t borne la lecture à sa durée.
+    entrees.push("-ss", sec(p.chanson.debut), "-t", sec(p.chanson.duree), "-i", p.chanson.chemin);
+    const fondu = Math.min(FONDU_CHANSON, p.chanson.duree / 4);
+    filtres.push(
+      `[${n}:a]aresample=${FREQ_AUDIO},aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${VOLUMES.chanson},apad,atrim=0:${total},afade=t=in:d=0.05,afade=t=out:st=${sec(Math.max(0, p.dureeTotale - fondu))}:d=${sec(fondu)}[chanson]`,
+    );
+    pistes.push("[chanson]");
+    n++;
+  }
   // normalize=0 : amix ne divise pas les volumes par le nombre d'entrées ; alimiter évite la saturation.
   filtres.push(
     pistes.length > 1

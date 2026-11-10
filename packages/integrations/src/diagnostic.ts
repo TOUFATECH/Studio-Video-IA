@@ -4,6 +4,7 @@ import type { ContratIntegrations, ResultatTest } from "./contrat";
 import { ErreurApi } from "./contrat";
 import { listerVoix, lireUtilisateurElevenLabs } from "./elevenlabs";
 import { estErreurJeton, identite, NOMS_FOURNISSEURS } from "./oauth";
+import { listerModelesAnthropic } from "./anthropic";
 import { listerModelesOpenAI } from "./openai";
 import { chiffresCompteTiktok, estScopeManquant } from "./statistiques";
 import { listerModelesXai } from "./xai";
@@ -37,6 +38,16 @@ export const testerXai: ContratIntegrations["testerXai"] = async (cle, f = fetch
     return { ok: true, message: `Clé xAI valide : ${modeles.length} modèles accessibles.`, details: { modeles } };
   } catch (e) {
     return { ok: false, message: messageEchec("xAI", e) };
+  }
+};
+
+/** Teste une clé Anthropic (liste des modèles Claude accessibles). */
+export const testerAnthropic: ContratIntegrations["testerAnthropic"] = async (cle, f = fetch) => {
+  try {
+    const modeles = await listerModelesAnthropic(cle, f);
+    return { ok: true, message: `Clé Claude valide : ${modeles.length} modèles accessibles${modeles.length ? `, dont ${modeles.slice(0, 3).join(", ")}` : ""}.`, details: { modeles } };
+  } catch (e) {
+    return { ok: false, message: messageEchec("Anthropic", e) };
   }
 };
 

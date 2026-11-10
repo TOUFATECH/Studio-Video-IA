@@ -1,5 +1,7 @@
 // Étape 4 : montage. Langues, sous-titres par version, musique, bruitages, accroche, miniatures, titres, rendu.
 import { LANGUES, NOMS_LANGUES, formaterDuree, propositionsTitres } from "@studio-video-ia/core";
+import Link from "next/link";
+import { lienEpisode } from "@/lib/episodes";
 import { choisirMiniature, choisirTitre, lancerRendu, modifierLangues, modifierMontage, modifierSousTitres } from "@/app/actions/episodes";
 import { ImportFichier } from "@/components/ImportFichier";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
@@ -21,10 +23,33 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
   const accrocheOk = !!premier && premier.type === "accroche" && (durees.get(premier.id) ?? 99) <= 3;
   const miniatures = episode.miniature?.chemins ?? [];
   const bandeAnnonce = index.get("bande_annonce");
+  // Clip musical : une seule version (la langue de la chanson), le son est la chanson elle-même.
+  const clip = episode.genre === "clip";
+  const horizontal = episode.format !== "court";
+  const choixClip = episode.sous_titres[episode.langue] ?? "aucun";
 
   return (
     <div className="pile">
       <div className="colonnes">
+        {clip ? (
+          <section aria-labelledby="son-clip-h" className="carte pile pile--serree">
+            <h2 id="son-clip-h" className="h2">
+              Son et sous-titres
+            </h2>
+            <p className="petit">
+              La chanson remplace le son des vidéos Grok
+              {episode.extrait_fin !== null ? ` · extrait ${formaterDuree(episode.extrait_debut)} → ${formaterDuree(episode.extrait_fin)}` : ""}, avec un fondu à la fin.
+            </p>
+            <p className="petit">
+              Sous-titres : {choixClip === "aucun" ? "aucun" : choixClip === episode.langue ? `les paroles (${NOMS_LANGUES[choixClip].toLowerCase()})` : `traduction en ${NOMS_LANGUES[choixClip].toLowerCase()}`}
+            </p>
+            <div>
+              <Link href={lienEpisode(episode, "son")} className="btn btn--discret">
+                Changer dans « Son et paroles »
+              </Link>
+            </div>
+          </section>
+        ) : (
         <section aria-labelledby="langues-h" className="carte pile">
           <div>
             <h2 id="langues-h" className="h2">
@@ -94,14 +119,15 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
             aide="MP3, WAV ou M4A, 20 Mo maximum. Utilisée en fond pour tous les épisodes du compte. Vérifie que tu as les droits."
           />
         </section>
+        )}
 
         <section aria-labelledby="accroche-h" className="carte pile">
           <h2 id="accroche-h" className="h2">
             Accroche et miniature
           </h2>
           <p className="ligne ligne--sans-retour ligne--haut petit">
-            <Pastille ton={accrocheOk ? "succes" : "attention"} />
-            <span>{accrocheOk ? "Le premier plan est une accroche de 3 s : bien pour retenir dès la première seconde." : "Le premier plan devrait être une accroche de 3 s maximum : c’est ce qui retient sur TikTok et les Shorts."}</span>
+            <Pastille ton={clip || accrocheOk ? "succes" : "attention"} />
+            <span>{clip ? "Le premier plan démarre avec l’extrait : choisis un début d’extrait fort (refrain, montée) pour retenir dès la première seconde." : accrocheOk ? "Le premier plan est une accroche de 3 s : bien pour retenir dès la première seconde." : "Le premier plan devrait être une accroche de 3 s maximum : c’est ce qui retient sur TikTok et les Shorts."}</span>
           </p>
           <p className="etiquette">Miniature YouTube</p>
           {miniatures.length ? (
@@ -173,7 +199,7 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
             </BoutonEnvoi>
           </form>
         </div>
-        {!clipsOk ? <p className="tres-petit texte-attention">Il manque des clips : termine l’étape Clips et voix.</p> : null}
+        {!clipsOk ? <p className="tres-petit texte-attention">{clip ? "Il manque des vidéos : termine l’étape Vidéos." : "Il manque des clips : termine l’étape Clips et voix."}</p> : null}
         <ul className="liste-nue">
           {episode.langues.map((l) => {
             const f = index.get(`rendu:${l}`);
@@ -190,7 +216,7 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
                     {f?.duree_s ? ` · ${formaterDuree(f.duree_s)}` : ""}
                   </span>
                   {f?.statut === "echec" ? <span className="tres-petit texte-erreur">{f.erreur ?? "Erreur inconnue"}</span> : null}
-                  {url ? <video className={long ? styles.lecteurFilm : styles.lecteurRendu} src={url} controls preload="metadata" playsInline aria-label={`Rendu version ${NOMS_LANGUES[l]}`} /> : null}
+                  {url ? <video className={long || (clip && horizontal) ? styles.lecteurFilm : styles.lecteurRendu} src={url} controls preload="metadata" playsInline aria-label={`Rendu version ${NOMS_LANGUES[l]}`} /> : null}
                 </div>
                 <Puce ton={f?.statut === "pret" ? "succes" : f?.statut === "echec" ? "erreur" : tache ? "info" : "neutre"}>{f?.statut === "pret" ? "Prêt" : f?.statut === "echec" ? "Échec" : tache ? "En cours" : "À faire"}</Puce>
               </li>

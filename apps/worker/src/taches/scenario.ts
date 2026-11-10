@@ -13,6 +13,8 @@ import {
   type Plan,
 } from "@studio-video-ia/core";
 import { demanderJson } from "@studio-video-ia/integrations";
+import { demanderTexteIA } from "../ia";
+import { decouperLeClip } from "./decoupage";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
@@ -21,7 +23,11 @@ import { ecrire, lignes, ligneOuNull } from "../supabase";
 
 /** Données acceptées par la tâche. */
 export const schemaDonneesScenario = z.object({
-  mode: z.enum(["ecrire", "modification"]).default("ecrire"),
+  // « ecriture » : valeur envoyée par d'anciennes versions du site, traitée comme « ecrire ».
+  mode: z
+    .enum(["ecrire", "ecriture", "modification"])
+    .default("ecrire")
+    .transform((m) => (m === "ecriture" ? "ecrire" : m)),
   demande: z.string().optional(),
   plan_ids: z.array(z.string()).optional(),
 });
@@ -70,8 +76,10 @@ export async function tacheScenario(ctx: Contexte): Promise<void> {
   const donnees = schemaDonneesScenario.parse(ctx.tache.donnees ?? {});
   if (!ctx.tache.episode_id) throw new Error("Tâche scénario sans épisode.");
   const e = await chargerEpisode(ctx.db, ctx.tache.episode_id);
+  if (donnees.mode === "modification") return modifier(ctx, e, donnees.demande ?? "", donnees.plan_ids);
+  // Un clip musical se découpe sur sa chanson au lieu de s'écrire comme un épisode.
+  if (e.episode.genre === "clip") return decouperLeClip(ctx, e);
   const cle = exigerCle(await ctx.cles(), "openai");
-  if (donnees.mode === "modification") return modifier(ctx, e, cle, donnees.demande ?? "", donnees.plan_ids);
 
   await ctx.progression({ fait: 0, total: 3, etape: "Préparation du contexte (bible, mémoire, épisodes précédents)" });
   const memoire = await lignes<FaitMemoire>(ctx.db.from("memoire").select("*").eq("serie_id", e.serie.id).order("cree_le"), "mémoire");
@@ -124,13 +132,20 @@ export async function tacheScenario(ctx: Contexte): Promise<void> {
 }
 
 /** Modification ciblée : seuls les plans renvoyés par l'IA changent ; ils repassent à valider et perdent leurs fichiers. */
-async function modifier(ctx: Contexte, e: EpisodeComplet, cle: string, demande: string, planIds: string[] | undefined): Promise<void> {
+async function modifier(ctx: Contexte, e: EpisodeComplet, demande: string, planIds: string[] | undefined): Promise<void> {
   if (!demande.trim()) throw new Error("Demande de modification vide.");
   const cibles: Plan[] = planIds?.length ? e.plans.filter((p) => planIds.includes(p.id)) : e.plans;
   if (cibles.length === 0) throw new Error("Aucun plan à modifier.");
   await ctx.progression({ fait: 0, total: 2, etape: "Réécriture par l'IA" });
   const contexte = `${texteBible(e.serie, e.personnages)}\n\nÉpisode : ${e.episode.titre}\nIdée : ${e.episode.idee}`;
-  const reponse = await demanderJson(cle, ctx.config.modeles.texte, promptModification({ contexte, plans: cibles, demande, langue: e.episode.langue }), schemaModificationIA, ctx.f);
+  // Un clip garde l'IA choisie (ChatGPT ou Claude) ; ses scènes sont décrites en français.
+  const clip = e.episode.genre === "clip";
+  const reponse = await demanderTexteIA(
+    ctx,
+    clip ? e.episode.fournisseur_texte : "openai",
+    promptModification({ contexte: clip ? `${contexte}\nClip musical : ne change pas les paroles, seulement ce qu'on voit.` : contexte, plans: cibles, demande, langue: clip ? "fr" : e.episode.langue }),
+    schemaModificationIA,
+  );
   const autorises = new Set(cibles.map((p) => p.id));
   const modifies = reponse.plans.filter((p) => autorises.has(p.id));
   await ctx.progression({ fait: 1, total: 2, etape: `${modifies.length} plan(s) modifié(s)` });

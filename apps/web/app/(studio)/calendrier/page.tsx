@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeReseau, Puce } from "@/components/ui/elements";
 import { chargerProduction } from "@/lib/donnees";
-import { codeEpisode, nomEpisode } from "@/lib/episodes";
+import { codeEpisode, lienEpisode, nomEpisode } from "@/lib/episodes";
 import { fuseauReference } from "@/lib/espace-courant";
 import { cleJour, compact, heure, jourCourt } from "@/lib/format";
 import { statutPublication } from "@/lib/libelles";
@@ -79,7 +79,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
                   <li key={pub.id} className="liste-ligne">
                     <span className="mono petit">{heure(pub.publiee_le ?? pub.programmee_le, f)}</span>
                     <BadgeReseau reseau={compte.reseau} />
-                    <Link href={`/episodes/${ep.id}?etape=publication`} className="lien-ligne petit">
+                    <Link href={lienEpisode(ep, "publication")} className="lien-ligne petit">
                       <span className="gras">
                         {serie?.nom} · {codeEpisode(ep, saison)} {nomEpisode(ep, saison)}
                       </span>

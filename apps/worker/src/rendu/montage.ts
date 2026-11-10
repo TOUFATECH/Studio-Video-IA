@@ -2,8 +2,8 @@
 // Indépendant de Supabase : utilisé par la tâche rendu, par le test complet et par le test d'intégration ffmpeg.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { construireReperes, versSrt, type Langue, type Plan } from "@studio-video-ia/core";
-import { argumentsConcat, argumentsFinal, argumentsSegment, listeConcat, VOLUMES, type Orientation, type VoixPlacee } from "./arguments";
+import { construireReperes, versSrt, type Langue, type Plan, type Repere } from "@studio-video-ia/core";
+import { argumentsConcat, argumentsFinal, argumentsSegment, listeConcat, VOLUMES, type ChansonPlacee, type Orientation, type VoixPlacee } from "./arguments";
 import { aLibass, ErreurOutil, executerFfmpeg, MESSAGE_SANS_LIBASS, sonder } from "./executant";
 
 /** Un plan à monter : le plan (pour les sous-titres), son clip local, sa durée et sa voix éventuelle. */
@@ -27,6 +27,9 @@ export type ParamsMontage = {
   bruitage?: string | null;
   /** Sous-titres : langue choisie et langue d'origine (null : aucun). */
   sousTitres?: { choix: Langue; langueOrigine: Langue } | null;
+  /** Clip musical : la chanson remplace le son des clips, et les sous-titres sont les paroles déjà placées. */
+  chanson?: ChansonPlacee | null;
+  reperesParoles?: readonly Repere[] | null;
   police: string;
   surEtape?: (etape: string, fait: number, total: number) => void;
   signal?: AbortSignal;
@@ -48,8 +51,12 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
   let srt: string | null = null;
   let dureeAvant = 0;
   if (p.avant) dureeAvant = (await sonder(p.ffprobe, p.avant, p.signal)).duree;
-  if (p.sousTitres) {
-    const reperes = construireReperes({ plans: p.plans.map((x) => x.plan), durees, choix: p.sousTitres.choix, langueOrigine: p.sousTitres.langueOrigine, decalage: dureeAvant });
+  if (p.sousTitres || p.reperesParoles?.length) {
+    const reperes = p.reperesParoles?.length
+      ? p.reperesParoles
+      : p.sousTitres
+        ? construireReperes({ plans: p.plans.map((x) => x.plan), durees, choix: p.sousTitres.choix, langueOrigine: p.sousTitres.langueOrigine, decalage: dureeAvant })
+        : [];
     if (reperes.length > 0) {
       if (!(await aLibass(p.ffmpeg))) throw new ErreurOutil("ffmpeg", MESSAGE_SANS_LIBASS);
       srt = join(p.dossier, "sous-titres.srt");
@@ -75,7 +82,7 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
     etape("Opening");
     await segment("seg-avant", p.avant, dureeAvant, 1, false);
   }
-  const volumeClips = avecVoix ? VOLUMES.clipsAvecVoix : VOLUMES.clipsSansVoix;
+  const volumeClips = p.chanson ? VOLUMES.clipsMusicaux : avecVoix ? VOLUMES.clipsAvecVoix : VOLUMES.clipsSansVoix;
   for (const [i, x] of p.plans.entries()) {
     etape(`Découpe du plan ${i + 1}/${p.plans.length}`);
     await segment(`seg-${String(i).padStart(4, "0")}`, x.clip, x.duree, volumeClips, p.recadrer ?? false);
@@ -109,7 +116,19 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
   etape(srt ? "Mixage et sous-titres" : "Mixage");
   await executerFfmpeg(
     p.ffmpeg,
-    argumentsFinal({ video, audio, voix, musique: p.musique ?? null, bruitage: p.bruitage ?? null, sousTitres: srt, police: p.police, orientation: p.orientation, dureeTotale, sortie: p.sortie }),
+    argumentsFinal({
+      video,
+      audio,
+      voix,
+      musique: p.musique ?? null,
+      bruitage: p.bruitage ?? null,
+      sousTitres: srt,
+      police: p.police,
+      orientation: p.orientation,
+      dureeTotale,
+      sortie: p.sortie,
+      chanson: p.chanson ?? null,
+    }),
     p.signal,
   );
   fait++;

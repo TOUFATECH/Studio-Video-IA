@@ -24,6 +24,8 @@ export default async function PageSeries({ searchParams }: { searchParams: Promi
   const espaces = new Map(portee.espaces.map((e) => [e.id, e]));
   const saisons = new Map(prod.saisons.map((s) => [s.id, s]));
   const episodes = new Map(prod.episodes.map((e) => [e.id, e]));
+  // L'espace Clips a sa propre page : seules les séries d'histoires sont listées ici.
+  const series = prod.series.filter((s) => s.genre === "serie");
 
   return (
     <div className="pile pile--large">
@@ -101,7 +103,7 @@ export default async function PageSeries({ searchParams }: { searchParams: Promi
         </section>
       ) : null}
 
-      {prod.series.length === 0 && !creation ? (
+      {series.length === 0 && !creation ? (
         <div className="carte vide">
           <p className="h2">Aucune série sur ce compte</p>
           <p className="petit doux">Une série regroupe une histoire, ses personnages, ses saisons et ses épisodes. Tu peux en avoir plusieurs par compte.</p>
@@ -112,7 +114,7 @@ export default async function PageSeries({ searchParams }: { searchParams: Promi
       ) : null}
 
       <div className="grille-cartes">
-        {prod.series.map((s) => {
+        {series.map((s) => {
           const r = resumeSerie(s, prod);
           const espace = espaces.get(s.espace_id);
           const prochaineEp = r.prochaine ? episodes.get(r.prochaine.episode_id) : undefined;

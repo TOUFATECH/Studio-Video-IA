@@ -1,5 +1,5 @@
 // Tâche « storyboard » : une image par plan (fiches personnages et plan précédent en références), une relance par plan.
-import { coutUnite, promptImage, type Personnage, type Plan, estHorizontal, type FormatEpisode } from "@studio-video-ia/core";
+import { coutUnite, promptImage, styleVisuelClip, type Personnage, type Plan, estHorizontal, type FormatEpisode } from "@studio-video-ia/core";
 import { genererImage, modifierImage, type ImageReference, type TailleImage } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
@@ -58,7 +58,8 @@ export async function tacheStoryboard(ctx: Contexte): Promise<void> {
       if (img?.chemin) references.push({ nom: "plan-precedent.png", donnees: await ctx.stockage.lire(img.chemin) });
     }
     const prompt = promptImage({
-      serie: e.serie,
+      // Un clip peut avoir son propre style visuel, différent de celui de l'espace Clips.
+      serie: e.episode.genre === "clip" ? { ...e.serie, style_visuel: styleVisuelClip(e.serie, e.episode) } : e.serie,
       personnagesPresents: presents,
       plan,
       vertical: !estHorizontal(e.episode.format),

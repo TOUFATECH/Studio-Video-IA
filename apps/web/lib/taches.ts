@@ -30,6 +30,9 @@ const NOMS: Record<TypeTache, string> = {
   memoire: "La mise à jour de la mémoire",
   clone_voix: "Le clonage de cette voix",
   test_complet: "Le test complet",
+  paroles: "L’écriture des paroles",
+  musique: "La composition de la musique",
+  synchro: "La synchronisation des paroles",
 };
 
 /**

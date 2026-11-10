@@ -8,6 +8,7 @@ import styles from "./coquille.module.scss";
 const ENTREES = [
   { href: "/", libelle: "Accueil", actif: (c: string) => c === "/" },
   { href: "/series", libelle: "Séries", actif: (c: string) => c.startsWith("/series") || c.startsWith("/episodes") },
+  { href: "/clips", libelle: "Clips", actif: (c: string) => c.startsWith("/clips") },
   { href: "/calendrier", libelle: "Calendrier", actif: (c: string) => c.startsWith("/calendrier") },
   { href: "/statistiques", libelle: "Statistiques", actif: (c: string) => c.startsWith("/statistiques") },
   { href: "/reglages", libelle: "Réglages", actif: (c: string) => c.startsWith("/reglages") },
@@ -34,7 +35,7 @@ export function MenuLateral({ aFaire, episodeOuvert }: { aFaire: number; episode
           </li>
         ))}
       </ul>
-      {episodeOuvert && !chemin.startsWith("/episodes") ? (
+      {episodeOuvert && !chemin.startsWith("/episodes") && !chemin.startsWith("/clips/") ? (
         <Link href={episodeOuvert.lien} className={styles.episodeOuvert}>
           <span className="surtitre">Épisode ouvert</span>
           <span className="gras">{episodeOuvert.titre}</span>

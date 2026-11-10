@@ -1,7 +1,7 @@
 // Chargement de tout ce qu'affiche la fiche d'une série (lecture via RLS).
 import "server-only";
 import { etatEpisode, type EtatEpisode } from "@studio-video-ia/core";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { COLONNES_RESEAU } from "@/lib/appartenance";
 import { enLots, grouper } from "@/lib/donnees";
 import { ligne, ligneEpisode, ligneEspace, ligneFichier, ligneMemoire, lignePersonnage, lignePlan, lignePublication, ligneReseau, ligneSaison, ligneSerie, lignes, ligneTache } from "@/lib/lignes";
@@ -15,6 +15,8 @@ export async function chargerSerie(brut: string) {
   const { supabase, user } = await utilisateur();
   const serie = ligne(ligneSerie, (await supabase.from("series").select("*").eq("id", r.data).maybeSingle()).data);
   if (!serie) notFound();
+  // L'espace Clips n'a pas de fiche série : il a sa propre page.
+  if (serie.genre === "clips") redirect("/clips");
   const [espace, saisons, episodes, personnages, memoire, comptes] = await Promise.all([
     supabase.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle().then((x) => ligne(ligneEspace, x.data)),
     supabase.from("saisons").select("*").eq("serie_id", serie.id).order("numero").then((x) => lignes(ligneSaison, x.data, "saisons")),

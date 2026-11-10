@@ -21,7 +21,7 @@ const disponible = present(FFMPEG) && present(FFPROBE);
 
 /** Plan minimal pour le montage. */
 function plan(id: string, replique: string): Plan {
-  return { id, episode_id: "e", position: 0, section: "principal", type: replique ? "dialogue" : "action", texte: "", personnage_id: replique ? "p" : null, replique, repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A" };
+  return { id, episode_id: "e", position: 0, section: "principal", type: replique ? "dialogue" : "action", texte: "", personnage_id: replique ? "p" : null, replique, repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null };
 }
 
 describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
@@ -117,4 +117,33 @@ describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
     expect(infos.hauteur).toBe(1920);
     expect(Math.abs(infos.duree - 2)).toBeLessThanOrEqual(0.3);
   }, 60_000);
+
+  it("monte un clip musical : plans de durées non entières sur l'extrait de la chanson, paroles en sous-titres", async () => {
+    const libass = await aLibass(FFMPEG);
+    // Chanson de test : 12 s de son, dont on garde l'extrait 2 s → 8 s.
+    const chanson = join(dossier, "chanson.mp3");
+    await executerFfmpeg(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=330:duration=12", "-c:a", "libmp3lame", chanson]);
+    const etapes: string[] = [];
+    const r = await monter({
+      ffmpeg: FFMPEG,
+      ffprobe: FFPROBE,
+      dossier,
+      sortie: join(dossier, "clip musical.mp4"),
+      orientation: "horizontal",
+      plans: [
+        { plan: { ...plan("m1", ""), debut: 2, fin: 4.6 }, clip: clips[0] ?? "", duree: 2.6, voix: null },
+        { plan: { ...plan("m2", ""), debut: 4.6, fin: 8 }, clip: clips[1] ?? "", duree: 3.4, voix: null },
+      ],
+      chanson: { chemin: chanson, debut: 2, duree: 6 },
+      reperesParoles: libass ? [{ debut: 0.5, fin: 3, texte: "On s'envole ce soir" }] : null,
+      police: POLICE,
+      surEtape: (e) => etapes.push(e),
+    });
+    const infos = await sonder(FFPROBE, r.chemin);
+    expect(Math.abs(infos.duree - 6)).toBeLessThanOrEqual(0.3);
+    expect(infos.largeur).toBe(1920);
+    expect(infos.hauteur).toBe(1080);
+    expect(infos.aAudio).toBe(true);
+    expect(r.avecSousTitres).toBe(libass);
+  }, 120_000);
 });

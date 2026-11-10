@@ -1,6 +1,23 @@
 // Tâche « clips » : traductions manquantes, puis un clip Grok par plan (deux si 2 prises) et une voix ElevenLabs
 // par réplique et par langue. Une relance automatique par unité, puis échec lisible ; le coût de chaque fichier est enregistré.
-import { coutUnite, dureesParPlan, languesATraduire, LANGUES, promptTraduction, promptVideo, repliqueEn, unitesClips, type Episode, type Langue, type Personnage, type Plan, type Unite, estHorizontal } from "@studio-video-ia/core";
+import {
+  coutUnite,
+  dureeGenerationClip,
+  dureesParPlan,
+  estHorizontal,
+  languesATraduire,
+  LANGUES,
+  promptTraduction,
+  promptVideo,
+  promptVideoClip,
+  repliqueEn,
+  unitesClips,
+  type Episode,
+  type Langue,
+  type Personnage,
+  type Plan,
+  type Unite,
+} from "@studio-video-ia/core";
 import { demanderJson, genererVideo, synthetiserVoix, type RatioVideo } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
@@ -69,7 +86,9 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
     throw new Error(`Tous les plans doivent être validés avant de lancer les clips (${valides}/${e.plans.length} validés).`);
   }
   const { tarifs, preferences } = await chargerReglages(ctx.db, await ctx.proprietaire());
-  await traduire(ctx, e);
+  // Un clip musical n'a pas de répliques : ses paroles sont traduites au découpage.
+  const clipMusical = e.episode.genre === "clip";
+  if (!clipMusical) await traduire(ctx, e);
 
   const durees = dureesParPlan(e.plans, e.episode.duree_cible, e.episode.format);
   const toutes = unitesClips(e.episode, e.plans, e.personnages);
@@ -99,16 +118,18 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
         await etape(`Clip ${u.prise ?? "A"} du ${nom}`);
         const image = fichierPret(e.fichiers, `${plan.id}:image`);
         if (!image?.chemin) throw new Error("image du plan absente : relance le storyboard");
-        const grok = audioGrok(plan, e.personnages);
+        const grok = !clipMusical && audioGrok(plan, e.personnages);
         const perso = e.personnages.find((p) => p.id === plan.personnage_id);
+        // Clip musical : Grok génère le palier juste au-dessus de la durée du plan, recoupé au montage, sans son.
+        const dureeGrok = dureeGenerationClip(duree);
         // Avec une voix Grok, la réplique doit figurer dans le prompt pour que le clip la prononce.
-        const prompt = `${promptVideo(plan, duree, grok)}${grok && perso ? ` ${perso.nom} dit : « ${plan.replique} »` : ""}`;
+        const prompt = clipMusical ? promptVideoClip(plan, dureeGrok) : `${promptVideo(plan, duree, grok)}${grok && perso ? ` ${perso.nom} dit : « ${plan.replique} »` : ""}`;
         const { valeur, essais } = await avecRelance(async () => {
           // URL signée recréée à chaque essai : xAI télécharge l'image pendant la génération.
           const urlImage = await ctx.stockage.urlSignee(image.chemin ?? "");
           return genererVideo(
             cleXai,
-            { modele: ctx.config.modeles.video, prompt, duree, ratio: ratioClips(e.episode.format), resolution: ctx.config.modeles.resolutionVideo, genererAudio: grok, urlImage },
+            { modele: ctx.config.modeles.video, prompt, duree: dureeGrok, ratio: ratioClips(e.episode.format), resolution: ctx.config.modeles.resolutionVideo, genererAudio: grok, urlImage },
             { signal: ctx.signal, surAttente: (s) => void etape(`Clip ${u.prise ?? "A"} du ${nom} : génération (${s} s)`).catch(() => undefined) },
             ctx.f,
           );
@@ -122,7 +143,7 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
           genre: "clip",
           prise: u.prise,
           chemin,
-          duree_s: valeur.duree ?? duree,
+          duree_s: valeur.duree ?? dureeGrok,
           secondes_generation: Math.round((Date.now() - debut) / 100) / 10,
           cout: coutUnite(u, duree, tarifs) * essais,
           essais,

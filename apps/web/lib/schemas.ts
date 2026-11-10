@@ -66,7 +66,7 @@ export const schemaAudit = z.object({ id, valide: caseACocher });
 // ---------- Clés API ----------
 /** Clé simple (OpenAI, xAI, ElevenLabs). */
 const cleSimple = z.object({
-  fournisseur: z.enum(["openai", "xai", "elevenlabs"]),
+  fournisseur: z.enum(["openai", "xai", "elevenlabs", "anthropic"]),
   valeur: z.string().trim().min(8, "Clé trop courte.").max(500, "Clé trop longue."),
 });
 /** Application OAuth (Google, Meta, TikTok) : identifiant et secret. */
@@ -83,6 +83,7 @@ export const schemaTarifsFormulaire = z.object({
   image: z.coerce.number().min(0).max(100),
   video_seconde: z.coerce.number().min(0).max(100),
   voix_1000_car: z.coerce.number().min(0).max(100),
+  musique_minute: z.coerce.number().min(0).max(100).default(0.5),
 });
 export const schemaPreferencesFormulaire = z.object({
   parallele: z.coerce.number().int().min(1).max(4),
@@ -218,7 +219,7 @@ export const schemaTestComplet = z.object({ sous_titres: schemaSousTitres, espac
 
 // ---------- Paramètres d'URL ----------
 export const schemaOngletSerie = z.enum(["episodes", "bible", "memoire", "publication"]).catch("episodes");
-export const schemaEtape = z.enum(["scenario", "storyboard", "clips", "montage", "publication"]);
+export const schemaEtape = z.enum(["son", "scenario", "storyboard", "clips", "montage", "publication"]);
 export const schemaOngletReglages = z.enum(["comptes", "cles", "budget", "preferences"]).catch("comptes");
 export const schemaPeriode = z.enum(["7", "30", "tout"]).catch("30");
 export const schemaFiltreReseau = z.enum(["tous", "tiktok", "instagram", "youtube"]).catch("tous");
@@ -239,3 +240,44 @@ export const schemaRevenu = z.object({
   note: z.string().trim().max(300).default(""),
 });
 export const schemaOngletStats = z.enum(["ensemble", "tiktok", "instagram", "youtube"]).catch("ensemble");
+
+// ---------- Clips musicaux ----------
+/** Nombre facultatif : une saisie vide devient null. */
+const nombreOuNul = z.preprocess((v) => (v === "" || v === undefined || v === null ? null : v), z.coerce.number().nullable());
+/** Format d'un clip. */
+const formatClip = z.enum(["court", "moyen", "long"]);
+
+export const schemaNouveauClip = z.object({
+  espace_id: id,
+  titre: texte(200),
+  langue: schemaLangue,
+  format: formatClip.default("court"),
+  source: z.enum(["importer", "generer"]).default("importer"),
+});
+export const schemaSonParoles = z.object({
+  id,
+  paroles: texte(20000),
+  musique_style: texte(500),
+  instrumental: caseACocher,
+  langue: schemaLangue,
+  fournisseur_texte: z.enum(["openai", "anthropic"]),
+});
+export const schemaReglagesClip = z
+  .object({
+    id,
+    titre: texte(200),
+    idee: texte(6000),
+    style_visuel: texte(500),
+    format: formatClip,
+    extrait_debut: z.coerce.number().min(0, "Le début ne peut pas être négatif.").max(3600),
+    extrait_fin: nombreOuNul,
+    bpm: nombreOuNul.refine((v) => v === null || (v >= 40 && v <= 240), "Tempo entre 40 et 240 BPM (ou vide)."),
+    sous_titres: schemaSousTitres,
+  })
+  .refine((c) => c.extrait_fin === null || c.extrait_fin > c.extrait_debut + 3, { message: "La fin de l’extrait doit venir au moins 3 s après son début.", path: ["extrait_fin"] });
+export const schemaMusique = z.object({ episode_id: id, duree: z.coerce.number().int().min(10, "10 s minimum.").max(600, "10 minutes maximum.") });
+export const schemaEspaceClips = z.object({ serie_id: id, nom: texte(120).min(1, "Donne un nom (le tien, ton nom d’artiste…)."), style_visuel: texte(500) });
+export const schemaImportChanson = z.discriminatedUnion("etape", [
+  z.object({ etape: z.literal("adresse"), cible: id, taille: z.number().int().positive(), extension: z.enum(["mp3", "wav", "m4a"]) }),
+  z.object({ etape: z.literal("valider"), cible: id, chemin: z.string().min(10).max(300) }),
+]);

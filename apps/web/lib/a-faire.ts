@@ -1,7 +1,7 @@
 // Construction de la liste « À faire » de l'accueil (et du badge du menu), à partir des données déjà chargées.
 // Fonction pure : testée avec des données factices dans tests/a-faire.test.ts.
 import { NOMS_RESEAUX, etapeDeTache, type Episode, type EtatEpisode, type Espace, type Personnage, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache, type Ton, type TypeTache } from "@studio-video-ia/core";
-import { codeEpisode, nomEpisode } from "./episodes";
+import { codeEpisode, lienEpisode, nomEpisode } from "./episodes";
 import { euros } from "./format";
 
 /** Une ligne de la liste « À faire ». */
@@ -45,6 +45,9 @@ const NOMS_TACHES: Record<TypeTache, string> = {
   memoire: "mise à jour de la mémoire",
   clone_voix: "clonage de voix",
   test_complet: "test complet",
+  paroles: "écriture des paroles",
+  musique: "composition de la musique",
+  synchro: "synchronisation des paroles",
 };
 
 /** Construit et trie la liste des actions à mener. */
@@ -62,7 +65,7 @@ export function construireAFaire(e: EntreeAFaire): AFaire[] {
     if (!etat || !serie) continue;
     const saison = saisons.get(ep.saison_id);
     const libelle = `${serie.nom} · ${codeEpisode(ep, saison)} · ${nomEpisode(ep, saison)}`;
-    const lien = (etape: string) => `/episodes/${ep.id}?etape=${etape}`;
+    const lien = (etape: string) => lienEpisode(ep, etape);
     const tache = etat.tacheEnCours;
     const echecGeneration = etat.storyboard.echec + etat.clips.echec + etat.rendus.echec;
     const n = etat.storyboard.total;
@@ -91,7 +94,7 @@ export function construireAFaire(e: EntreeAFaire): AFaire[] {
       titre: `Publication échouée sur ${NOMS_RESEAUX[compte.reseau]} ${compte.nom_compte}`,
       detail: p.erreur ?? "Erreur inconnue.",
       action: "Voir",
-      lien: `/episodes/${ep.id}?etape=publication`,
+      lien: lienEpisode(ep, "publication"),
     });
   }
 
@@ -161,7 +164,7 @@ export function construireAFaire(e: EntreeAFaire): AFaire[] {
     if (ep) {
       const serie = series.get(ep.serie_id);
       const saison = saisons.get(ep.saison_id);
-      lien = `/episodes/${ep.id}?etape=${etapeDeTache(t)}`;
+      lien = lienEpisode(ep, etapeDeTache(t));
       detail = `${serie?.nom ?? ""} · ${codeEpisode(ep, saison)} · ${detail}`;
     } else if (perso) lien = `/series/${perso.serie_id}?onglet=bible`;
     else if (t.type === "test_complet") lien = "/diagnostic";

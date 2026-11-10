@@ -438,3 +438,20 @@ export function planComposition(params: { paroles: string; style: string; dureeC
 export function dureeComposition(plan: PlanComposition): number {
   return plan.sections.reduce((a, s) => a + s.duration_ms, 0) / 1000;
 }
+
+/** Paroles chantées pendant un passage (pour afficher ce qui est chanté sur un plan). */
+export function parolesEntre(lignes: readonly LigneParole[] | null, debut: number, fin: number): string {
+  if (!lignes) return "";
+  return lignes
+    .filter((l) => l.debut < fin - 0.2 && l.fin > debut + 0.2)
+    .map((l) => l.texte)
+    .join(" / ");
+}
+
+/** Formate des secondes en « m:ss.d » (dixième de seconde), pour les repères dans une chanson. */
+export function formaterTemps(secondes: number): string {
+  const t = Math.max(0, Math.round(secondes * 10) / 10);
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  return `${m}:${s < 10 ? "0" : ""}${s.toFixed(1)}`;
+}

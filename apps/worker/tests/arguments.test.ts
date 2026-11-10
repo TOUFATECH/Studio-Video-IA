@@ -132,4 +132,14 @@ describe("mixage final", () => {
     expect(apres(a, "-movflags")).toBe("+faststart");
     expect(a.at(-1)).toBe("/s.mp4");
   });
+
+  it("clip musical : extrait de chanson lu depuis son début, fondu de fin, mixé avec les segments muets", () => {
+    const a = argumentsFinal({ ...base, dureeTotale: 30, voix: [], musique: null, bruitage: null, sousTitres: null, chanson: { chemin: "/chanson.mp3", debut: 7.25, duree: 30 } });
+    const i = a.indexOf("/chanson.mp3");
+    expect(a.slice(i - 5, i + 1)).toEqual(["-ss", "7.25", "-t", "30", "-i", "/chanson.mp3"]);
+    const filtre = apres(a, "-filter_complex") ?? "";
+    expect(filtre).toContain("[2:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=1,apad,atrim=0:30,afade=t=in:d=0.05,afade=t=out:st=28.5:d=1.5[chanson]");
+    expect(filtre).toContain("[base][chanson]amix=inputs=2");
+  });
 });
+

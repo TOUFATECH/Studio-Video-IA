@@ -1,8 +1,14 @@
 // Petits calculs d'affichage communs aux épisodes : code « S1E2 », nom, ordre de lecture.
 import type { Episode, Saison } from "@studio-video-ia/core";
 
-/** Code court d'un épisode : « S1E2 », « S1·OP » ou « S1·ED ». */
+/** Adresse de la page d'un épisode, ou d'un clip dans l'espace Clips, à une étape donnée. */
+export function lienEpisode(episode: Pick<Episode, "id" | "genre">, etape?: string): string {
+  return `${episode.genre === "clip" ? "/clips" : "/episodes"}/${episode.id}${etape ? `?etape=${etape}` : ""}`;
+}
+
+/** Code court d'un épisode : « S1E2 », « S1·OP », « S1·ED », ou « Clip 3 ». */
 export function codeEpisode(episode: Pick<Episode, "genre" | "numero">, saison: Pick<Saison, "numero"> | undefined): string {
+  if (episode.genre === "clip") return `Clip ${episode.numero}`;
   const s = `S${saison?.numero ?? "?"}`;
   if (episode.genre === "opening") return `${s}·OP`;
   if (episode.genre === "ending") return `${s}·ED`;
@@ -13,6 +19,7 @@ export function codeEpisode(episode: Pick<Episode, "genre" | "numero">, saison: 
 export function nomEpisode(episode: Pick<Episode, "genre" | "titre" | "numero">, saison: Pick<Saison, "numero"> | undefined): string {
   if (episode.genre === "opening") return `Opening saison ${saison?.numero ?? "?"}`;
   if (episode.genre === "ending") return `Ending saison ${saison?.numero ?? "?"}`;
+  if (episode.genre === "clip") return episode.titre.trim() || `Clip ${episode.numero}`;
   return episode.titre.trim() || `Épisode ${episode.numero}`;
 }
 

@@ -38,6 +38,11 @@ function verifier(erreur: { message: string } | null, quoi: string): void {
   if (erreur) throw new Error(`${quoi} : ${erreur.message}`);
 }
 
+/** L'espace Clips n'a ni saisons à ajouter ni « suite » à écrire : ses clips se créent dans la page Clips. */
+function refuserEspaceClips(serie: Pick<Serie, "genre">): void {
+  if (serie.genre === "clips") throw new ErreurUtilisateur("Les clips se créent dans la page Clips.");
+}
+
 /** Sous-titres par défaut d'un nouvel épisode, selon la préférence de l'utilisateur. */
 async function sousTitresParDefaut(langue: Langue): Promise<Record<string, string>> {
   const { preferences } = await chargerReglages();
@@ -106,6 +111,7 @@ export async function ajouterEpisode(fd: FormData): Promise<void> {
   const episodeId = await executer<string>(async () => {
     const { saison_id } = valider(schemaSaisonSeule, fd);
     const { saison, serie } = await saisonAMoi(saison_id);
+    refuserEspaceClips(serie);
     const { supabase } = await utilisateur();
     const { preferences } = await chargerReglages();
     const eps = lignes(ligneEpisode, (await supabase.from("episodes").select("*").eq("saison_id", saison.id).eq("genre", "episode").order("numero")).data, "episodes");
@@ -139,6 +145,7 @@ export async function ajouterSaison(fd: FormData): Promise<void> {
   await executer(async () => {
     const { serie_id } = valider(schemaSerieSeule, fd);
     const serie = await serieAMoi(serie_id);
+    refuserEspaceClips(serie);
     const { supabase } = await utilisateur();
     const saisons = lignes(ligneSaison, (await supabase.from("saisons").select("*").eq("serie_id", serie.id)).data, "saisons");
     const numero = Math.max(0, ...saisons.map((s) => s.numero)) + 1;
@@ -155,6 +162,7 @@ export async function ecrireSuite(fd: FormData): Promise<void> {
   const episodeId = await executer<string>(async () => {
     const { serie_id } = valider(schemaSerieSeule, fd);
     const serie = await serieAMoi(serie_id);
+    refuserEspaceClips(serie);
     const { supabase } = await utilisateur();
     const { preferences } = await chargerReglages();
     const [saisons, episodes, memoire] = await Promise.all([
@@ -355,6 +363,7 @@ export async function programmerEpisodesPrets(fd: FormData): Promise<void> {
   await executer(async () => {
     const { serie_id } = valider(schemaSerieSeule, fd);
     const serie = await serieAMoi(serie_id);
+    refuserEspaceClips(serie);
     const { sorties, comptes } = await planProgrammation(serie);
     if (!comptes.length) throw new ErreurUtilisateur("Coche au moins un compte connecté dans le rythme de publication.");
     if (!sorties.length) throw new ErreurUtilisateur("Aucun épisode rendu en attente de programmation.");

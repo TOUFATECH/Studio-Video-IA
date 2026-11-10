@@ -43,12 +43,24 @@ function normaliserEpisode(e: Episode): Episode {
     choix_titres: e.choix_titres ?? {},
     hashtags: e.hashtags ?? {},
     langues: e.langues?.length ? e.langues : [e.langue],
+    // Champs des clips, absents sur une base sans la migration 0006.
+    style_visuel: e.style_visuel ?? "",
+    paroles: e.paroles ?? "",
+    paroles_alignees: e.paroles_alignees ?? null,
+    paroles_traduites: e.paroles_traduites ?? {},
+    bpm: e.bpm == null ? null : Number(e.bpm),
+    extrait_debut: Number(e.extrait_debut ?? 0),
+    extrait_fin: e.extrait_fin == null ? null : Number(e.extrait_fin),
+    musique_style: e.musique_style ?? "",
+    instrumental: e.instrumental ?? false,
+    fournisseur_texte: e.fournisseur_texte ?? "openai",
   };
 }
 
 /** Normalise un plan (traductions absentes). */
 function normaliserPlan(p: Plan): Plan {
-  return { ...p, repliques_traduites: p.repliques_traduites ?? {} };
+  // Les colonnes numeric arrivent parfois en texte depuis PostgREST : on les ramène en nombres.
+  return { ...p, repliques_traduites: p.repliques_traduites ?? {}, debut: p.debut == null ? null : Number(p.debut), fin: p.fin == null ? null : Number(p.fin) };
 }
 
 /** Charge un épisode, sa série, sa saison, les personnages, les plans (dans l'ordre) et ses fichiers. */
@@ -61,7 +73,7 @@ export async function chargerEpisode(db: Base, episodeId: string): Promise<Episo
     lignes<Plan>(db.from("plans").select("*").eq("episode_id", episodeId).order("position"), "plans"),
     lignes<Fichier>(db.from("fichiers").select("*").eq("episode_id", episodeId).order("cree_le"), "fichiers"),
   ]);
-  return { episode, serie: { ...serie, hashtags: serie.hashtags ?? {} }, saison, personnages, plans: plans.map(normaliserPlan), fichiers };
+  return { episode, serie: { ...serie, hashtags: serie.hashtags ?? {}, genre: serie.genre ?? "serie" }, saison, personnages, plans: plans.map(normaliserPlan), fichiers };
 }
 
 /** Tarifs et préférences d'un propriétaire, avec repli sur les valeurs par défaut. */
@@ -132,6 +144,12 @@ export function fichierPret(fichiers: readonly Fichier[], cle: string): Fichier 
 export function unitePrete(fichiers: readonly Fichier[], cle: string): boolean {
   const f = indexerFichiers(fichiers).get(cle);
   return f?.statut === "pret" && !!f.chemin;
+}
+
+/** Chanson d'un clip musical : le fichier « chanson » prêt le plus récent de l'épisode. */
+export function chansonDuClip(fichiers: readonly Fichier[]): Fichier | null {
+  const pretes = fichiers.filter((f) => f.genre === "chanson" && f.statut === "pret" && f.chemin);
+  return [...pretes].sort((a, b) => b.cree_le.localeCompare(a.cree_le))[0] ?? null;
 }
 
 /** Message d'erreur court pour la colonne `erreur` (une ligne, 500 caractères au plus). */

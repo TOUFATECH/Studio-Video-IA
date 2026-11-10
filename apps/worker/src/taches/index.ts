@@ -8,6 +8,7 @@ import { tacheMemoire } from "./memoire";
 import { tachePublication } from "./publication";
 import { tacheRendu } from "./rendu";
 import { tacheScenario } from "./scenario";
+import { tacheMusique, tacheParoles, tacheSynchro } from "./son";
 import { tacheStats } from "./stats";
 import { tacheStoryboard } from "./storyboard";
 import { tacheTestComplet } from "./test_complet";
@@ -27,4 +28,7 @@ export const EXECUTANTS: Record<TypeTache, Executant> = {
   memoire: tacheMemoire,
   clone_voix: tacheCloneVoix,
   test_complet: tacheTestComplet,
+  paroles: tacheParoles,
+  musique: tacheMusique,
+  synchro: tacheSynchro,
 };

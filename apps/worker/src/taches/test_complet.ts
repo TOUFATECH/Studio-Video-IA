@@ -96,7 +96,7 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
   let cheminRendu: string | null = null;
   if (clip) {
     await etape(`Rendu ffmpeg sous-titré (${langue})`, async () => {
-      const plan: Plan = { id: "test", episode_id: "test", position: 0, section: "principal", type: "dialogue", texte: "", personnage_id: "test", replique: PHRASES_TEST[langue], repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A" };
+      const plan: Plan = { id: "test", episode_id: "test", position: 0, section: "principal", type: "dialogue", texte: "", personnage_id: "test", replique: PHRASES_TEST[langue], repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null };
       const r = await monter({
         ffmpeg: ctx.config.ffmpeg,
         ffprobe: ctx.config.ffprobe,

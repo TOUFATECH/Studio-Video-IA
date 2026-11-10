@@ -17,7 +17,7 @@ import { indexerFichiers } from "@studio-video-ia/core";
 
 /** Plan de test. */
 function plan(id: string, type: TypePlan, extra: Partial<Plan> = {}): Plan {
-  return { id, episode_id: "e", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", ...extra };
+  return { id, episode_id: "e", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...extra };
 }
 
 /** Fichier de test. */

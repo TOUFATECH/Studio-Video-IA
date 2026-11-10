@@ -3,7 +3,7 @@
 import "server-only";
 import { NOMS_RESEAUX, schemaReseau, type Fournisseur } from "@studio-video-ia/core";
 import { chiffrer, dechiffrer, lireCleMaitre } from "@studio-video-ia/core/chiffrement";
-import { renouvelerJeton, testerCompte, testerElevenLabs, testerOpenAI, testerXai, type Fetch } from "@studio-video-ia/integrations";
+import { renouvelerJeton, testerAnthropic, testerCompte, testerElevenLabs, testerOpenAI, testerXai, type Fetch } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { cleMaitre, lireAppOAuth, lireCle } from "./cles";
 import { lireEnv, NOMS_ENV } from "./env";
@@ -81,19 +81,22 @@ export async function verifierWorkers(supabase: ClientSupabase): Promise<Verific
 }
 
 /** Libellés des fournisseurs. */
-const NOMS_FOURNISSEURS: Record<Fournisseur, string> = { openai: "OpenAI", xai: "xAI · Grok", elevenlabs: "ElevenLabs", google: "Google (YouTube)", meta: "Meta (Instagram)", tiktok: "TikTok" };
+const NOMS_FOURNISSEURS: Record<Fournisseur, string> = { openai: "OpenAI", xai: "xAI · Grok", elevenlabs: "ElevenLabs", anthropic: "Anthropic · Claude", google: "Google (YouTube)", meta: "Meta (Instagram)", tiktok: "TikTok" };
 
 /** Teste chaque clé API (appel réel pour OpenAI, xAI, ElevenLabs ; présence pour les applications OAuth). */
 export async function verifierCles(proprietaire: string): Promise<Verification[]> {
-  const fournisseurs: Fournisseur[] = ["openai", "xai", "elevenlabs", "google", "meta", "tiktok"];
+  const fournisseurs: Fournisseur[] = ["openai", "xai", "elevenlabs", "anthropic", "google", "meta", "tiktok"];
   return Promise.all(
     fournisseurs.map(async (f): Promise<Verification> => {
       const nom = NOMS_FOURNISSEURS[f];
       try {
         const valeur = await lireCle(proprietaire, f);
+        // Claude est facultatif : seulement pour écrire les clips avec Claude au lieu de ChatGPT.
+        if (!valeur && f === "anthropic") return { groupe: "Clés API", nom, ok: true, detail: "Facultative : non saisie (ChatGPT écrit les clips)" };
         if (!valeur) return { groupe: "Clés API", nom, ok: false, detail: "Absente", aFaire: "Ajoute-la dans Réglages → Clés API." };
-        if (f === "openai" || f === "xai" || f === "elevenlabs") {
-          const r = await (f === "openai" ? testerOpenAI : f === "xai" ? testerXai : testerElevenLabs)(valeur, fetchLimite);
+        if (f === "openai" || f === "xai" || f === "elevenlabs" || f === "anthropic") {
+          const testeur = f === "openai" ? testerOpenAI : f === "xai" ? testerXai : f === "elevenlabs" ? testerElevenLabs : testerAnthropic;
+          const r = await testeur(valeur, fetchLimite);
           return { groupe: "Clés API", nom, ok: r.ok, detail: r.message, aFaire: r.ok ? undefined : "Vérifie la clé et le crédit du compte chez le fournisseur." };
         }
         const ok = z.object({ client_id: z.string().min(4), client_secret: z.string().min(4) }).safeParse(JSON.parse(valeur)).success;

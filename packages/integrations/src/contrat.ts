@@ -48,6 +48,7 @@ export type ContratIntegrations = {
   testerOpenAI: (cle: string, f?: Fetch) => Promise<ResultatTest>;
   testerXai: (cle: string, f?: Fetch) => Promise<ResultatTest>;
   testerElevenLabs: (cle: string, f?: Fetch) => Promise<ResultatTest>;
+  testerAnthropic: (cle: string, f?: Fetch) => Promise<ResultatTest>;
   testerCompte: (reseau: Reseau, jetonAcces: string, idExterne: string | null, f?: Fetch) => Promise<ResultatTest>;
   listerVoix: (cle: string, f?: Fetch) => Promise<VoixElevenLabs[]>;
 };

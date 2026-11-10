@@ -4,6 +4,7 @@ import Link from "next/link";
 import { choisirPrise, choisirPrises, lancerClips, mettreEnPause } from "@/app/actions/episodes";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { Jauge, Kpi } from "@/components/ui/elements";
+import { lienEpisode } from "@/lib/episodes";
 import { dureeLisible, euros } from "@/lib/format";
 import type { DonneesEpisode } from "./chargement";
 import styles from "./episode.module.scss";
@@ -27,7 +28,7 @@ export function EtapeClips({ d }: { d: DonneesEpisode }) {
     <div className="pile">
       <div className="grille-kpi">
         <Kpi libelle="Clips Grok" valeur={`${compter(clips)}/${clips.length}`} />
-        <Kpi libelle="Voix ElevenLabs" valeur={`${compter(voix)}/${voix.length}`} />
+        {episode.genre === "clip" ? <Kpi libelle="Son" valeur="La chanson" /> : <Kpi libelle="Voix ElevenLabs" valeur={`${compter(voix)}/${voix.length}`} />}
         <Kpi libelle="Échecs" valeur={String(etat.clips.echec)} />
         <Kpi libelle="Temps de génération" valeur={dureeLisible(secondes)} />
         <Kpi libelle="Coût" valeur={euros(cout)} />
@@ -129,7 +130,7 @@ export function EtapeClips({ d }: { d: DonneesEpisode }) {
                       <input type="hidden" name="plan_ids" value={p.id} />
                       <BoutonEnvoi desactive={!!tache}>Réessayer</BoutonEnvoi>
                     </form>
-                    <Link href={`/episodes/${episode.id}?etape=scenario#plan-${p.id}`} className="btn">
+                    <Link href={`${lienEpisode(episode, "scenario")}#plan-${p.id}`} className="btn">
                       Réécrire le plan
                     </Link>
                   </div>

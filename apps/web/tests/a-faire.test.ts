@@ -14,6 +14,7 @@ const serie: Serie = {
   fil_rouge: "",
   rythme: { tous_les_jours: 2, heure: "18:00", reseaux: [], auto: false },
   hashtags: {},
+  genre: "serie",
   cree_le: "2026-01-01T00:00:00Z",
 };
 const saison: Saison = { id: "sai1", serie_id: "ser1", numero: 1, opening_id: null, ending_id: null };
@@ -43,13 +44,23 @@ function episode(id: string, numero: number): Episode {
     miniature: null,
     memoire_faite: false,
     hashtags: {},
+    style_visuel: "",
+    paroles: "",
+    paroles_alignees: null,
+    paroles_traduites: {},
+    bpm: null,
+    extrait_debut: 0,
+    extrait_fin: null,
+    musique_style: "",
+    instrumental: false,
+    fournisseur_texte: "openai",
     cree_le: "2026-01-01T00:00:00Z",
   };
 }
 
 /** Plan factice. */
 function plan(id: string, episodeId: string, valide: boolean): Plan {
-  return { id, episode_id: episodeId, position: 0, section: "principal", type: "action", texte: "x", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide, modifie: false, prise_choisie: "A" };
+  return { id, episode_id: episodeId, position: 0, section: "principal", type: "action", texte: "x", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide, modifie: false, prise_choisie: "A", debut: null, fin: null };
 }
 
 /** Fichier factice prêt ou en échec. */

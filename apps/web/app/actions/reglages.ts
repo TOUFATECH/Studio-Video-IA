@@ -2,7 +2,7 @@
 // Actions des réglages : espaces, réseaux connectés, clés API chiffrées, tarifs, plafonds et préférences.
 import { schemaAppOAuth, type Fournisseur } from "@studio-video-ia/core";
 import { apercu, chiffrer, dechiffrer } from "@studio-video-ia/core/chiffrement";
-import { testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
+import { testerAnthropic, testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { executer } from "@/lib/action";
@@ -154,7 +154,8 @@ export async function testerCle(_etat: ResultatTestCle, fd: FormData): Promise<R
     const chiffre: unknown = data?.valeur_chiffree;
     if (typeof chiffre !== "string") return { ok: false, message: "Aucune clé enregistrée." };
     const valeur = dechiffrer(chiffre, cleMaitre());
-    const testeur = fournisseur === "openai" ? testerOpenAI : fournisseur === "xai" ? testerXai : fournisseur === "elevenlabs" ? testerElevenLabs : null;
+    const testeur =
+      fournisseur === "openai" ? testerOpenAI : fournisseur === "xai" ? testerXai : fournisseur === "elevenlabs" ? testerElevenLabs : fournisseur === "anthropic" ? testerAnthropic : null;
     if (testeur) {
       // On ne renvoie au navigateur que le verdict et le message, jamais les détails bruts du fournisseur.
       const res = await testeur(valeur);

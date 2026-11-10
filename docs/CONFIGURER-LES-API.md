@@ -24,11 +24,20 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 2. Modèle et résolution : `XAI_VIDEO_MODEL` et `XAI_VIDEO_RESOLUTION` dans `.env`.
 3. Les vidéos renvoyées par xAI sont des liens temporaires : le worker les télécharge et les range tout de suite dans Supabase Storage.
 
-## ElevenLabs (voix, voix clonées, bruitages)
+## ElevenLabs (voix, voix clonées, bruitages, musique et paroles des clips)
 
-1. https://elevenlabs.io → profil → API Keys.
+1. https://elevenlabs.io → profil → API Keys. Si tu restreins la clé, autorise : Text to Speech, Sound Effects, Voices, **Music**, **Forced Alignment** et **Speech to Text** (ces trois derniers servent aux clips).
 2. Le clonage de voix dépend de ton abonnement ElevenLabs. Clone seulement ta voix ou celle d'une personne qui a donné son accord (case obligatoire dans la bible).
 3. Le modèle `eleven_multilingual_v2` parle français, anglais, japonais, coréen et portugais avec la même voix.
+4. Clips : la musique est composée avec `ELEVENLABS_MUSIC_MODEL` (`music_v1`, le seul qui chante des paroles imposées section par section). ElevenLabs refuse les noms d'artistes et les paroles existantes : écris un style (« synthpop, voix féminine, 110 BPM ») et tes propres paroles. La génération de musique demande un abonnement payant ElevenLabs.
+5. Le prix d'une minute de musique se règle dans Réglages → Budget (valeur d'exemple à remplacer par ton tarif).
+
+## Anthropic · Claude (facultatif : scènes et paroles des clips)
+
+1. https://console.anthropic.com → API Keys → Create Key, puis ajoute du crédit (Billing).
+2. Colle la clé dans Réglages → Clés API → Anthropic · Claude, et clique Tester.
+3. Dans un clip, étape « Son et paroles », choisis **Claude** au lieu de ChatGPT. Les images restent faites par ChatGPT (OpenAI Images) et les vidéos par Grok.
+4. Modèle : `ANTHROPIC_MODEL` dans `.env` (par défaut `claude-sonnet-5-5`).
 
 ## YouTube (Google Cloud)
 

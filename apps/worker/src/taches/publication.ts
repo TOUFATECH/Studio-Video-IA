@@ -1,7 +1,7 @@
 // Tâche « publication » : envoi d'un livrable sur YouTube (programmation native), Instagram ou TikTok (publication immédiate).
 import { join } from "node:path";
 import { legende, verifierDureePublication, type Episode, type Fichier, type Publication, type Serie, type StatutPublication } from "@studio-video-ia/core";
-import { confidentialiteYoutube, definirMiniatureYoutube, envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@studio-video-ia/integrations";
+import { CATEGORIE_YOUTUBE_MUSIQUE, confidentialiteYoutube, definirMiniatureYoutube, envoyerVideoYoutube, estErreurJeton, LIMITE_PUBLICATIONS_INSTAGRAM_24H, publierReel, publierTiktok, quotaInstagram, sourceFichier, urlYoutube } from "@studio-video-ia/integrations";
 import { chargerCompte, ErreurReconnexion, jetonValide, marquerExpire, MESSAGE_RECONNEXION, type CompteReseau } from "../comptes";
 import type { Contexte } from "../contexte";
 import { erreurCourte, fichierPret } from "../donnees";
@@ -60,7 +60,7 @@ async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): P
   const fichier = fichierPret(fichiers, cleLivrable(pub));
   if (!fichier?.chemin) throw new Error(`Le rendu ${pub.livrable === "bande_annonce" ? "de la bande annonce" : pub.langue} n'existe pas : lance le rendu avant de publier.`);
   // Durée maximale voulue par réseau (TikTok et Instagram 2:00, Short YouTube 3:00, épisode YouTube 4:00).
-  const trop = verifierDureePublication({ reseau: compte.reseau, livrable: pub.livrable, format: episode.format, duree: Number(fichier.duree_s ?? 0) });
+  const trop = verifierDureePublication({ reseau: compte.reseau, livrable: pub.livrable, format: episode.format, duree: Number(fichier.duree_s ?? 0), genre: episode.genre });
   if (trop) throw new Error(trop);
   const texte = legende({ ...episode, hashtags: episode.hashtags ?? {} }, { ...serie, hashtags: serie.hashtags ?? {} }, pub.langue, compte.reseau);
   const jeton = await jetonValide({ db: ctx.db, cleMaitre: ctx.cleMaitre, cles: await ctx.cles(), compte, f: ctx.f });
@@ -88,6 +88,7 @@ async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): P
         tags: [...texte.tags.split(/\s+/), serie.nom],
         langue: pub.langue,
         programmeeLe,
+        categorie: episode.genre === "clip" ? CATEGORIE_YOUTUBE_MUSIQUE : undefined,
         signal: ctx.signal,
         surProgression: (x) => void avancer("envoi", x, `Envoi sur YouTube (${x} %)`).catch(() => undefined),
       },

@@ -24,6 +24,9 @@ export const schemaConfig = z.object({
   XAI_VIDEO_MODEL: texte("grok-imagine-video"),
   XAI_VIDEO_RESOLUTION: texte("720p").pipe(z.enum(["480p", "720p", "1080p"])),
   ELEVENLABS_TTS_MODEL: texte("eleven_multilingual_v2"),
+  ELEVENLABS_MUSIC_MODEL: texte("music_v1"),
+  ELEVENLABS_STT_MODEL: texte("scribe_v1"),
+  ANTHROPIC_MODEL: texte("claude-sonnet-5-5"),
   WORKER_NAME: texte(hostname()),
   WORKER_TMP_DIR: texte("./tmp"),
   FFMPEG_PATH: texte("ffmpeg"),
@@ -38,7 +41,17 @@ export type Config = {
   supabaseUrl: string;
   supabaseCle: string;
   cleChiffrement: string;
-  modeles: { texte: string; image: string; qualiteImage: "low" | "medium" | "high"; video: string; resolutionVideo: "480p" | "720p" | "1080p"; voix: string };
+  modeles: {
+    texte: string;
+    image: string;
+    qualiteImage: "low" | "medium" | "high";
+    video: string;
+    resolutionVideo: "480p" | "720p" | "1080p";
+    voix: string;
+    musique: string;
+    transcription: string;
+    claude: string;
+  };
   nom: string;
   dossierTemp: string;
   ffmpeg: string;
@@ -68,7 +81,12 @@ export function lireConfig(env: Record<string, string | undefined> = process.env
     supabaseUrl: c.NEXT_PUBLIC_SUPABASE_URL,
     supabaseCle: c.SUPABASE_SERVICE_ROLE_KEY,
     cleChiffrement: c.ENCRYPTION_KEY,
-    modeles: { texte: c.OPENAI_TEXT_MODEL, image: c.OPENAI_IMAGE_MODEL, qualiteImage: c.OPENAI_IMAGE_QUALITY, video: c.XAI_VIDEO_MODEL, resolutionVideo: c.XAI_VIDEO_RESOLUTION, voix: c.ELEVENLABS_TTS_MODEL },
+    modeles: { texte: c.OPENAI_TEXT_MODEL, image: c.OPENAI_IMAGE_MODEL, qualiteImage: c.OPENAI_IMAGE_QUALITY, video: c.XAI_VIDEO_MODEL, resolutionVideo: c.XAI_VIDEO_RESOLUTION,
+      voix: c.ELEVENLABS_TTS_MODEL,
+      musique: c.ELEVENLABS_MUSIC_MODEL,
+      transcription: c.ELEVENLABS_STT_MODEL,
+      claude: c.ANTHROPIC_MODEL,
+    },
     nom: c.WORKER_NAME,
     dossierTemp: resolve(c.WORKER_TMP_DIR),
     ffmpeg: c.FFMPEG_PATH,

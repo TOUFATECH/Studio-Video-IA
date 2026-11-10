@@ -38,6 +38,12 @@ export async function OngletBudget({ portee }: { portee: Portee }) {
             </label>
             <input id="t-voix" name="voix_1000_car" type="number" step="0.001" min="0" defaultValue={tarifs.voix_1000_car} required />
           </div>
+          <div className="champ">
+            <label className="etiquette" htmlFor="t-musique">
+              Musique ElevenLabs (€ par minute, clips)
+            </label>
+            <input id="t-musique" name="musique_minute" type="number" step="0.001" min="0" defaultValue={tarifs.musique_minute} required />
+          </div>
           <div>
             <BoutonEnvoi variante="principal">Enregistrer les tarifs</BoutonEnvoi>
           </div>

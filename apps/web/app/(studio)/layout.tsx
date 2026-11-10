@@ -13,7 +13,7 @@ import { Logo } from "@/components/ui/Icone";
 import { construireAFaire } from "@/lib/a-faire";
 import { supabaseConfigure } from "@/lib/env";
 import { chargerProduction } from "@/lib/donnees";
-import { codeEpisode, nomEpisode } from "@/lib/episodes";
+import { codeEpisode, lienEpisode, nomEpisode } from "@/lib/episodes";
 import { COOKIE_FLASH, decoderFlash } from "@/lib/flash";
 import { ligne, ligneEpisode, ligneSaison, ligneSerie } from "@/lib/lignes";
 import { id as schemaId } from "@/lib/schemas";
@@ -34,7 +34,7 @@ async function episodeOuvert(brut: string | undefined) {
     supabase.from("saisons").select("*").eq("id", ep.saison_id).maybeSingle().then((x) => ligne(ligneSaison, x.data)),
   ]);
   if (!serie) return null;
-  return { lien: `/episodes/${ep.id}`, titre: nomEpisode(ep, saison ?? undefined), detail: `${serie.nom} · ${codeEpisode(ep, saison ?? undefined)}`, serie: { id: serie.id, nom: serie.nom } };
+  return { lien: lienEpisode(ep), titre: nomEpisode(ep, saison ?? undefined), detail: `${serie.nom} · ${codeEpisode(ep, saison ?? undefined)}`, serie: serie.genre === "serie" ? { id: serie.id, nom: serie.nom } : null };
 }
 
 /** Coquille commune. */

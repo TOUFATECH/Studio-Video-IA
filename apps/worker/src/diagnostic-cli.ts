@@ -1,7 +1,7 @@
 // `npm run diagnostic` : vérifie variables d'environnement, Supabase, bucket, ffmpeg (libass, police), puis les clés
 // et les comptes connectés de chaque propriétaire. Affiche un tableau OK / ÉCHEC avec le correctif ; code 1 si un point bloquant échoue.
 import { lireCleMaitre } from "@studio-video-ia/core/chiffrement";
-import { testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
+import { testerAnthropic, testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
 import { chargerCles, dechiffrerValeur } from "./cles";
 import type { CompteReseau } from "./comptes";
 import { chargerFichierEnv, ErreurConfig, lireConfig, type Config } from "./config";
@@ -86,6 +86,7 @@ async function proprietaires(config: Config, db: Base, points: Point[]): Promise
       { nom: "OpenAI", cle: cles.openai, tester: testerOpenAI },
       { nom: "xAI", cle: cles.xai, tester: testerXai },
       { nom: "ElevenLabs", cle: cles.elevenlabs, tester: testerElevenLabs },
+      { nom: "Claude (facultative)", cle: cles.anthropic, tester: testerAnthropic },
     ];
     for (const t of tests) {
       if (!t.cle) {

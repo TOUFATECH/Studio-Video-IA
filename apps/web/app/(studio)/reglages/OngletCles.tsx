@@ -14,7 +14,8 @@ import { TesterCle } from "./TesterCle";
 const LIGNES: { cle: Fournisseur; nom: string; usage: string; application: boolean }[] = [
   { cle: "openai", nom: "OpenAI", usage: "Scénarios, images des plans, fiches personnages, miniatures", application: false },
   { cle: "xai", nom: "xAI · Grok", usage: "Clips vidéo, image → vidéo, 1 à 15 s", application: false },
-  { cle: "elevenlabs", nom: "ElevenLabs", usage: "Voix multilingues, voix clonées, bruitages", application: false },
+  { cle: "elevenlabs", nom: "ElevenLabs", usage: "Voix multilingues, voix clonées, bruitages, musique des clips, synchronisation des paroles", application: false },
+  { cle: "anthropic", nom: "Anthropic · Claude", usage: "Facultatif : écrire les scènes et les paroles des clips avec Claude au lieu de ChatGPT", application: false },
   { cle: "google", nom: "Google Cloud · YouTube", usage: "Envoi YouTube et Shorts, statistiques, revenus", application: true },
   { cle: "meta", nom: "Meta · Instagram", usage: "Reels Instagram (Instagram Login), statistiques", application: true },
   { cle: "tiktok", nom: "TikTok for Developers", usage: "Content Posting API, statistiques", application: true },

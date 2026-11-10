@@ -93,3 +93,96 @@ export async function clonerVoix(
 export async function lireUtilisateurElevenLabs(cle: string, f: Fetch = fetch): Promise<UtilisateurElevenLabs> {
   return appelJson(f, FOURNISSEUR, `${BASE_ELEVENLABS}/user`, { method: "GET", headers: entetes(cle, false) }, schemaUtilisateur, [cle]);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Clips musicaux : placement des paroles, transcription d'une chanson, génération de musique
+// ---------------------------------------------------------------------------------------------
+
+/** Fichier audio envoyé à ElevenLabs (chanson). */
+export type FichierAudio = { nom: string; donnees: Uint8Array; type?: string };
+
+const schemaHorodate = z.object({ text: z.string(), start: z.number(), end: z.number() });
+
+const schemaAlignement = z.object({
+  characters: z.array(schemaHorodate).default([]),
+  words: z.array(schemaHorodate.extend({ loss: z.number().nullish() })).default([]),
+  loss: z.number().nullish(),
+});
+/** Résultat de l'alignement forcé : chaque mot et chaque caractère du texte, horodatés dans l'audio. */
+export type AlignementElevenLabs = z.infer<typeof schemaAlignement>;
+
+const schemaTranscription = z.object({
+  language_code: z.string().nullish(),
+  text: z.string().default(""),
+  words: z.array(schemaHorodate.extend({ type: z.string().nullish() })).default([]),
+});
+/** Transcription horodatée mot à mot. */
+export type TranscriptionElevenLabs = { langue: string | null; texte: string; mots: { text: string; start: number; end: number; type: string }[] };
+
+/**
+ * Place un texte connu (les paroles) dans un audio : POST /v1/forced-alignment, multipart `file` + `text`.
+ * Renvoie l'horodatage de chaque mot et de chaque caractère.
+ */
+export async function alignerParoles(cle: string, params: { audio: FichierAudio; texte: string }, f: Fetch = fetch): Promise<AlignementElevenLabs> {
+  if (!params.texte.trim()) throw new Error("Paroles vides : rien à placer dans la chanson.");
+  const form = new FormData();
+  form.append("file", new Blob([versOctets(params.audio.donnees)], { type: params.audio.type ?? "audio/mpeg" }), params.audio.nom);
+  form.append("text", params.texte);
+  return appelJson(f, FOURNISSEUR, `${BASE_ELEVENLABS}/forced-alignment`, { method: "POST", headers: entetes(cle, false), body: form }, schemaAlignement, [cle]);
+}
+
+/** Modèle de transcription par défaut. */
+export const MODELE_TRANSCRIPTION_DEFAUT = "scribe_v1";
+
+/**
+ * Transcrit une chanson mot à mot (quand les paroles ne sont pas fournies) : POST /v1/speech-to-text.
+ * `langue` (code ISO, ex. « fr ») aide la reconnaissance ; les événements sonores ne sont pas gardés.
+ */
+export async function transcrireAudio(
+  cle: string,
+  params: { audio: FichierAudio; langue?: string; modele?: string },
+  f: Fetch = fetch,
+): Promise<TranscriptionElevenLabs> {
+  const form = new FormData();
+  form.append("model_id", params.modele ?? MODELE_TRANSCRIPTION_DEFAUT);
+  form.append("file", new Blob([versOctets(params.audio.donnees)], { type: params.audio.type ?? "audio/mpeg" }), params.audio.nom);
+  form.append("timestamps_granularity", "word");
+  form.append("tag_audio_events", "false");
+  if (params.langue) form.append("language_code", params.langue);
+  const r = await appelJson(f, FOURNISSEUR, `${BASE_ELEVENLABS}/speech-to-text`, { method: "POST", headers: entetes(cle, false), body: form }, schemaTranscription, [cle]);
+  return { langue: r.language_code ?? null, texte: r.text, mots: r.words.map((m) => ({ text: m.text, start: m.start, end: m.end, type: m.type ?? "word" })) };
+}
+
+/** Plan de composition accepté par ElevenLabs Music (voir `planComposition` dans core). */
+export type PlanCompositionElevenLabs = {
+  positive_global_styles: string[];
+  negative_global_styles: string[];
+  sections: { section_name: string; positive_local_styles: string[]; negative_local_styles: string[]; duration_ms: number; lines: string[] }[];
+};
+
+/** Modèle de musique par défaut (le seul qui accepte un plan de composition). */
+export const MODELE_MUSIQUE_DEFAUT = "music_v1";
+/** Format de la musique générée : MP3 44,1 kHz, 192 kb/s. */
+export const FORMAT_MUSIQUE = "mp3_44100_192";
+
+/**
+ * Compose une chanson (paroles chantées) ou une musique instrumentale à partir d'un plan de composition :
+ * POST /v1/music. Renvoie les octets MP3. Les noms d'artistes et paroles existantes sont refusés par ElevenLabs.
+ */
+export async function composerMusique(
+  cle: string,
+  params: { plan: PlanCompositionElevenLabs; modele?: string; respecterDurees?: boolean },
+  f: Fetch = fetch,
+): Promise<Buffer> {
+  if (params.plan.sections.length === 0) throw new Error("Plan de composition vide.");
+  const rep = await requete(f, FOURNISSEUR, `${BASE_ELEVENLABS}/music?output_format=${FORMAT_MUSIQUE}`, {
+    method: "POST",
+    headers: { ...entetes(cle), Accept: "audio/mpeg" },
+    body: JSON.stringify({
+      model_id: params.modele ?? MODELE_MUSIQUE_DEFAUT,
+      composition_plan: params.plan,
+      respect_sections_durations: params.respecterDurees ?? true,
+    }),
+  });
+  return lireOctets(FOURNISSEUR, rep, [cle]);
+}

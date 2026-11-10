@@ -2,6 +2,7 @@
 // Une colonne JSON mal formée retombe sur une valeur par défaut au lieu de casser la page.
 import {
   schemaChapitre,
+  schemaLigneParole,
   schemaLangue,
   schemaPreferences,
   schemaReseau,
@@ -75,6 +76,7 @@ export const ligneSerie = z.object({
   fil_rouge: z.string(),
   rythme: schemaRythme.catch(rythmeParDefaut),
   hashtags: schemaHashtagsParReseau.default({}),
+  genre: z.enum(["serie", "clips"]).catch("serie").default("serie"),
   cree_le: z.string(),
 });
 
@@ -103,7 +105,7 @@ export const ligneEpisode = z.object({
   id: z.string(),
   serie_id: z.string(),
   saison_id: z.string(),
-  genre: z.enum(["episode", "opening", "ending"]),
+  genre: z.enum(["episode", "opening", "ending", "clip"]),
   numero: nombre,
   titre: z.string(),
   idee: z.string(),
@@ -122,6 +124,17 @@ export const ligneEpisode = z.object({
   miniature: z.object({ choix: z.number().int().min(0), chemins: z.array(z.string()) }).nullable().catch(null),
   memoire_faite: z.boolean(),
   hashtags: schemaHashtagsParReseau.default({}),
+  // Champs des clips musicaux (valeurs par défaut si la migration 0006 n'est pas encore passée).
+  style_visuel: z.string().default(""),
+  paroles: z.string().default(""),
+  paroles_alignees: z.array(schemaLigneParole).nullable().catch(null).default(null),
+  paroles_traduites: z.record(schemaLangue, z.array(z.string())).catch({}).default({}),
+  bpm: nombreNul.default(null),
+  extrait_debut: nombre.default(0),
+  extrait_fin: nombreNul.default(null),
+  musique_style: z.string().default(""),
+  instrumental: z.boolean().default(false),
+  fournisseur_texte: z.enum(["openai", "anthropic"]).catch("openai").default("openai"),
   cree_le: z.string(),
 });
 
@@ -139,6 +152,8 @@ export const lignePlan = z.object({
   valide: z.boolean(),
   modifie: z.boolean(),
   prise_choisie: z.enum(["A", "B"]),
+  debut: nombreNul.default(null),
+  fin: nombreNul.default(null),
 });
 
 export const ligneFichier = z.object({
@@ -147,7 +162,7 @@ export const ligneFichier = z.object({
   episode_id: z.string().nullable(),
   plan_id: z.string().nullable(),
   personnage_id: z.string().nullable(),
-  genre: z.enum(["image", "clip", "voix", "rendu", "bande_annonce", "miniature", "fiche", "bruitage", "musique", "echantillon_voix"]),
+  genre: z.enum(["image", "clip", "voix", "rendu", "bande_annonce", "miniature", "fiche", "bruitage", "musique", "echantillon_voix", "chanson"]),
   langue: schemaLangue.nullable(),
   prise: z.enum(["A", "B"]).nullable(),
   chemin: z.string().nullable(),
@@ -176,7 +191,7 @@ export const ligneTache = z.object({
   espace_id: z.string(),
   episode_id: z.string().nullable(),
   publication_id: z.string().nullable(),
-  type: z.enum(["scenario", "storyboard", "clips", "rendu", "publication", "stats", "fiche_personnage", "memoire", "clone_voix", "test_complet"]),
+  type: z.enum(["scenario", "storyboard", "clips", "rendu", "publication", "stats", "fiche_personnage", "memoire", "clone_voix", "test_complet", "paroles", "musique", "synchro"]),
   statut: z.enum(["en_file", "en_cours", "terminee", "echec", "en_pause", "annulee"]),
   priorite: nombre,
   donnees: objetLibre,

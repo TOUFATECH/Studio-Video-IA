@@ -9,6 +9,7 @@ Studio Vidéo IA écrit, génère, monte et publie des séries vidéo :
 - Trois formats : **court** (1:00 à 2:00, vertical : TikTok, Instagram, Short YouTube), **YouTube** (2:00 à 4:00, 16:9, avec bande annonce verticale pour TikTok et Instagram) et **film** (5 à 20 min, 16:9, opening, ending, bande annonce). Une vidéo trop longue pour un réseau est refusée avant l'envoi.
 - Voix en français, anglais, japonais, coréen et portugais ; **sous-titres incrustés au choix pour chaque version** (ou aucun).
 - Publication à une date précise : YouTube programme lui-même ; TikTok et Instagram sont publiés à l'heure exacte par le worker.
+- **Espace Clips** : des clips musicaux à partir de ta chanson (importée) ou d'une musique **générée par ElevenLabs** avec tes paroles. Les paroles sont placées dans la chanson (alignement ElevenLabs), le clip est découpé une phrase chantée par plan (calé sur le tempo si tu le donnes), **ChatGPT ou Claude** écrit les scènes, ChatGPT dessine, Grok anime sans son, et le montage pose tout sur la chanson, paroles en sous-titres si tu veux. Formats : vertical 2:00 max (TikTok, Instagram, Short), YouTube 4:00 max, chanson entière 10:00 max.
 
 ## Organisation du dépôt
 
@@ -17,7 +18,7 @@ Studio Vidéo IA écrit, génère, monte et publie des séries vidéo :
 | `apps/web` | Application Next.js : interface, connexion, OAuth des réseaux, clés API, page Diagnostic. |
 | `apps/worker` | Worker Node : file de tâches, appels aux IA, rendu ffmpeg, publication, statistiques. Tourne sur un PC ou dans Docker. |
 | `packages/core` | Logique partagée : durées, sous-titres, planning, titres, prompts, état des épisodes, chiffrement. |
-| `packages/integrations` | Clients OpenAI, xAI, ElevenLabs, YouTube, Instagram, TikTok. |
+| `packages/integrations` | Clients OpenAI, Anthropic (Claude), xAI, ElevenLabs (voix, musique, alignement des paroles), YouTube, Instagram, TikTok. |
 | `supabase/migrations` | Schéma de la base, règles de sécurité (RLS), stockage. |
 | `docs/` | Configuration des API et guide de test. |
 
@@ -26,7 +27,7 @@ Studio Vidéo IA écrit, génère, monte et publie des séries vidéo :
 ### 1. Supabase
 
 1. Crée un projet sur https://supabase.com.
-2. **SQL Editor** : exécute dans l'ordre les fichiers `supabase/migrations/0001` à `0005` (ou `supabase db push` avec la CLI).
+2. **SQL Editor** : exécute dans l'ordre les fichiers `supabase/migrations/0001` à `0006` (ou `supabase db push` avec la CLI).
 3. **Authentication → URL Configuration** : *Site URL* = ton `APP_URL`, et ajoute `<APP_URL>/auth/callback` dans les *Redirect URLs*.
 4. **Project Settings → API** : note l'URL, la clé `anon` et la clé `service_role`.
 
@@ -38,7 +39,7 @@ cp .env.example apps/web/.env.local     # site web
 openssl rand -base64 32                 # → ENCRYPTION_KEY, la même dans les deux fichiers
 ```
 
-Remplis les valeurs Supabase, `ENCRYPTION_KEY` et `APP_URL`. Les clés OpenAI, xAI et ElevenLabs se saisissent dans l'app, pas dans ces fichiers (sauf pour `npm run test:live`).
+Remplis les valeurs Supabase, `ENCRYPTION_KEY` et `APP_URL`. Les clés OpenAI, xAI, ElevenLabs et Claude (facultative) se saisissent dans l'app, pas dans ces fichiers (sauf pour `npm run test:live`).
 
 ### 3. Installer et lancer
 
@@ -60,7 +61,7 @@ docker compose logs -f worker
 ### 4. Dans l'application
 
 1. Crée ton compte utilisateur sur `/connexion`.
-2. **Réglages → Clés API** : OpenAI, xAI, ElevenLabs, puis les applications Google, Meta et TikTok (voir `docs/CONFIGURER-LES-API.md`).
+2. **Réglages → Clés API** : OpenAI, xAI, ElevenLabs (et Claude si tu veux l'utiliser pour les clips), puis les applications Google, Meta et TikTok (voir `docs/CONFIGURER-LES-API.md`).
 3. **Réglages → Comptes** : crée tes comptes et connecte leurs réseaux.
 4. **Diagnostic** : tout doit être vert, puis lance le **test complet**.
 

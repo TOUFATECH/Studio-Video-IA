@@ -42,6 +42,12 @@ export function MenuNouveau({ serie }: { serie: { id: string; nom: string } | nu
               <span className="tres-petit doux">{serie ? `Dans « ${serie.nom} », avec la continuité` : "Dans une série existante"}</span>
             </span>
           </Link>
+          <Link className={styles.elementMenu} href="/clips?nouveau=1" onClick={() => setOuvert(false)}>
+            <span className={styles.elementTexte}>
+              <span className="gras">Clip</span>
+              <span className="tres-petit doux">Une chanson (la tienne ou générée) mise en images</span>
+            </span>
+          </Link>
           <Link className={styles.elementMenu} href="/reglages?onglet=comptes#nouveau-compte" onClick={() => setOuvert(false)}>
             <span className={styles.elementTexte}>
               <span className="gras">Compte</span>

@@ -16,6 +16,8 @@ export const TAILLE_MORCEAU_YOUTUBE = 8 * 1024 * 1024;
 
 /** Catégorie « Divertissement ». */
 export const CATEGORIE_YOUTUBE = "24";
+/** Catégorie « Musique », pour les clips musicaux. */
+export const CATEGORIE_YOUTUBE_MUSIQUE = "10";
 
 /** Statut de confidentialité et date de mise en ligne programmée. */
 export type StatutYoutube = { privacyStatus: "private" | "public"; publishAt?: string };
@@ -29,6 +31,8 @@ export type ParamsEnvoiYoutube = {
   langue: string;
   programmeeLe: Date;
   maintenant?: Date;
+  /** Catégorie YouTube (Divertissement par défaut, Musique pour un clip). */
+  categorie?: string;
   surProgression?: (pourcentage: number) => void;
   signal?: AbortSignal;
 };
@@ -72,7 +76,7 @@ export function titreYoutube(titre: string): string {
 }
 
 /** Métadonnées (snippet + status) envoyées à l'ouverture de la session d'envoi. */
-export function metadonneesYoutube(p: Pick<ParamsEnvoiYoutube, "titre" | "description" | "tags" | "langue" | "programmeeLe" | "maintenant">): Record<string, unknown> {
+export function metadonneesYoutube(p: Pick<ParamsEnvoiYoutube, "titre" | "description" | "tags" | "langue" | "programmeeLe" | "maintenant" | "categorie">): Record<string, unknown> {
   // La somme des tags est limitée à 500 caractères par YouTube : on s'arrête avant.
   const tags: string[] = [];
   let longueur = 0;
@@ -86,7 +90,7 @@ export function metadonneesYoutube(p: Pick<ParamsEnvoiYoutube, "titre" | "descri
       title: titreYoutube(p.titre),
       description: sansChevrons(p.description).slice(0, 4900),
       tags,
-      categoryId: CATEGORIE_YOUTUBE,
+      categoryId: p.categorie ?? CATEGORIE_YOUTUBE,
       defaultLanguage: p.langue,
       defaultAudioLanguage: p.langue,
     },
