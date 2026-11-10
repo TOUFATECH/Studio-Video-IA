@@ -3,7 +3,7 @@
 import "server-only";
 import type { TypeTache } from "@studio-video-ia/core";
 import { ErreurUtilisateur } from "./erreurs";
-import { clientAdmin } from "./supabase/admin";
+import { clientAdmin } from "./bdd";
 
 /** Demande de tâche. */
 export type DemandeTache = {
@@ -40,7 +40,7 @@ const NOMS: Record<TypeTache, string> = {
  * Sans épisode, le doublon se juge sur l'espace et, pour une fiche ou une voix, sur le personnage.
  */
 export async function mettreEnFile(d: DemandeTache): Promise<ResultatFile> {
-  const admin = clientAdmin();
+  const admin = await clientAdmin();
   let requete = admin.from("taches").select("id").eq("espace_id", d.espace_id).eq("type", d.type).in("statut", ["en_file", "en_cours", "en_pause"]);
   requete = d.episode_id ? requete.eq("episode_id", d.episode_id) : requete.is("episode_id", null);
   const personnage = d.donnees?.personnage_id;

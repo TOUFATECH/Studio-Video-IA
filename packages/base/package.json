@@ -1,0 +1,24 @@
+{
+  "name": "@studio-video-ia/base",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Base de données de Studio Vidéo IA : SQLite en local (par défaut) ou PostgreSQL externe, comptes utilisateurs, fichiers locaux.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@studio-video-ia/core": "0.1.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

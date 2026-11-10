@@ -7,7 +7,7 @@ import { chargerCles, proprietaireEspace, type ClesProprietaire } from "./cles";
 import type { Config } from "./config";
 import { journal } from "./journal";
 import type { Stockage } from "./stockage";
-import type { Base } from "./supabase";
+import type { Base } from "./bdd";
 
 /** Le plafond mensuel de dépense de l'espace est atteint : la tâche est mise en pause. */
 export class ErreurPlafond extends Error {

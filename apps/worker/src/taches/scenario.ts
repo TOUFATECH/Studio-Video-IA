@@ -19,7 +19,7 @@ import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
 import { chargerEpisode, supprimerFichiers, type EpisodeComplet } from "../donnees";
-import { ecrire, lignes, ligneOuNull } from "../supabase";
+import { ecrire, lignes, ligneOuNull } from "../bdd";
 
 /** Données acceptées par la tâche. */
 export const schemaDonneesScenario = z.object({

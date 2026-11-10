@@ -22,7 +22,7 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 
 1. https://console.x.ai → API Keys → Create.
 2. Modèle et résolution : `XAI_VIDEO_MODEL` et `XAI_VIDEO_RESOLUTION` dans `.env`.
-3. Les vidéos renvoyées par xAI sont des liens temporaires : le worker les télécharge et les range tout de suite dans Supabase Storage.
+3. Les vidéos renvoyées par xAI sont des liens temporaires : le worker les télécharge et les range tout de suite dans le dossier des médias.
 
 ## ElevenLabs (voix, voix clonées, bruitages, musique et paroles des clips)
 

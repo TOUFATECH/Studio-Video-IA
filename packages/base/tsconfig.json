@@ -1,0 +1,8 @@
+// Base de données : SQLite (node:sqlite) ou PostgreSQL (pg), requêtes, comptes, fichiers.
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "tests"]
+}

@@ -11,8 +11,8 @@ export const COOKIE_ESPACE = "espace";
 
 /** Espaces de l'utilisateur, du plus ancien au plus récent. */
 export const chargerEspaces = cache(async (): Promise<Espace[]> => {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("espaces").select("*").order("cree_le");
+  const { db } = await utilisateur();
+  const { data } = await db.from("espaces").select("*").order("cree_le");
   return lignes(ligneEspace, data, "espaces");
 });
 

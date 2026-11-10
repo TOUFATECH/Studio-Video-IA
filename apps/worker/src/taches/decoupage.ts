@@ -18,7 +18,7 @@ import type { Contexte } from "../contexte";
 import { chansonDuClip, supprimerFichiers, type EpisodeComplet } from "../donnees";
 import { demanderTexteIA } from "../ia";
 import { sonder } from "../rendu/executant";
-import { ecrire } from "../supabase";
+import { ecrire } from "../bdd";
 import { trouverPersonnage } from "./scenario";
 
 /** Réponse attendue pour la traduction des paroles. */

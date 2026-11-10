@@ -1,13 +1,14 @@
-// `npm run diagnostic` : vérifie variables d'environnement, Supabase, bucket, ffmpeg (libass, police), puis les clés
+// `npm run diagnostic` : vérifie variables d'environnement, base de données, dossier des médias, ffmpeg (libass, police), puis les clés
 // et les comptes connectés de chaque propriétaire. Affiche un tableau OK / ÉCHEC avec le correctif ; code 1 si un point bloquant échoue.
+import { adresseLisible, assurerCleChiffrement, configBase, ouvrirBase, versionAttendue, type Base as BaseOuverte } from "@studio-video-ia/base";
 import { lireCleMaitre } from "@studio-video-ia/core/chiffrement";
 import { testerAnthropic, testerCompte, testerElevenLabs, testerOpenAI, testerXai } from "@studio-video-ia/integrations";
 import { chargerCles, dechiffrerValeur } from "./cles";
 import type { CompteReseau } from "./comptes";
 import { chargerFichierEnv, ErreurConfig, lireConfig, type Config } from "./config";
 import { aLibass, policePresente, versionOutil } from "./rendu/executant";
-import { BUCKET } from "./stockage";
-import { creerClient, lignes, type Base } from "./supabase";
+import { adressePublique } from "./stockage";
+import { lignes, type Base } from "./bdd";
 
 /** État d'un point vérifié. */
 export type Etat = "OK" | "ÉCHEC" | "ATTENTION";
@@ -28,18 +29,28 @@ export function aEchecBloquant(points: readonly Point[]): boolean {
   return points.some((p) => p.bloquant && p.etat === "ÉCHEC");
 }
 
-/** Vérifications de l'infrastructure : Supabase, bucket, ffmpeg, ffprobe, libass, police. */
-async function infrastructure(config: Config, db: Base, points: Point[]): Promise<boolean> {
-  let supabaseOk = false;
+/** Vérifications de l'infrastructure : base, dossier des médias, adresse du site, ffmpeg, ffprobe, libass, police. */
+async function infrastructure(config: Config, base: BaseOuverte, points: Point[]): Promise<boolean> {
+  let baseOk = false;
+  const db = base.admin;
   const { error, count } = await db.from("espaces").select("id", { count: "exact", head: true });
-  if (error) points.push({ nom: "Supabase", etat: "ÉCHEC", detail: `${error.message} → vérifie NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY et que les migrations sont appliquées`, bloquant: true });
+  if (error) points.push({ nom: "Base de données", etat: "ÉCHEC", detail: `${error.message} → vérifie DATABASE_URL (ou laisse-la vide pour SQLite)`, bloquant: true });
   else {
-    supabaseOk = true;
-    points.push({ nom: "Supabase", etat: "OK", detail: `connecté, ${count ?? 0} espace(s)`, bloquant: true });
+    baseOk = true;
+    const v = base.migration.version;
+    points.push({ nom: "Base de données", etat: "OK", detail: `${adresseLisible(base.config)}, schéma v${v}/${versionAttendue(base.moteur)}, ${count ?? 0} espace(s)`, bloquant: true });
   }
-  const bucket = await db.storage.getBucket(BUCKET);
-  if (bucket.error || !bucket.data) points.push({ nom: `Bucket « ${BUCKET} »`, etat: "ÉCHEC", detail: `${bucket.error?.message ?? "absent"} → applique supabase/migrations/0001_init.sql`, bloquant: true });
-  else points.push({ nom: `Bucket « ${BUCKET} »`, etat: bucket.data.public ? "ATTENTION" : "OK", detail: bucket.data.public ? "le bucket est PUBLIC : repasse-le en privé dans Supabase" : "présent et privé", bloquant: false });
+  try {
+    await base.depot.testerEcriture();
+    points.push({ nom: "Dossier des médias", etat: "OK", detail: base.depot.dossier, bloquant: true });
+  } catch (e) {
+    points.push({ nom: "Dossier des médias", etat: "ÉCHEC", detail: `${base.depot.dossier} non accessible en écriture (${e instanceof Error ? e.message : String(e)}) → règle MEDIAS_DIR ou les droits du dossier`, bloquant: true });
+  }
+  points.push(
+    adressePublique(config.adresseSite)
+      ? { nom: "Adresse du site (APP_URL)", etat: "OK", detail: `${config.adresseSite} : Instagram peut télécharger les vidéos`, bloquant: false }
+      : { nom: "Adresse du site (APP_URL)", etat: "ATTENTION", detail: `${config.adresseSite} n'est pas publique : la publication Instagram ne marchera pas (TikTok et YouTube oui). Voir docs/INSTALLER.md`, bloquant: false },
+  );
 
   const vFfmpeg = await versionOutil(config.ffmpeg);
   points.push(vFfmpeg ? { nom: "ffmpeg", etat: "OK", detail: vFfmpeg, bloquant: true } : { nom: "ffmpeg", etat: "ÉCHEC", detail: `introuvable (${config.ffmpeg}) → installe ffmpeg ou règle FFMPEG_PATH`, bloquant: true });
@@ -61,7 +72,7 @@ async function infrastructure(config: Config, db: Base, points: Point[]): Promis
         ? { nom: "Police des sous-titres", etat: "OK", detail: config.police, bloquant: false }
         : { nom: "Police des sous-titres", etat: "ATTENTION", detail: `« ${config.police} » introuvable → installe fonts-noto-cjk ou change SUBTITLE_FONT`, bloquant: false },
   );
-  return supabaseOk;
+  return baseOk;
 }
 
 /** Vérifie les clés et les comptes connectés de chaque propriétaire. */
@@ -123,7 +134,9 @@ export async function diagnostic(): Promise<number> {
   const env = chargerFichierEnv();
   points.push({ nom: "Fichier .env", etat: env ? "OK" : "ATTENTION", detail: env ?? "absent : variables lues dans l'environnement seulement (cp .env.example .env)", bloquant: false });
   let config: Config;
+  const reglagesBase = configBase();
   try {
+    assurerCleChiffrement(reglagesBase.dossierDonnees);
     config = lireConfig();
     points.push({ nom: "Variables d'environnement", etat: "OK", detail: `worker « ${config.nom} », ${config.concurrence} tâche(s) à la fois, Instagram ${config.versionInstagram}`, bloquant: true });
   } catch (e) {
@@ -133,11 +146,14 @@ export async function diagnostic(): Promise<number> {
     return 1;
   }
   process.env.INSTAGRAM_API_VERSION = config.versionInstagram;
-  const db = creerClient(config);
+  let base: BaseOuverte | null = null;
   try {
-    if (await infrastructure(config, db, points)) await proprietaires(config, db, points);
+    base = await ouvrirBase(reglagesBase);
+    if (await infrastructure(config, base, points)) await proprietaires(config, base.admin, points);
   } catch (e) {
-    points.push({ nom: "Diagnostic", etat: "ÉCHEC", detail: e instanceof Error ? e.message : String(e), bloquant: true });
+    points.push({ nom: "Base de données", etat: "ÉCHEC", detail: `${e instanceof Error ? e.message : String(e)} → vérifie DATABASE_URL et les droits du dossier des données`, bloquant: true });
+  } finally {
+    await base?.fermer().catch(() => undefined);
   }
   console.log(formaterTableau(points));
   const bloquant = aEchecBloquant(points);

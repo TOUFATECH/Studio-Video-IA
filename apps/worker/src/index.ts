@@ -1,22 +1,28 @@
-// Point d'entrée du worker : configuration, connexion Supabase, démarrage de la file, arrêt propre sur SIGINT / SIGTERM.
+// Point d'entrée du worker : configuration, ouverture de la base (SQLite local ou PostgreSQL externe, schéma créé
+// au premier lancement), démarrage de la file, arrêt propre sur SIGINT / SIGTERM.
 import { mkdir } from "node:fs/promises";
+import { adresseLisible, assurerCleChiffrement, configBase, ouvrirBase } from "@studio-video-ia/base";
 import { lireCleMaitre } from "@studio-video-ia/core/chiffrement";
 import { chargerFichierEnv, ErreurConfig, lireConfig } from "./config";
 import { FileDeTaches } from "./file";
 import { journal, messageErreur } from "./journal";
 import { Stockage } from "./stockage";
-import { creerClient } from "./supabase";
 
 /** Démarre le worker. */
 async function principal(): Promise<void> {
   const env = chargerFichierEnv();
   if (env) journal("info", `variables lues dans ${env}`);
+  const reglagesBase = configBase();
+  // Clé de chiffrement : celle de .env, sinon celle générée au premier lancement dans le dossier des données.
+  assurerCleChiffrement(reglagesBase.dossierDonnees);
   const config = lireConfig();
   // INSTAGRAM_API_VERSION est aussi lue par le paquet d'intégrations (testerCompte) : on garde la valeur validée.
   process.env.INSTAGRAM_API_VERSION = config.versionInstagram;
   await mkdir(config.dossierTemp, { recursive: true });
-  const db = creerClient(config);
-  const file = new FileDeTaches({ db, config, stockage: new Stockage(db), cleMaitre: lireCleMaitre(config.cleChiffrement) });
+  const base = await ouvrirBase(reglagesBase);
+  journal("info", `base : ${adresseLisible(reglagesBase)} (schéma v${base.migration.version}${base.migration.appliquees.length ? `, créé ou mis à jour : v${base.migration.appliquees.join(", v")}` : ""})`);
+  journal("info", `médias : ${base.depot.dossier}`);
+  const file = new FileDeTaches({ db: base.admin, config, stockage: new Stockage(base.depot, config.adresseSite), cleMaitre: lireCleMaitre(config.cleChiffrement) });
 
   let arretEnCours = false;
   const arreter = (signal: string): void => {
@@ -26,7 +32,10 @@ async function principal(): Promise<void> {
     }
     arretEnCours = true;
     journal("info", `${signal} reçu`);
-    void file.arreter().finally(() => process.exit(0));
+    void file
+      .arreter()
+      .then(() => base.fermer())
+      .finally(() => process.exit(0));
   };
   process.on("SIGINT", () => arreter("SIGINT"));
   process.on("SIGTERM", () => arreter("SIGTERM"));

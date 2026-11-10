@@ -14,24 +14,24 @@ import { utilisateur } from "@/lib/session";
 export async function chargerEpisode(brut: string) {
   const r = schemaId.safeParse(brut);
   if (!r.success) notFound();
-  const { supabase } = await utilisateur();
-  const episode = ligne(ligneEpisode, (await supabase.from("episodes").select("*").eq("id", r.data).maybeSingle()).data);
+  const { db } = await utilisateur();
+  const episode = ligne(ligneEpisode, (await db.from("episodes").select("*").eq("id", r.data).maybeSingle()).data);
   if (!episode) notFound();
-  const serie = ligne(ligneSerie, (await supabase.from("series").select("*").eq("id", episode.serie_id).maybeSingle()).data);
+  const serie = ligne(ligneSerie, (await db.from("series").select("*").eq("id", episode.serie_id).maybeSingle()).data);
   if (!serie) notFound();
   const [espace, saisons, episodesSerie, plans, personnages, fichiers, taches, recentes, publications, comptes, mysteres, musiques, reglages] = await Promise.all([
-    supabase.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle().then((x) => ligne(ligneEspace, x.data)),
-    supabase.from("saisons").select("*").eq("serie_id", serie.id).order("numero").then((x) => lignes(ligneSaison, x.data, "saisons")),
-    supabase.from("episodes").select("*").eq("serie_id", serie.id).then((x) => lignes(ligneEpisode, x.data, "episodes")),
-    supabase.from("plans").select("*").eq("episode_id", episode.id).order("position").then((x) => lignes(lignePlan, x.data, "plans")),
-    supabase.from("personnages").select("*").eq("serie_id", serie.id).order("position").then((x) => lignes(lignePersonnage, x.data, "personnages")),
-    supabase.from("fichiers").select("*").eq("episode_id", episode.id).order("cree_le").then((x) => lignes(ligneFichier, x.data, "fichiers")),
-    supabase.from("taches").select("*").eq("episode_id", episode.id).in("statut", ["en_file", "en_cours", "en_pause"]).order("cree_le").then((x) => lignes(ligneTache, x.data, "taches")),
-    supabase.from("taches").select("*").eq("episode_id", episode.id).in("statut", ["echec", "terminee"]).order("modifie_le", { ascending: false }).limit(10).then((x) => lignes(ligneTache, x.data, "taches")),
-    supabase.from("publications").select("*").eq("episode_id", episode.id).order("programmee_le").then((x) => lignes(lignePublication, x.data, "publications")),
-    supabase.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", serie.espace_id).order("cree_le").then((x) => lignes(ligneReseau, x.data, "reseaux")),
-    supabase.from("memoire").select("*").eq("serie_id", serie.id).eq("genre", "mystere").eq("ouvert", true).order("cree_le").then((x) => lignes(ligneMemoire, x.data, "memoire")),
-    supabase.from("fichiers").select("*").eq("espace_id", serie.espace_id).eq("genre", "musique").order("cree_le", { ascending: false }).then((x) => lignes(ligneFichier, x.data, "fichiers")),
+    db.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle().then((x) => ligne(ligneEspace, x.data)),
+    db.from("saisons").select("*").eq("serie_id", serie.id).order("numero").then((x) => lignes(ligneSaison, x.data, "saisons")),
+    db.from("episodes").select("*").eq("serie_id", serie.id).then((x) => lignes(ligneEpisode, x.data, "episodes")),
+    db.from("plans").select("*").eq("episode_id", episode.id).order("position").then((x) => lignes(lignePlan, x.data, "plans")),
+    db.from("personnages").select("*").eq("serie_id", serie.id).order("position").then((x) => lignes(lignePersonnage, x.data, "personnages")),
+    db.from("fichiers").select("*").eq("episode_id", episode.id).order("cree_le").then((x) => lignes(ligneFichier, x.data, "fichiers")),
+    db.from("taches").select("*").eq("episode_id", episode.id).in("statut", ["en_file", "en_cours", "en_pause"]).order("cree_le").then((x) => lignes(ligneTache, x.data, "taches")),
+    db.from("taches").select("*").eq("episode_id", episode.id).in("statut", ["echec", "terminee"]).order("modifie_le", { ascending: false }).limit(10).then((x) => lignes(ligneTache, x.data, "taches")),
+    db.from("publications").select("*").eq("episode_id", episode.id).order("programmee_le").then((x) => lignes(lignePublication, x.data, "publications")),
+    db.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", serie.espace_id).order("cree_le").then((x) => lignes(ligneReseau, x.data, "reseaux")),
+    db.from("memoire").select("*").eq("serie_id", serie.id).eq("genre", "mystere").eq("ouvert", true).order("cree_le").then((x) => lignes(ligneMemoire, x.data, "memoire")),
+    db.from("fichiers").select("*").eq("espace_id", serie.espace_id).eq("genre", "musique").order("cree_le", { ascending: false }).then((x) => lignes(ligneFichier, x.data, "fichiers")),
     chargerReglages(),
   ]);
   if (!espace) notFound();
@@ -40,7 +40,7 @@ export async function chargerEpisode(brut: string) {
   const position = ordre.findIndex((e) => e.id === episode.id);
   const precedent = position > 0 ? ordre[position - 1] : undefined;
   const suivant = position >= 0 ? ordre[position + 1] : undefined;
-  const finPrecedent = precedent ? ligne(lignePlan, (await supabase.from("plans").select("*").eq("episode_id", precedent.id).order("position", { ascending: false }).limit(1).maybeSingle()).data) : null;
+  const finPrecedent = precedent ? ligne(lignePlan, (await db.from("plans").select("*").eq("episode_id", precedent.id).order("position", { ascending: false }).limit(1).maybeSingle()).data) : null;
   const pubsActives = publications.filter((p) => p.statut !== "annulee");
   const etat = etatEpisode({ episode, plans, personnages, fichiers, taches, publications: pubsActives });
   const durees = dureesParPlan(plans, episode.duree_cible, episode.format);

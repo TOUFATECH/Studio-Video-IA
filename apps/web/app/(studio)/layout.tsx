@@ -11,7 +11,6 @@ import { SelecteurEspace, type OptionEspace } from "@/components/coquille/Select
 import styles from "@/components/coquille/coquille.module.scss";
 import { Logo } from "@/components/ui/Icone";
 import { construireAFaire } from "@/lib/a-faire";
-import { supabaseConfigure } from "@/lib/env";
 import { chargerProduction } from "@/lib/donnees";
 import { codeEpisode, lienEpisode, nomEpisode } from "@/lib/episodes";
 import { COOKIE_FLASH, decoderFlash } from "@/lib/flash";
@@ -22,16 +21,16 @@ import { initialiserCompte, utilisateur } from "@/lib/session";
 /** Cookie posé par la page épisode pour la carte « Épisode ouvert ». */
 const COOKIE_EPISODE = "episode_ouvert";
 
-/** Carte de l'épisode ouvert en dernier (relu avec la RLS). */
+/** Carte de l'épisode ouvert en dernier (relu avec les droits de l’utilisateur). */
 async function episodeOuvert(brut: string | undefined) {
   const r = schemaId.safeParse(brut);
   if (!r.success) return null;
-  const { supabase } = await utilisateur();
-  const ep = ligne(ligneEpisode, (await supabase.from("episodes").select("*").eq("id", r.data).maybeSingle()).data);
+  const { db } = await utilisateur();
+  const ep = ligne(ligneEpisode, (await db.from("episodes").select("*").eq("id", r.data).maybeSingle()).data);
   if (!ep) return null;
   const [serie, saison] = await Promise.all([
-    supabase.from("series").select("*").eq("id", ep.serie_id).maybeSingle().then((x) => ligne(ligneSerie, x.data)),
-    supabase.from("saisons").select("*").eq("id", ep.saison_id).maybeSingle().then((x) => ligne(ligneSaison, x.data)),
+    db.from("series").select("*").eq("id", ep.serie_id).maybeSingle().then((x) => ligne(ligneSerie, x.data)),
+    db.from("saisons").select("*").eq("id", ep.saison_id).maybeSingle().then((x) => ligne(ligneSaison, x.data)),
   ]);
   if (!serie) return null;
   return { lien: lienEpisode(ep), titre: nomEpisode(ep, saison ?? undefined), detail: `${serie.nom} · ${codeEpisode(ep, saison ?? undefined)}`, serie: serie.genre === "serie" ? { id: serie.id, nom: serie.nom } : null };
@@ -39,14 +38,12 @@ async function episodeOuvert(brut: string | undefined) {
 
 /** Coquille commune. */
 export default async function LayoutStudio({ children }: { children: ReactNode }) {
-  // Sans Supabase, seule la page Diagnostic est servie (le middleware y redirige) : pas de coquille.
-  if (!supabaseConfigure()) return <main className={styles.principal}>{children}</main>;
-  const { supabase, user } = await utilisateur();
+  const { db, user } = await utilisateur();
   const magasin = await cookies();
   let prod = await chargerProduction();
   if (!prod.portee.espaces.length) {
-    // Premier passage sans espace (ex. compte créé hors de l'app) : on prépare le compte puis on recharge.
-    await initialiserCompte(supabase, user.id);
+    // Premier passage sans espace (ex. compte créé en ligne de commande) : on prépare le compte puis on recharge.
+    await initialiserCompte(db);
     prod = await chargerProduction();
   }
   const { portee } = prod;
@@ -56,7 +53,7 @@ export default async function LayoutStudio({ children }: { children: ReactNode }
   const ouvert = await episodeOuvert(magasin.get(COOKIE_EPISODE)?.value);
 
   // Résumé de chaque espace (toutes portées confondues) pour le menu : nombre de séries et réseaux.
-  const [rSeries, rReseaux] = await Promise.all([supabase.from("series").select("espace_id"), supabase.from("reseaux_connectes").select("espace_id, reseau")]);
+  const [rSeries, rReseaux] = await Promise.all([db.from("series").select("espace_id"), db.from("reseaux_connectes").select("espace_id, reseau")]);
   const resume = z.array(z.object({ espace_id: z.string(), reseau: schemaReseau.optional() }));
   const seriesToutes = resume.catch([]).parse(rSeries.data);
   const reseauxTous = resume.catch([]).parse(rReseaux.data);

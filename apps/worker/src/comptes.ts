@@ -4,7 +4,7 @@ import { chiffrer } from "@studio-video-ia/core/chiffrement";
 import { doitRenouveler, estErreurJeton, renouvelerJeton, type Fetch } from "@studio-video-ia/integrations";
 import { dechiffrerValeur, exigerApp, type ClesProprietaire } from "./cles";
 import { journal } from "./journal";
-import { ecrire, ligne, type Base } from "./supabase";
+import { ecrire, ligne, type Base } from "./bdd";
 
 /** Un compte connecté avec ses jetons chiffrés (lisibles seulement côté serveur). */
 export type CompteReseau = ReseauConnecte & { jeton_acces_chiffre: string | null; jeton_renouvellement_chiffre: string | null };

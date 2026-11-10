@@ -1,6 +1,6 @@
 "use client";
-// Import de la chanson d'un clip : demande d'une adresse signée, envoi direct au stockage avec progression,
-// puis validation par le serveur (type réel, remplacement de l'ancienne chanson, synchronisation des paroles).
+// Import de la chanson d'un clip, avec la progression de l'envoi ; le serveur vérifie le type réel,
+// remplace l'ancienne chanson et lance la synchronisation des paroles.
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 
@@ -9,19 +9,25 @@ function message(corps: unknown, defaut: string): string {
   return typeof corps === "object" && corps !== null && "message" in corps && typeof corps.message === "string" ? corps.message : defaut;
 }
 
-/** Envoie un fichier vers une adresse signée en suivant la progression (fetch ne la donne pas). */
-function envoyerAvecProgression(adresse: string, fichier: File, surProgression: (pourcent: number) => void): Promise<boolean> {
+/** Envoie le formulaire en suivant la progression (fetch ne la donne pas). Renvoie le statut et la réponse JSON. */
+function envoyerAvecProgression(donnees: FormData, surProgression: (pourcent: number) => void): Promise<{ ok: boolean; corps: unknown }> {
   return new Promise((resoudre) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", adresse);
-    xhr.setRequestHeader("content-type", fichier.type || "audio/mpeg");
-    xhr.setRequestHeader("x-upsert", "false");
+    xhr.open("POST", "/api/import/chanson");
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) surProgression(Math.round((e.loaded / e.total) * 100));
     };
-    xhr.onload = () => resoudre(xhr.status >= 200 && xhr.status < 300);
-    xhr.onerror = () => resoudre(false);
-    xhr.send(fichier);
+    xhr.onload = () => {
+      let corps: unknown = {};
+      try {
+        corps = JSON.parse(xhr.responseText) as unknown;
+      } catch {
+        // Réponse non JSON : message par défaut.
+      }
+      resoudre({ ok: xhr.status >= 200 && xhr.status < 300, corps });
+    };
+    xhr.onerror = () => resoudre({ ok: false, corps: { message: "Connexion perdue pendant l’envoi." } });
+    xhr.send(donnees);
   });
 }
 
@@ -32,7 +38,7 @@ export function ImportChanson({ clip, dejaUne }: { clip: string; dejaUne: boolea
   const [etat, setEtat] = useState<{ ton: "info" | "erreur" | "succes"; texte: string } | null>(null);
   const [envoi, setEnvoi] = useState(false);
 
-  /** Les trois temps de l'import. */
+  /** Envoie la chanson. */
   async function envoyer(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formulaire = e.currentTarget;
@@ -45,29 +51,15 @@ export function ImportChanson({ clip, dejaUne }: { clip: string; dejaUne: boolea
     }
     setEnvoi(true);
     try {
-      setEtat({ ton: "info", texte: "Préparation…" });
-      const r1 = await fetch("/api/import/chanson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ etape: "adresse", cible: clip, taille: fichier.size, extension }) });
-      const c1: unknown = await r1.json().catch(() => ({}));
-      if (!r1.ok || typeof c1 !== "object" || c1 === null || !("adresse" in c1) || !("chemin" in c1) || typeof c1.adresse !== "string" || typeof c1.chemin !== "string") {
-        setEtat({ ton: "erreur", texte: message(c1, "Import impossible.") });
-        return;
-      }
-      const chemin = c1.chemin;
-      const ok = await envoyerAvecProgression(c1.adresse, fichier, (p) => setEtat({ ton: "info", texte: `Envoi… ${p} %` }));
-      if (!ok) {
-        setEtat({ ton: "erreur", texte: "L’envoi a échoué (connexion ou limite de taille du stockage). Réessaie." });
-        return;
-      }
-      setEtat({ ton: "info", texte: "Vérification du fichier…" });
-      const r2 = await fetch("/api/import/chanson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ etape: "valider", cible: clip, chemin }) });
-      const c2: unknown = await r2.json().catch(() => ({}));
-      setEtat({ ton: r2.ok ? "succes" : "erreur", texte: message(c2, r2.ok ? "Chanson importée." : "Import impossible.") });
-      if (r2.ok) {
+      const donnees = new FormData();
+      donnees.set("cible", clip);
+      donnees.set("fichier", fichier);
+      const r = await envoyerAvecProgression(donnees, (p) => setEtat({ ton: "info", texte: p < 100 ? `Envoi… ${p} %` : "Vérification du fichier…" }));
+      setEtat({ ton: r.ok ? "succes" : "erreur", texte: message(r.corps, r.ok ? "Chanson importée." : "Import impossible.") });
+      if (r.ok) {
         formulaire.reset();
         router.refresh();
       }
-    } catch {
-      setEtat({ ton: "erreur", texte: "Connexion perdue pendant l’envoi." });
     } finally {
       setEnvoi(false);
     }

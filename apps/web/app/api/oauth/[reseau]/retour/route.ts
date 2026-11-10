@@ -1,5 +1,5 @@
 // Retour d'une connexion OAuth : vérifie le « state », échange le code contre des jetons,
-// les chiffre et enregistre le compte connecté (service_role), puis revient aux réglages.
+// les chiffre et enregistre le compte connecté (client serveur), puis revient aux réglages.
 import { schemaReseau, type Langue } from "@studio-video-ia/core";
 import { chiffrer } from "@studio-video-ia/core/chiffrement";
 import { echangerCode } from "@studio-video-ia/integrations";
@@ -10,8 +10,8 @@ import { messageErreur } from "@/lib/erreurs";
 import { COOKIE_ETAT_OAUTH, verifierEtat } from "@/lib/etat-oauth";
 import { ligneSerie, lignes } from "@/lib/lignes";
 import { adresseRetour, redirigerAvecMessage } from "@/lib/oauth";
-import { clientAdmin } from "@/lib/supabase/admin";
-import { clientServeur } from "@/lib/supabase/serveur";
+import { clientAdmin } from "@/lib/bdd";
+import { clientUtilisateur, sessionCourante } from "@/lib/bdd";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,20 +37,20 @@ export async function GET(requete: NextRequest, { params }: { params: Promise<{ 
     const code = z.string().min(1).max(4096).safeParse(q.get("code"));
     if (!code.success) return fin("Code d’autorisation absent.", "erreur");
 
-    const supabase = await clientServeur();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return NextResponse.redirect(new URL("/connexion", requete.url));
-    const { data: e } = await supabase.from("espaces").select("id").eq("id", verif.espaceId).maybeSingle();
+    const user = await sessionCourante();
+    if (!user) return NextResponse.redirect(new URL("/connexion", requete.url));
+    const db = await clientUtilisateur(user.id);
+    const { data: e } = await db.from("espaces").select("id").eq("id", verif.espaceId).maybeSingle();
     if (!e) return fin("Compte introuvable.", "erreur");
-    const app = await lireAppOAuth(data.user.id, reseau);
+    const app = await lireAppOAuth(user.id, reseau);
     if (!app) return fin("Application OAuth absente : enregistre-la dans Clés API.", "erreur");
 
     const jetons = await echangerCode(reseau, app, adresseRetour(reseau), code.data);
     const cle = cleMaitre();
     // Langue par défaut du compte : celle de la série la plus récente de l'espace, sinon le français.
-    const series = lignes(ligneSerie, (await supabase.from("series").select("*").eq("espace_id", verif.espaceId).order("cree_le", { ascending: false }).limit(1)).data, "series");
+    const series = lignes(ligneSerie, (await db.from("series").select("*").eq("espace_id", verif.espaceId).order("cree_le", { ascending: false }).limit(1)).data, "series");
     const langue: Langue = series[0]?.langue ?? "fr";
-    const admin = clientAdmin();
+    const admin = await clientAdmin();
     const commun = {
       nom_compte: jetons.nomCompte,
       jeton_acces_chiffre: chiffrer(jetons.acces, cle),

@@ -1,21 +1,16 @@
-// Garde d'accès : toute page demande une session, sauf la connexion, le retour d'authentification et le diagnostic.
+// Garde d'accès : toute page demande une session, sauf la connexion et les médias signés.
+// Le middleware ne lit que la présence du cookie (pas de base ici) ; chaque page vérifie ensuite la session en base.
 import { NextResponse, type NextRequest } from "next/server";
-import { supabaseConfigure } from "./lib/env";
-import { majSession } from "./lib/supabase/middleware";
 
 /** Chemins accessibles sans être connecté. */
-const PUBLICS = ["/connexion", "/auth/callback"];
+const PUBLICS = ["/connexion", "/api/medias/"];
+/** Cookie de session (voir lib/bdd). */
+const COOKIE_SESSION = "svi_session";
 
 /** Redirige vers /connexion si personne n'est connecté. */
-export async function middleware(requete: NextRequest) {
+export function middleware(requete: NextRequest) {
   const chemin = requete.nextUrl.pathname;
-  // Sans configuration Supabase, seule la page Diagnostic peut expliquer quoi faire.
-  if (!supabaseConfigure()) {
-    if (chemin === "/diagnostic") return NextResponse.next();
-    return NextResponse.redirect(new URL("/diagnostic", requete.url));
-  }
-  const { reponse, connecte } = await majSession(requete);
-  if (connecte || PUBLICS.some((p) => chemin.startsWith(p))) return reponse;
+  if (requete.cookies.get(COOKIE_SESSION)?.value || PUBLICS.some((p) => chemin.startsWith(p))) return NextResponse.next();
   // Les routes d'API appelées en arrière-plan répondent 401 ; les connexions OAuth sont des navigations : on redirige.
   if (chemin.startsWith("/api/") && !chemin.startsWith("/api/oauth/")) return NextResponse.json({ erreur: "Non connecté." }, { status: 401 });
   const url = new URL("/connexion", requete.url);
@@ -24,6 +19,6 @@ export async function middleware(requete: NextRequest) {
 }
 
 export const config = {
-  // Tout sauf les fichiers statiques de Next et les icônes.
+  // Tout sauf les fichiers statiques de Next et le favicon.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };

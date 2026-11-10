@@ -1,18 +1,10 @@
-// Client Supabase du worker (clé service_role : accès complet, côté serveur uniquement) et aides de lecture typée.
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Config } from "./config";
+// Base de données du worker (client serveur : accès complet, SQLite local ou PostgreSQL externe) et aides de lecture typée.
+import type { Client } from "@studio-video-ia/base";
 
-/** Client Supabase utilisé par le worker. */
-export type Base = SupabaseClient;
+/** Client de base de données utilisé par le worker. */
+export type Base = Client;
 
-/** Crée le client service_role, sans session persistée (pas de navigateur ici). */
-export function creerClient(config: Pick<Config, "supabaseUrl" | "supabaseCle">): Base {
-  return createClient(config.supabaseUrl, config.supabaseCle, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-}
-
-/** Résultat brut d'une requête Supabase. */
+/** Résultat brut d'une requête. */
 type Resultat = { data: unknown; error: { message: string; code?: string } | null };
 
 /** Erreur de base de données lisible, avec le code Postgres quand il existe. */

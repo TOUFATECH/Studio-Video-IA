@@ -109,18 +109,19 @@ describe("mémoire, publication, statistiques", () => {
 });
 
 describe("configuration", () => {
-  const base = { NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "a".repeat(40), ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64") };
+  const base = { ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64") };
   it("valeurs par défaut, dont WORKER_CONCURRENCY et INSTAGRAM_API_VERSION", () => {
     const c = lireConfig({ ...base, WORKER_TMP_DIR: "", FFMPEG_PATH: "" });
     expect(c.concurrence).toBe(2);
     expect(c.versionInstagram).toBe("v25.0");
     expect(c.ffmpeg).toBe("ffmpeg");
     expect(c.modeles.resolutionVideo).toBe("720p");
+    expect(c.adresseSite).toBe("http://localhost:3000");
   });
   it("message clair listant les variables manquantes", () => {
     const e = (() => {
       try {
-        lireConfig({ ENCRYPTION_KEY: "court" });
+        lireConfig({ ENCRYPTION_KEY: "court", APP_URL: "pas une adresse" });
       } catch (x) {
         return x;
       }
@@ -128,8 +129,7 @@ describe("configuration", () => {
     })();
     expect(e).toBeInstanceOf(ErreurConfig);
     const msg = (e as ErreurConfig).message;
-    expect(msg).toContain("NEXT_PUBLIC_SUPABASE_URL : manquante");
-    expect(msg).toContain("SUPABASE_SERVICE_ROLE_KEY : manquante");
+    expect(msg).toContain("APP_URL : doit être une adresse");
     expect(msg).toContain("ENCRYPTION_KEY");
   });
   it("refuse une concurrence hors limites", () => {

@@ -2,23 +2,22 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { clientServeur, type ClientSupabase } from "./supabase/serveur";
+import { clientUtilisateur, sessionCourante, type ClientBase } from "./bdd";
 
-/** Utilisateur connecté et son client Supabase ; redirige vers /connexion sinon. Mis en cache pour la requête. */
+/** Utilisateur connecté et son client de base de données ; redirige vers /connexion sinon. Mis en cache pour la requête. */
 export const utilisateur = cache(async () => {
-  const supabase = await clientServeur();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/connexion");
-  return { supabase, user: data.user };
+  const user = await sessionCourante();
+  if (!user) redirect("/connexion");
+  return { db: await clientUtilisateur(user.id), user };
 });
 
 /**
  * Premier passage : crée la ligne « reglages » (valeurs par défaut de la base)
  * et un premier espace « Mon compte » si l'utilisateur n'en a aucun.
  */
-export async function initialiserCompte(supabase: ClientSupabase, userId: string): Promise<void> {
+export async function initialiserCompte(db: ClientBase): Promise<void> {
   // ignoreDuplicates : une ligne déjà présente n'est jamais écrasée.
-  await supabase.from("reglages").upsert({ proprietaire: userId }, { onConflict: "proprietaire", ignoreDuplicates: true });
-  const { count } = await supabase.from("espaces").select("id", { count: "exact", head: true });
-  if (!count) await supabase.from("espaces").insert({ nom: "Mon compte", proprietaire: userId });
+  await db.from("reglages").upsert({}, { onConflict: "proprietaire", ignoreDuplicates: true });
+  const { count } = await db.from("espaces").select("id", { count: "exact", head: true });
+  if (!count) await db.from("espaces").insert({ nom: "Mon compte" });
 }

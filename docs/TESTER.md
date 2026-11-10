@@ -7,27 +7,26 @@ Chaque niveau valide le précédent. Les niveaux 0 à 2 sont **gratuits**. À pa
 ```bash
 npm install
 npm run typecheck                    # 0 erreur attendue
-npm test                             # 275 tests attendus, tous verts
+npm test                             # tous les tests verts
 npm run build -w @studio-video-ia/web     # le site se compile, sans .env
-bash supabase/tests/lancer.sh        # migrations + sécurité sur un PostgreSQL local (si PostgreSQL est installé)
 ```
 
 Ce que couvre `npm test` :
+- la **base** : création du schéma, comptes et sessions, et les **règles d'accès** (un utilisateur ne voit ni ne modifie rien d'un autre, ne lit jamais une clé chiffrée ni un jeton, ne crée ni tâche ni fichier lui-même), déclencheurs de cohérence, journal des dépenses, file de tâches. Sur SQLite toujours ; aussi sur PostgreSQL si `TEST_DATABASE_URL=postgres://…` est défini (la CI le fait) ;
+- les médias : chemins qui ne sortent jamais du dossier, liens signés à durée limitée ;
 - la logique : durées des plans, sous-titres SRT, fuseaux horaires, hashtags, chiffrement des clés ;
 - les clips musicaux : lecture des paroles, placement des mots dans la chanson (y compris en japonais), découpage calé sur les paroles et le tempo, plan de composition de la musique, sous-titres des paroles ;
-- chaque API (OpenAI, xAI, ElevenLabs, YouTube, Instagram, TikTok), avec des réponses simulées : URL, en-têtes, corps envoyés, erreurs 401 et 429, pagination ;
+- chaque API (OpenAI, Anthropic, xAI, ElevenLabs, YouTube, Instagram, TikTok), avec des réponses simulées : URL, en-têtes, corps envoyés, erreurs 401 et 429, pagination ;
 - le worker : file de tâches, budget, planificateur, et un **vrai rendu ffmpeg** (1080x1920, voix, sous-titres, et un clip musical 16:9 monté sur une chanson) si ffmpeg est installé ;
 - le site : validations, signature OAuth, contrôle des fichiers importés, statistiques, programmation.
 
-Dans `supabase/tests/lancer.sh`, les lignes `ERROR` affichées sont des refus **voulus** : le navigateur ne peut ni lire une clé, ni créer une tâche, et un utilisateur ne voit rien des données d'un autre.
+## Niveau 1 — Le studio en marche (gratuit, 5 min)
 
-## Niveau 1 — Base, site et worker en marche (gratuit, 15 min)
-
-1. Supabase : exécute les 6 fichiers de `supabase/migrations/` dans l'ordre (SQL Editor), puis configure l'URL du site (voir le README).
-2. Remplis `.env` et `apps/web/.env.local` (README, étape 2).
-3. Lance `npm run dev:web`, puis le worker : `npm run dev:worker` (PC) ou `docker compose up -d --build` (Docker).
-4. Crée ton compte sur http://localhost:3000/connexion.
-5. Ouvre **Diagnostic**. Attendu : Supabase OK, bucket `medias` OK, worker en ligne, ffmpeg, libass, police des sous-titres.
+1. `docker compose up -d --build` (ou, sur un PC : `npm run dev:web` puis `npm run dev:worker`). Voir `docs/INSTALLER.md`.
+2. Ouvre http://localhost:3000. Attendu : « Bienvenue — Studio tout neuf ». Crée ton compte.
+3. Vérifie que le dossier des données existe : `studio.db`, `medias/`, `cle-chiffrement` (Docker : `docker compose exec web ls /donnees`).
+4. Ouvre **Diagnostic**. Attendu : base locale (SQLite) en vert avec la version du schéma, dossier des médias en vert, worker en ligne, ffmpeg, libass, police des sous-titres.
+5. Base externe (facultatif) : mets `DATABASE_URL=postgres://…` dans `.env`, relance, crée un compte : Diagnostic affiche « Base externe (PostgreSQL) ».
 
 Depuis le terminal du worker : `npm run diagnostic` affiche le même bilan (code de sortie 1 si un point bloque).
 
@@ -88,7 +87,9 @@ Pour changer d'avis : modifie l'extrait ou le tempo puis **Redécouper**, ou cha
 | Vidéo TikTok privée | App TikTok non auditée | Normal avant l'audit (`docs/CONFIGURER-LES-API.md`). |
 | Vidéo YouTube restée privée | Projet Google non audité | Demande l'audit « YouTube API Services ». |
 | Revenus YouTube « indisponibles » | Chaîne non monétisée, ou autorisation manquante | Reconnecte la chaîne. Les revenus exigent le Programme Partenaire. |
-| Film refusé au stockage | Limite de taille des fichiers Supabase | Augmente la limite (plan Pro) dans Storage → Settings. |
+| « Base de données inaccessible » au démarrage | Adresse PostgreSQL fausse, ou dossier des données non accessible en écriture | Vérifie `DATABASE_URL` (ou vide-la pour SQLite), et les droits de `DONNEES_DIR`. |
+| Publication Instagram refusée : « APP_URL doit être une adresse https » | Site local, injoignable par Instagram | Nom de domaine ou tunnel https (`docs/INSTALLER.md`, section 6). |
+| Clés API illisibles après une réinstallation | Clé de chiffrement perdue | Remets `cle-chiffrement` depuis une sauvegarde, ou ressaisis les clés. |
 | Musique refusée par ElevenLabs | Nom d'artiste ou paroles existantes, ou offre gratuite | Retire les noms du style et des paroles ; la musique demande un abonnement ElevenLabs. |
 | Paroles mal placées | Paroles différentes de ce qui est chanté | Corrige les paroles pour qu'elles collent à la chanson, Enregistrer, puis Resynchroniser. |
 | Chanson refusée à l'import | Fichier de plus de 45 Mo ou format inconnu | Exporte en MP3 (192 kb/s suffit). |

@@ -1,5 +1,5 @@
-// Vérifications d'appartenance : chaque objet est relu avec le client de l'utilisateur (RLS).
-// S'il revient, il est à lui ; ces fonctions sont appelées AVANT toute écriture en service_role.
+// Vérifications d'appartenance : chaque objet est relu avec le client de l’utilisateur (règles d’accès).
+// S'il revient, il est à lui ; ces fonctions sont appelées AVANT toute écriture avec le client serveur.
 import "server-only";
 import type { Episode, Espace, Personnage, Plan, Publication, ReseauConnecte, Saison, Serie } from "@studio-video-ia/core";
 import { ErreurUtilisateur } from "./erreurs";
@@ -11,8 +11,8 @@ const INTROUVABLE = "Élément introuvable.";
 
 /** Espace de l'utilisateur. */
 export async function espaceAMoi(espaceId: string): Promise<Espace> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("espaces").select("*").eq("id", espaceId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("espaces").select("*").eq("id", espaceId).maybeSingle();
   const e = ligne(ligneEspace, data);
   if (!e) throw new ErreurUtilisateur(INTROUVABLE);
   return e;
@@ -20,8 +20,8 @@ export async function espaceAMoi(espaceId: string): Promise<Espace> {
 
 /** Série de l'utilisateur. */
 export async function serieAMoi(serieId: string): Promise<Serie> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("series").select("*").eq("id", serieId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("series").select("*").eq("id", serieId).maybeSingle();
   const s = ligne(ligneSerie, data);
   if (!s) throw new ErreurUtilisateur(INTROUVABLE);
   return s;
@@ -29,8 +29,8 @@ export async function serieAMoi(serieId: string): Promise<Serie> {
 
 /** Saison de l'utilisateur, avec sa série. */
 export async function saisonAMoi(saisonId: string): Promise<{ saison: Saison; serie: Serie }> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("saisons").select("*").eq("id", saisonId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("saisons").select("*").eq("id", saisonId).maybeSingle();
   const saison = ligne(ligneSaison, data);
   if (!saison) throw new ErreurUtilisateur(INTROUVABLE);
   return { saison, serie: await serieAMoi(saison.serie_id) };
@@ -38,8 +38,8 @@ export async function saisonAMoi(saisonId: string): Promise<{ saison: Saison; se
 
 /** Épisode de l'utilisateur, avec sa série. */
 export async function episodeAMoi(episodeId: string): Promise<{ episode: Episode; serie: Serie }> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("episodes").select("*").eq("id", episodeId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("episodes").select("*").eq("id", episodeId).maybeSingle();
   const episode = ligne(ligneEpisode, data);
   if (!episode) throw new ErreurUtilisateur(INTROUVABLE);
   return { episode, serie: await serieAMoi(episode.serie_id) };
@@ -47,8 +47,8 @@ export async function episodeAMoi(episodeId: string): Promise<{ episode: Episode
 
 /** Plan de l'utilisateur, avec son épisode et sa série. */
 export async function planAMoi(planId: string): Promise<{ plan: Plan; episode: Episode; serie: Serie }> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("plans").select("*").eq("id", planId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("plans").select("*").eq("id", planId).maybeSingle();
   const plan = ligne(lignePlan, data);
   if (!plan) throw new ErreurUtilisateur(INTROUVABLE);
   return { plan, ...(await episodeAMoi(plan.episode_id)) };
@@ -56,8 +56,8 @@ export async function planAMoi(planId: string): Promise<{ plan: Plan; episode: E
 
 /** Personnage de l'utilisateur, avec sa série. */
 export async function personnageAMoi(personnageId: string): Promise<{ personnage: Personnage; serie: Serie }> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("personnages").select("*").eq("id", personnageId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("personnages").select("*").eq("id", personnageId).maybeSingle();
   const personnage = ligne(lignePersonnage, data);
   if (!personnage) throw new ErreurUtilisateur(INTROUVABLE);
   return { personnage, serie: await serieAMoi(personnage.serie_id) };
@@ -65,8 +65,8 @@ export async function personnageAMoi(personnageId: string): Promise<{ personnage
 
 /** Publication de l'utilisateur, avec son épisode et sa série. */
 export async function publicationAMoi(publicationId: string): Promise<{ publication: Publication; episode: Episode; serie: Serie }> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("publications").select("*").eq("id", publicationId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("publications").select("*").eq("id", publicationId).maybeSingle();
   const publication = ligne(lignePublication, data);
   if (!publication) throw new ErreurUtilisateur(INTROUVABLE);
   return { publication, ...(await episodeAMoi(publication.episode_id)) };
@@ -77,8 +77,8 @@ export const COLONNES_RESEAU = "id, espace_id, reseau, nom_compte, langue, id_ex
 
 /** Compte de réseau connecté de l'utilisateur. */
 export async function reseauAMoi(reseauId: string): Promise<ReseauConnecte> {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("reseaux_connectes").select(COLONNES_RESEAU).eq("id", reseauId).maybeSingle();
+  const { db } = await utilisateur();
+  const { data } = await db.from("reseaux_connectes").select(COLONNES_RESEAU).eq("id", reseauId).maybeSingle();
   const r = ligne(ligneReseau, data);
   if (!r) throw new ErreurUtilisateur(INTROUVABLE);
   return r;

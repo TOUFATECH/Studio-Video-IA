@@ -22,7 +22,7 @@ export type ParamsVideo = {
   resolution: ResolutionVideo;
   /** Audio généré par Grok (vrai par défaut côté API). */
   genererAudio: boolean;
-  /** URL publique de l'image de départ (URL signée Supabase). */
+  /** Image de départ : adresse publique ou data URI (base64). */
   urlImage: string | null;
 };
 

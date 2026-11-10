@@ -1,7 +1,7 @@
 // Plafond mensuel de dépense : contrôle avant une tâche payante et reprise des tâches mises en pause.
 import type { TypeTache } from "@studio-video-ia/core";
-import type { Base } from "./supabase";
-import { ligne } from "./supabase";
+import type { Base } from "./bdd";
+import { ligne } from "./bdd";
 
 /** Tâches qui coûtent de l'argent chez un fournisseur d'IA. */
 export const TYPES_PAYANTS: ReadonlySet<TypeTache> = new Set<TypeTache>(["scenario", "storyboard", "clips", "fiche_personnage", "memoire", "clone_voix", "test_complet"]);
@@ -23,8 +23,8 @@ export async function plafondAtteint(acces: AccesBudget, espaceId: string): Prom
   return depense >= plafond;
 }
 
-/** Accès réel au budget dans Supabase (fonction depense_du_mois et colonne plafond_mensuel). */
-export function accesBudgetSupabase(db: Base): AccesBudget {
+/** Accès réel au budget dans la base (fonction depense_du_mois et colonne plafond_mensuel). */
+export function accesBudgetBase(db: Base): AccesBudget {
   return {
     depenseDuMois: async (espaceId) => {
       const { data, error } = await db.rpc("depense_du_mois", { e: espaceId });

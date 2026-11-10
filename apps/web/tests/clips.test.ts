@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { codeEpisode, lienEpisode, nomEpisode } from "../lib/episodes";
 import { ligneEpisode, lignePlan, ligneSerie } from "../lib/lignes";
-import { schemaCle, schemaImportChanson, schemaMusique, schemaNouveauClip, schemaReglagesClip, schemaSonParoles } from "../lib/schemas";
+import { schemaCle, schemaMusique, schemaNouveauClip, schemaReglagesClip, schemaSonParoles } from "../lib/schemas";
 import { verifierImport } from "../lib/signature";
 
 const ID = "6f1c7a52-2b8e-4f43-9a8d-0b6f3c1e2d4a";
@@ -38,12 +38,6 @@ describe("formulaires d'un clip", () => {
 });
 
 describe("import de la chanson", () => {
-  it("demande une adresse pour un MP3, WAV ou M4A seulement", () => {
-    expect(schemaImportChanson.safeParse({ etape: "adresse", cible: ID, taille: 4_000_000, extension: "mp3" }).success).toBe(true);
-    expect(schemaImportChanson.safeParse({ etape: "adresse", cible: ID, taille: 4_000_000, extension: "exe" }).success).toBe(false);
-    expect(schemaImportChanson.safeParse({ etape: "valider", cible: ID, chemin: "esp/clip/chanson/a.mp3" }).success).toBe(true);
-  });
-
   it("vérifie le vrai type et la taille (45 Mo)", () => {
     const mp3 = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0, 0, 0, 0]);
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

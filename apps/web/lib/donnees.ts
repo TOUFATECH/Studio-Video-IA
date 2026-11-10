@@ -61,17 +61,17 @@ export function grouper<T>(liste: readonly T[], cle: (x: T) => string | null): M
 
 /** Charge la production de la portée courante (mise en cache pour la requête). */
 export const chargerProduction = cache(async (): Promise<Production> => {
-  const { supabase } = await utilisateur();
+  const { db } = await utilisateur();
   const portee = await porteeCourante();
   const ids = portee.ids;
   if (!ids.length) {
     return { portee, series: [], saisons: [], episodes: [], plans: [], personnages: [], fichiers: [], taches: [], tachesRecentes: [], publications: [], reseaux: [], etats: new Map(), depenses: new Map() };
   }
   const [rSeries, rReseaux, rTaches, rEchecs, rFichiers] = await Promise.all([
-    supabase.from("series").select("*").in("espace_id", ids).order("cree_le"),
-    supabase.from("reseaux_connectes").select(COLONNES_RESEAU).in("espace_id", ids).order("cree_le"),
-    supabase.from("taches").select("*").in("espace_id", ids).in("statut", ["en_file", "en_cours", "en_pause"]).order("cree_le"),
-    supabase
+    db.from("series").select("*").in("espace_id", ids).order("cree_le"),
+    db.from("reseaux_connectes").select(COLONNES_RESEAU).in("espace_id", ids).order("cree_le"),
+    db.from("taches").select("*").in("espace_id", ids).in("statut", ["en_file", "en_cours", "en_pause"]).order("cree_le"),
+    db
       .from("taches")
       .select("*")
       .in("espace_id", ids)
@@ -79,20 +79,20 @@ export const chargerProduction = cache(async (): Promise<Production> => {
       .gte("modifie_le", new Date(Date.now() - 3 * 86_400_000).toISOString())
       .order("modifie_le", { ascending: false })
       .limit(300),
-    supabase.from("fichiers").select("*").in("espace_id", ids).not("episode_id", "is", null),
+    db.from("fichiers").select("*").in("espace_id", ids).not("episode_id", "is", null),
   ]);
   const series = lignes(ligneSerie, rSeries.data, "series");
   const serieIds = series.map((s) => s.id);
   const [saisons, episodes, personnages] = await Promise.all([
-    serieIds.length ? supabase.from("saisons").select("*").in("serie_id", serieIds).order("numero").then((r) => lignes(ligneSaison, r.data, "saisons")) : Promise.resolve([]),
-    serieIds.length ? supabase.from("episodes").select("*").in("serie_id", serieIds).order("numero").then((r) => lignes(ligneEpisode, r.data, "episodes")) : Promise.resolve([]),
-    serieIds.length ? supabase.from("personnages").select("*").in("serie_id", serieIds).order("position").then((r) => lignes(lignePersonnage, r.data, "personnages")) : Promise.resolve([]),
+    serieIds.length ? db.from("saisons").select("*").in("serie_id", serieIds).order("numero").then((r) => lignes(ligneSaison, r.data, "saisons")) : Promise.resolve([]),
+    serieIds.length ? db.from("episodes").select("*").in("serie_id", serieIds).order("numero").then((r) => lignes(ligneEpisode, r.data, "episodes")) : Promise.resolve([]),
+    serieIds.length ? db.from("personnages").select("*").in("serie_id", serieIds).order("position").then((r) => lignes(lignePersonnage, r.data, "personnages")) : Promise.resolve([]),
   ]);
   const episodeIds = episodes.map((e) => e.id);
   const lots = enLots(episodeIds);
   const [plans, publications] = await Promise.all([
-    Promise.all(lots.map((l) => supabase.from("plans").select("*").in("episode_id", l).order("position"))).then((rs) => rs.flatMap((r) => lignes(lignePlan, r.data, "plans"))),
-    Promise.all(lots.map((l) => supabase.from("publications").select("*").in("episode_id", l).order("programmee_le"))).then((rs) => rs.flatMap((r) => lignes(lignePublication, r.data, "publications"))),
+    Promise.all(lots.map((l) => db.from("plans").select("*").in("episode_id", l).order("position"))).then((rs) => rs.flatMap((r) => lignes(lignePlan, r.data, "plans"))),
+    Promise.all(lots.map((l) => db.from("publications").select("*").in("episode_id", l).order("programmee_le"))).then((rs) => rs.flatMap((r) => lignes(lignePublication, r.data, "publications"))),
   ]);
   const fichiers = lignes(ligneFichier, rFichiers.data, "fichiers");
   const taches = lignes(ligneTache, rTaches.data, "taches");
@@ -121,7 +121,7 @@ export const chargerProduction = cache(async (): Promise<Production> => {
   const depenses = new Map<string, number>();
   await Promise.all(
     ids.map(async (id) => {
-      const { data } = await supabase.rpc("depense_du_mois", { e: id });
+      const { data } = await db.rpc("depense_du_mois", { e: id });
       depenses.set(id, Number(data ?? 0) || 0);
     }),
   );

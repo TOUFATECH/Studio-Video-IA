@@ -22,7 +22,7 @@ import { z } from "zod";
 import { ErreurReconnexion, jetonValide, marquerExpire, type CompteReseau } from "../comptes";
 import type { Contexte } from "../contexte";
 import { erreurCourte } from "../donnees";
-import { ecrire, ligne, lignes } from "../supabase";
+import { ecrire, ligne, lignes } from "../bdd";
 
 /** Données acceptées : un seul compte à synchroniser (sinon tous les comptes connectés de l'espace). */
 export const schemaDonneesStats = z.object({ reseau_connecte_id: z.string().optional() });

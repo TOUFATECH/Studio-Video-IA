@@ -32,10 +32,10 @@ function fuseaux(): string[] {
 /** Gestion des espaces et des réseaux. */
 export async function OngletComptes({ portee, espaceDemande }: { portee: Portee; espaceDemande: string | undefined }) {
   const espace = portee.espaces.find((e) => e.id === espaceDemande) ?? portee.courant ?? portee.espaces[0];
-  const { supabase } = await utilisateur();
+  const { db } = await utilisateur();
   const [rReseaux, rCles] = await Promise.all([
-    espace ? supabase.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", espace.id).order("cree_le") : Promise.resolve({ data: [] }),
-    supabase.from("cles_api").select("fournisseur"),
+    espace ? db.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", espace.id).order("cree_le") : Promise.resolve({ data: [] }),
+    db.from("cles_api").select("fournisseur"),
   ]);
   const reseaux = lignes(ligneReseau, rReseaux.data, "reseaux");
   const cles = new Set(z.array(z.object({ fournisseur: z.string() })).catch([]).parse(rCles.data).map((c) => c.fournisseur));

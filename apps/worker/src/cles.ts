@@ -3,7 +3,7 @@
 import { schemaAppOAuth, type AppOAuth, type Fournisseur, type Reseau } from "@studio-video-ia/core";
 import { dechiffrer } from "@studio-video-ia/core/chiffrement";
 import { fournisseurApp } from "@studio-video-ia/integrations";
-import { ligne, lignes, type Base } from "./supabase";
+import { ligne, lignes, type Base } from "./bdd";
 
 /** Clés disponibles pour un propriétaire (absentes si non saisies). */
 export type ClesProprietaire = {

@@ -1,4 +1,4 @@
-// Validation Zod des lignes lues dans Supabase, colonnes JSON comprises.
+// Validation Zod des lignes lues dans la base, colonnes JSON comprises.
 // Une colonne JSON mal formée retombe sur une valeur par défaut au lieu de casser la page.
 import {
   schemaChapitre,

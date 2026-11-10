@@ -1,4 +1,5 @@
-# Contrôles automatiques à chaque push et pull request : types, tests (dont un vrai rendu ffmpeg) et build du site.
+# Contrôles automatiques à chaque push et pull request : types, tests (base SQLite et PostgreSQL, vrai rendu ffmpeg),
+# build du site, et construction de l'image Docker.
 name: CI
 
 on:
@@ -10,6 +11,23 @@ jobs:
   verifier:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      # PostgreSQL pour tester la base externe (les mêmes tests tournent aussi sur SQLite).
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: studio
+          POSTGRES_PASSWORD: studio
+          POSTGRES_DB: studio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://studio:studio@localhost:5432/studio_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,3 +44,28 @@ jobs:
         run: npm test
       - name: Build du site
         run: npm run build -w @studio-video-ia/web
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image
+        run: docker compose build
+      - name: Démarrer le site et le worker (base SQLite créée au premier lancement)
+        run: |
+          docker compose up -d
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/connexion || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/connexion | grep -q "Bienvenue"
+          sleep 5
+          docker compose logs
+          docker compose exec -T worker test -f /donnees/studio.db
+          docker compose exec -T worker test -f /donnees/cle-chiffrement
+          docker compose ps --status running | grep -q worker
+      - name: Arrêter
+        if: always()
+        run: docker compose down -v

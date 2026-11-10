@@ -5,8 +5,7 @@ import { lancerTestComplet } from "@/app/actions/diagnostic";
 import { RafraichissementDirect } from "@/components/RafraichissementDirect";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { Jauge, Pastille, Puce } from "@/components/ui/elements";
-import { verifierCles, verifierComptes, verifierEnv, verifierQuotas, verifierSupabase, verifierWorkers, type Verification } from "@/lib/diagnostic";
-import { supabaseConfigure } from "@/lib/env";
+import { verifierBase, verifierCles, verifierComptes, verifierEnv, verifierQuotas, verifierWorkers, type Verification } from "@/lib/diagnostic";
 import { chargerEspaces } from "@/lib/espace-courant";
 import { dureeLisible, ilYa } from "@/lib/format";
 import { ligneFichier, lignes, ligneTache, schemaEtapesTest } from "@/lib/lignes";
@@ -49,33 +48,21 @@ function Tableau({ verifs }: { verifs: Verification[] }) {
 /** Page Diagnostic. */
 export default async function PageDiagnostic() {
   const env = verifierEnv();
-  if (!supabaseConfigure()) {
-    return (
-      <div className="pile pile--large">
-        <header>
-          <p className="surtitre">Studio Vidéo IA</p>
-          <h1 className="h1">Diagnostic</h1>
-          <p className="petit doux marge-haut">Supabase n’est pas configuré : complète les variables ci-dessous, puis redémarre l’app.</p>
-        </header>
-        <Tableau verifs={env} />
-      </div>
-    );
-  }
-  const { supabase, user } = await utilisateur();
+  const { db, user } = await utilisateur();
   const espaces = await chargerEspaces();
   const ids = espaces.map((e) => e.id);
-  const groupes = await Promise.all([verifierSupabase(supabase), verifierWorkers(supabase), verifierCles(user.id), verifierComptes(user.id, ids), verifierQuotas(supabase, ids)]);
+  const groupes = await Promise.all([verifierBase(db), verifierWorkers(db), verifierCles(user.id), verifierComptes(user.id, ids), verifierQuotas(db, ids)]);
   const verifs = [...env, ...groupes.flat()];
   const echecs = verifs.filter((v) => !v.ok).length;
 
   // Dernier test complet et son rendu.
-  const test = lignes(ligneTache, (await supabase.from("taches").select("*").eq("type", "test_complet").in("espace_id", ids).order("cree_le", { ascending: false }).limit(1)).data, "taches")[0];
+  const test = lignes(ligneTache, (await db.from("taches").select("*").eq("type", "test_complet").in("espace_id", ids).order("cree_le", { ascending: false }).limit(1)).data, "taches")[0];
   const etapes = test ? schemaEtapesTest.parse(test.progression.etapes) : [];
   const cheminProgression = test ? z.string().optional().catch(undefined).parse(test.progression.rendu ?? test.progression.rendu_chemin) : undefined;
   let cheminRendu = cheminProgression;
   if (test && !cheminRendu && test.statut === "terminee") {
     // Sinon : rendu sans épisode créé dans l'espace après le lancement du test.
-    const f = lignes(ligneFichier, (await supabase.from("fichiers").select("*").eq("espace_id", test.espace_id).eq("genre", "rendu").is("episode_id", null).gte("cree_le", test.cree_le).order("cree_le", { ascending: false }).limit(1)).data, "fichiers")[0];
+    const f = lignes(ligneFichier, (await db.from("fichiers").select("*").eq("espace_id", test.espace_id).eq("genre", "rendu").is("episode_id", null).gte("cree_le", test.cree_le).order("cree_le", { ascending: false }).limit(1)).data, "fichiers")[0];
     cheminRendu = f?.chemin ?? undefined;
   }
   const urlRendu = cheminRendu ? (await urlsSignees([cheminRendu])).get(cheminRendu) : undefined;

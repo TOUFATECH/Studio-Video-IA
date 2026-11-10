@@ -12,7 +12,7 @@ export const REGLES_IMPORT: Record<GenreImport, { types: readonly TypeDetecte[];
   echantillon_voix: { types: ["mp3", "wav", "m4a"], maxOctets: 20 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 20 Mo maximum" },
   musique: { types: ["mp3", "wav", "m4a"], maxOctets: 20 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 20 Mo maximum" },
   fiche: { types: ["png", "jpeg", "webp"], maxOctets: 10 * 1024 * 1024, libelle: "PNG, JPG ou WebP, 10 Mo maximum" },
-  // Chanson d'un clip : envoyée directement au stockage (adresse signée), sous la limite de 50 Mo du plan gratuit Supabase.
+  // Chanson d'un clip : 45 Mo au plus (un MP3 de 10 min en 320 kb/s en fait environ 24).
   chanson: { types: ["mp3", "wav", "m4a"], maxOctets: 45 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 45 Mo maximum" },
 };
 

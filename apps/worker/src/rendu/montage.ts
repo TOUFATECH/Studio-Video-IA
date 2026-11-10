@@ -1,5 +1,5 @@
 // Montage complet d'une version à partir de fichiers locaux : segments, génériques, concaténation, mixage, sous-titres.
-// Indépendant de Supabase : utilisé par la tâche rendu, par le test complet et par le test d'intégration ffmpeg.
+// Indépendant de la base : utilisé par la tâche rendu, par le test complet et par le test d'intégration ffmpeg.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { construireReperes, versSrt, type Langue, type Plan, type Repere } from "@studio-video-ia/core";

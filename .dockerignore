@@ -1,0 +1,14 @@
+# Rien de local ni de secret dans l'image.
+.git
+node_modules
+**/node_modules
+**/.next
+donnees
+**/tmp
+.env
+.env.*
+!.env.example
+apps/*/.env*
+*.db
+*.db-wal
+*.db-shm

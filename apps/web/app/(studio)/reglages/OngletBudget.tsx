@@ -10,8 +10,8 @@ import { utilisateur } from "@/lib/session";
 /** Tarifs et plafonds. */
 export async function OngletBudget({ portee }: { portee: Portee }) {
   const { tarifs } = await chargerReglages();
-  const { supabase } = await utilisateur();
-  const depenses = await Promise.all(portee.espaces.map(async (e) => Number((await supabase.rpc("depense_du_mois", { e: e.id })).data ?? 0) || 0));
+  const { db } = await utilisateur();
+  const depenses = await Promise.all(portee.espaces.map(async (e) => Number((await db.rpc("depense_du_mois", { e: e.id })).data ?? 0) || 0));
   return (
     <div className="colonnes">
       <section aria-labelledby="tarifs-h" className="carte">

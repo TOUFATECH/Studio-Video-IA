@@ -39,3 +39,21 @@ describe("clips musicaux (worker)", () => {
     expect(chansonDuClip([fichier({ genre: "musique" })])).toBeNull();
   });
 });
+
+describe("médias locaux", () => {
+  it("n'envoie de lien à Instagram que si le site est public en https", async () => {
+    const { adressePublique, Stockage } = await import("../src/stockage");
+    const { Depot } = await import("@studio-video-ia/base");
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    expect(adressePublique("https://studio.exemple.fr")).toBe(true);
+    for (const a of ["http://studio.exemple.fr", "https://localhost:3000", "https://192.168.1.20", "https://127.0.0.1", "pas une adresse"]) expect(adressePublique(a), a).toBe(false);
+    const depot = new Depot(join(mkdtempSync(join(tmpdir(), "svi-")), "medias"), "secret");
+    await depot.ecrire("e/ep/rendu/a.mp4", new Uint8Array([1, 2]));
+    await expect(new Stockage(depot, "http://localhost:3000").urlPublique("e/ep/rendu/a.mp4")).rejects.toThrow("APP_URL");
+    const url = await new Stockage(depot, "https://studio.exemple.fr/").urlPublique("e/ep/rendu/a.mp4");
+    expect(url).toMatch(/^https:\/\/studio\.exemple\.fr\/api\/medias\/e\/ep\/rendu\/a\.mp4\?e=\d+&s=/);
+    expect(await new Stockage(depot).dataUri("e/ep/rendu/a.mp4")).toBe("data:video/mp4;base64,AQI=");
+  });
+});

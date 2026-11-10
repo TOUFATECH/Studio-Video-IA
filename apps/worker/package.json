@@ -13,9 +13,9 @@
     "test:live": "vitest run tests/live --passWithNoTests"
   },
   "dependencies": {
+    "@studio-video-ia/base": "0.1.0",
     "@studio-video-ia/core": "0.1.0",
     "@studio-video-ia/integrations": "0.1.0",
-    "@supabase/supabase-js": "^2.119.0",
     "tsx": "^4.23.15",
     "zod": "^3.24.1"
   },

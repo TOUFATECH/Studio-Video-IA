@@ -1,6 +1,6 @@
 "use server";
 // Actions d'un épisode : scénario, plans, storyboard, clips, montage, publication. Toute écriture vérifie
-// d'abord l'appartenance (lib/appartenance) ; tâches et fichiers passent par le serveur (service_role).
+// d'abord l'appartenance (lib/appartenance) ; tâches et fichiers passent par le serveur (client serveur).
 import {
   BORNES_DUREE,
   LANGUES,
@@ -45,7 +45,7 @@ import {
   schemaValidation,
 } from "@/lib/schemas";
 import { utilisateur } from "@/lib/session";
-import { clientAdmin } from "@/lib/supabase/admin";
+import { clientAdmin } from "@/lib/bdd";
 import { exigerMiseEnFile } from "@/lib/taches";
 
 /** Valide un formulaire ou lève une erreur affichable. */
@@ -55,21 +55,21 @@ function valider<S extends z.ZodTypeAny>(schema: S, fd: FormData, multiples: rea
   return r.data;
 }
 
-/** Lève une erreur si une écriture Supabase a échoué. */
+/** Lève une erreur si une écriture en base a échoué. */
 function verifier(erreur: { message: string } | null, quoi: string): void {
   if (erreur) throw new Error(`${quoi} : ${erreur.message}`);
 }
 
-/** Plans d'un épisode (RLS). */
+/** Plans d'un épisode (règles d’accès). */
 async function plansDe(episodeId: string): Promise<Plan[]> {
-  const { supabase } = await utilisateur();
-  return lignes(lignePlan, (await supabase.from("plans").select("*").eq("episode_id", episodeId).order("position")).data, "plans");
+  const { db } = await utilisateur();
+  return lignes(lignePlan, (await db.from("plans").select("*").eq("episode_id", episodeId).order("position")).data, "plans");
 }
 
-/** Fichiers prêts d'un épisode (RLS). */
+/** Fichiers prêts d'un épisode (règles d’accès). */
 async function fichiersDe(episodeId: string) {
-  const { supabase } = await utilisateur();
-  return lignes(ligneFichier, (await supabase.from("fichiers").select("*").eq("episode_id", episodeId)).data, "fichiers");
+  const { db } = await utilisateur();
+  return lignes(ligneFichier, (await db.from("fichiers").select("*").eq("episode_id", episodeId)).data, "fichiers");
 }
 
 /**
@@ -78,11 +78,11 @@ async function fichiersDe(episodeId: string) {
  * l'app ne peut pas la supprimer (autorisation non demandée), donc la publication passe en échec avec la marche à suivre.
  */
 async function remettreEnAttente(episodeId: string, langues?: readonly Langue[]): Promise<void> {
-  const { supabase } = await utilisateur();
-  let q = supabase.from("publications").update({ statut: "attend_rendu" }).eq("episode_id", episodeId).eq("statut", "programmee").is("id_externe", null);
+  const { db } = await utilisateur();
+  let q = db.from("publications").update({ statut: "attend_rendu" }).eq("episode_id", episodeId).eq("statut", "programmee").is("id_externe", null);
   if (langues) q = q.in("langue", [...langues]);
   await q;
-  let deja = supabase
+  let deja = db
     .from("publications")
     .update({ statut: "echec", id_externe: null, url: null, erreur: MESSAGE_YOUTUBE_PERIME })
     .eq("episode_id", episodeId)
@@ -118,9 +118,9 @@ export async function modifierEpisode(fd: FormData): Promise<void> {
     const duree = format !== episode.format ? b.defaut : Math.min(b.max, Math.max(b.min, d.duree_cible));
     // La langue d'origine fait toujours partie des versions (contrainte de la base).
     const langues = [d.langue, ...episode.langues.filter((l) => l !== d.langue)];
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     verifier(
-      (await supabase.from("episodes").update({ titre: d.titre, idee: d.idee, format, duree_cible: duree, langue: d.langue, langues, enchainer: d.enchainer }).eq("id", episode.id)).error,
+      (await db.from("episodes").update({ titre: d.titre, idee: d.idee, format, duree_cible: duree, langue: d.langue, langues, enchainer: d.enchainer }).eq("id", episode.id)).error,
       "Enregistrement de l’épisode",
     );
     // Une nouvelle durée change la longueur de certains clips : seuls ces clips sont à refaire.
@@ -130,7 +130,7 @@ export async function modifierEpisode(fd: FormData): Promise<void> {
     const changes = plans.filter((p) => avant.get(p.id) !== apres.get(p.id)).map((p) => p.id);
     if (changes.length) {
       await invaliderClips(episode.id, changes, null);
-      await supabase.from("plans").update({ modifie: true }).in("id", changes);
+      await db.from("plans").update({ modifie: true }).in("id", changes);
     }
     if (changes.length || d.langue !== episode.langue || d.enchainer !== episode.enchainer) {
       await supprimerRendus(episode.id);
@@ -176,9 +176,9 @@ export async function ajouterPlan(fd: FormData): Promise<void> {
     const { episode } = await episodeAMoi(d.episode_id);
     if (episode.genre === "clip") throw new ErreurUtilisateur(MESSAGE_PLANS_CLIP);
     const plans = await plansDe(episode.id);
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     const position = Math.max(-1, ...plans.map((p) => p.position)) + 1;
-    verifier((await supabase.from("plans").insert({ episode_id: episode.id, position, section: d.section || "principal", type: "action", texte: "Nouveau plan", modifie: true })).error, "Ajout du plan");
+    verifier((await db.from("plans").insert({ episode_id: episode.id, position, section: d.section || "principal", type: "action", texte: "Nouveau plan", modifie: true })).error, "Ajout du plan");
     await supprimerRendus(episode.id);
     await remettreEnAttente(episode.id);
     return { message: "Plan ajouté. Décris ce qu’on voit." };
@@ -193,10 +193,10 @@ export async function modifierPlan(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(schemaPlanFormulaire, fd);
     const { plan, episode, serie } = await planAMoi(d.id);
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     if (d.personnage_id) {
       // Le personnage doit appartenir à la même série.
-      const { data } = await supabase.from("personnages").select("id").eq("id", d.personnage_id).eq("serie_id", serie.id).maybeSingle();
+      const { data } = await db.from("personnages").select("id").eq("id", d.personnage_id).eq("serie_id", serie.id).maybeSingle();
       if (!data) throw new ErreurUtilisateur("Personnage introuvable dans cette série.");
     }
     // Dans un clip, personne ne parle (seule la chanson s'entend) ; le personnage choisi est celui qu'on voit.
@@ -215,22 +215,22 @@ export async function modifierPlan(fd: FormData): Promise<void> {
       modifie: true,
       valide: false,
     };
-    verifier((await supabase.from("plans").update(maj).eq("id", plan.id)).error, "Enregistrement du plan");
+    verifier((await db.from("plans").update(maj).eq("id", plan.id)).error, "Enregistrement du plan");
     await invaliderPlans(episode.id, [plan.id]);
     await remettreEnAttente(episode.id);
     return { message: "Plan enregistré. Son image, ses clips et ses voix seront regénérés." };
   });
 }
 
-/** Supprime un plan (et ses fichiers du bucket). */
+/** Supprime un plan (et ses fichiers des médias). */
 export async function supprimerPlan(fd: FormData): Promise<void> {
   await executer(async () => {
     const { plan_id } = valider(schemaPlanSeul, fd);
     const { plan, episode } = await planAMoi(plan_id);
     if (episode.genre === "clip") throw new ErreurUtilisateur(MESSAGE_PLANS_CLIP);
     const chemins = await cheminsDuPlan(plan.id);
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("plans").delete().eq("id", plan.id)).error, "Suppression du plan");
+    const { db } = await utilisateur();
+    verifier((await db.from("plans").delete().eq("id", plan.id)).error, "Suppression du plan");
     await supprimerObjets(chemins);
     await supprimerRendus(episode.id);
     await remettreEnAttente(episode.id);
@@ -250,8 +250,8 @@ export async function genererImages(fd: FormData): Promise<void> {
     const ids = d.plan_ids.filter((x) => plans.some((p) => p.id === x));
     if (ids.length) {
       // Refaire : l'ancienne image et les clips qui en partent ne valent plus rien.
-      const { supabase } = await utilisateur();
-      await supabase.from("plans").update({ valide: false }).in("id", ids);
+      const { db } = await utilisateur();
+      await db.from("plans").update({ valide: false }).in("id", ids);
       await invaliderImages(episode.id, ids);
       await remettreEnAttente(episode.id);
     }
@@ -265,8 +265,8 @@ export async function validerImage(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(schemaValidation, fd);
     const { plan } = await planAMoi(d.plan_id);
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("plans").update({ valide: d.valide }).eq("id", plan.id)).error, "Validation");
+    const { db } = await utilisateur();
+    verifier((await db.from("plans").update({ valide: d.valide }).eq("id", plan.id)).error, "Validation");
   });
 }
 
@@ -277,8 +277,8 @@ export async function toutValider(fd: FormData): Promise<void> {
     const { episode } = await episodeAMoi(episode_id);
     const prets = new Set((await fichiersDe(episode.id)).filter((f) => f.genre === "image" && f.statut === "pret" && f.plan_id).map((f) => f.plan_id ?? ""));
     if (!prets.size) throw new ErreurUtilisateur("Aucune image à valider.");
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("plans").update({ valide: true }).eq("episode_id", episode.id).in("id", [...prets])).error, "Validation");
+    const { db } = await utilisateur();
+    verifier((await db.from("plans").update({ valide: true }).eq("episode_id", episode.id).in("id", [...prets])).error, "Validation");
     return { message: `${prets.size} image${prets.size > 1 ? "s validées" : " validée"}.` };
   });
 }
@@ -304,12 +304,12 @@ export async function choisirPrises(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(schemaPrises, fd);
     const { episode } = await episodeAMoi(d.episode_id);
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ prises: d.prises }).eq("id", episode.id)).error, "Prises");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ prises: d.prises }).eq("id", episode.id)).error, "Prises");
     if (d.prises === 1) {
       const plans = await plansDe(episode.id);
       if (plans.some((p) => p.prise_choisie === "B")) {
-        await supabase.from("plans").update({ prise_choisie: "A" }).eq("episode_id", episode.id);
+        await db.from("plans").update({ prise_choisie: "A" }).eq("episode_id", episode.id);
         await supprimerRendus(episode.id);
         await remettreEnAttente(episode.id);
       }
@@ -324,8 +324,8 @@ export async function choisirPrise(fd: FormData): Promise<void> {
     const d = valider(schemaPrise, fd);
     const { plan, episode } = await planAMoi(d.plan_id);
     if (plan.prise_choisie === d.prise) return;
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("plans").update({ prise_choisie: d.prise }).eq("id", plan.id)).error, "Choix de la prise");
+    const { db } = await utilisateur();
+    verifier((await db.from("plans").update({ prise_choisie: d.prise }).eq("id", plan.id)).error, "Choix de la prise");
     await supprimerRendus(episode.id);
     await remettreEnAttente(episode.id);
     return { message: `Prise ${d.prise} retenue.` };
@@ -337,7 +337,7 @@ export async function mettreEnPause(fd: FormData): Promise<void> {
   await executer(async () => {
     const { episode_id } = valider(schemaEpisodeSeul, fd);
     const { episode } = await episodeAMoi(episode_id);
-    const { data } = await clientAdmin().from("taches").update({ statut: "annulee", modifie_le: new Date().toISOString() }).eq("episode_id", episode.id).eq("statut", "en_file").select("id");
+    const { data } = await (await clientAdmin()).from("taches").update({ statut: "annulee", modifie_le: new Date().toISOString() }).eq("episode_id", episode.id).eq("statut", "en_file").select("id");
     const n = data?.length ?? 0;
     return { message: n ? "Tâches en file annulées. Relance quand tu veux." : "Rien en file : la génération en cours va se terminer.", ton: n ? "succes" : "info" };
   });
@@ -356,8 +356,8 @@ export async function modifierLangues(fd: FormData): Promise<void> {
     const retirees = episode.langues.filter((l) => !voulues.has(l));
     const sousTitres: Partial<Record<Langue, string>> = {};
     for (const l of langues) sousTitres[l] = episode.sous_titres[l] ?? preferences.sous_titres;
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ langues, sous_titres: sousTitres }).eq("id", episode.id)).error, "Langues");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ langues, sous_titres: sousTitres }).eq("id", episode.id)).error, "Langues");
     await supprimerRendus(episode.id, retirees);
     return { message: "Langues enregistrées. Les voix des nouvelles langues seront générées au prochain lancement des clips." };
   });
@@ -376,8 +376,8 @@ export async function modifierSousTitres(fd: FormData): Promise<void> {
       if (v) choix[l] = v;
     }
     if (!changees.length) return { message: "Rien n’a changé.", ton: "info" };
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ sous_titres: choix }).eq("id", episode.id)).error, "Sous-titres");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ sous_titres: choix }).eq("id", episode.id)).error, "Sous-titres");
     await supprimerRendus(episode.id, changees);
     await remettreEnAttente(episode.id, changees);
     return { message: `Sous-titres enregistrés. Rendu à relancer pour : ${changees.map((l) => l.toUpperCase()).join(", ")}.` };
@@ -390,8 +390,8 @@ export async function modifierMontage(fd: FormData): Promise<void> {
     const d = valider(schemaMontage, fd);
     const { episode } = await episodeAMoi(d.episode_id);
     if (d.musique === episode.musique && d.bruitages === episode.bruitages) return { message: "Rien n’a changé.", ton: "info" };
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ musique: d.musique, bruitages: d.bruitages }).eq("id", episode.id)).error, "Montage");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ musique: d.musique, bruitages: d.bruitages }).eq("id", episode.id)).error, "Montage");
     await supprimerRendus(episode.id);
     await remettreEnAttente(episode.id);
     return { message: "Montage enregistré. Relance le rendu." };
@@ -403,8 +403,8 @@ export async function choisirTitre(fd: FormData): Promise<void> {
   await executer(async () => {
     const d = valider(schemaTitre, fd);
     const { episode } = await episodeAMoi(d.episode_id);
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ choix_titres: { ...episode.choix_titres, [d.langue]: d.choix } }).eq("id", episode.id)).error, "Titre");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ choix_titres: { ...episode.choix_titres, [d.langue]: d.choix } }).eq("id", episode.id)).error, "Titre");
   });
 }
 
@@ -414,8 +414,8 @@ export async function choisirMiniature(fd: FormData): Promise<void> {
     const d = valider(schemaMiniature, fd);
     const { episode } = await episodeAMoi(d.episode_id);
     if (!episode.miniature || d.choix >= episode.miniature.chemins.length) throw new ErreurUtilisateur("Miniature introuvable.");
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ miniature: { ...episode.miniature, choix: d.choix } }).eq("id", episode.id)).error, "Miniature");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ miniature: { ...episode.miniature, choix: d.choix } }).eq("id", episode.id)).error, "Miniature");
   });
 }
 
@@ -443,11 +443,11 @@ export async function publier(fd: FormData): Promise<void> {
     const d = valider(schemaPublier, fd, ["comptes"]);
     const { episode, serie } = await episodeAMoi(d.episode_id);
     if (!episode.langues.includes(d.langue)) throw new ErreurUtilisateur("Cette langue n’est pas une version de l’épisode.");
-    const { supabase } = await utilisateur();
-    const espace = ligne(ligneEspace, (await supabase.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle()).data);
+    const { db } = await utilisateur();
+    const espace = ligne(ligneEspace, (await db.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle()).data);
     if (!espace) throw new ErreurUtilisateur("Compte introuvable.");
     // Seuls les comptes connectés de l'espace de la série sont acceptés.
-    const comptes = lignes(ligneReseau, (await supabase.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", espace.id).in("id", d.comptes)).data, "reseaux");
+    const comptes = lignes(ligneReseau, (await db.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", espace.id).in("id", d.comptes)).data, "reseaux");
     if (comptes.length !== d.comptes.length) throw new ErreurUtilisateur("Un des comptes cochés n’appartient pas à ce compte.");
     const horsLigne = comptes.filter((c) => c.statut !== "connecte");
     if (horsLigne.length) throw new ErreurUtilisateur(`Reconnecte d’abord ${horsLigne.map((c) => c.nom_compte).join(", ")} dans Réglages.`);
@@ -463,9 +463,9 @@ export async function publier(fd: FormData): Promise<void> {
       }
       if (instant.getTime() < maintenant.getTime() - 5 * 60_000) throw new ErreurUtilisateur("Cette date est déjà passée.");
     } else {
-      const { data } = await supabase.from("episodes").select("id").eq("serie_id", serie.id);
+      const { data } = await db.from("episodes").select("id").eq("serie_id", serie.id);
       const ids = z.array(z.object({ id: z.string() })).catch([]).parse(data).map((x) => x.id);
-      const pubs = lignes(lignePublication, (await supabase.from("publications").select("*").in("episode_id", ids).in("statut", ["programmee", "attend_rendu"])).data, "publications");
+      const pubs = lignes(lignePublication, (await db.from("publications").select("*").in("episode_id", ids).in("statut", ["programmee", "attend_rendu"])).data, "publications");
       const futures = pubs.map((p) => Date.parse(p.programmee_le)).filter((t) => t > maintenant.getTime());
       instant = prochainCreneau(serie.rythme, futures.length ? new Date(Math.max(...futures)) : null, maintenant, espace.fuseau);
     }
@@ -488,7 +488,7 @@ export async function publier(fd: FormData): Promise<void> {
       const pret = livrable === "bande_annonce" ? fichiers.some((f) => f.genre === "bande_annonce") : fichiers.some((f) => f.genre === "rendu" && f.langue === d.langue);
       return { episode_id: episode.id, reseau_connecte_id: c.id, langue: d.langue, livrable, programmee_le: instant.toISOString(), statut: pret ? "programmee" : "attend_rendu" };
     });
-    verifier((await supabase.from("publications").insert(lignesPub)).error, "Création des publications");
+    verifier((await db.from("publications").insert(lignesPub)).error, "Création des publications");
     const attente = lignesPub.filter((l) => l.statut === "attend_rendu").length;
     return { message: `${lignesPub.length} publication${lignesPub.length > 1 ? "s créées" : " créée"}${attente ? `, dont ${attente} en attente du rendu` : ""}.` };
   });
@@ -502,9 +502,9 @@ export async function annulerPublication(fd: FormData): Promise<void> {
     if (!["attend_rendu", "programmee", "echec"].includes(publication.statut)) throw new ErreurUtilisateur("Cette publication est déjà partie : supprime-la directement sur le réseau.");
     // Une vidéo déjà programmée chez YouTube sortirait quand même à l'heure : l'annulation doit se faire dans YouTube Studio.
     if (publication.id_externe && publication.statut === "programmee") throw new ErreurUtilisateur("Cette vidéo est déjà envoyée et programmée sur YouTube : supprime-la ou passe-la en privé sans date dans YouTube Studio.");
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("publications").update({ statut: "annulee" }).eq("id", publication.id)).error, "Annulation");
-    await clientAdmin().from("taches").update({ statut: "annulee" }).eq("publication_id", publication.id).eq("statut", "en_file");
+    const { db } = await utilisateur();
+    verifier((await db.from("publications").update({ statut: "annulee" }).eq("id", publication.id)).error, "Annulation");
+    await (await clientAdmin()).from("taches").update({ statut: "annulee" }).eq("publication_id", publication.id).eq("statut", "en_file");
     return { message: "Publication annulée." };
   });
 }
@@ -517,10 +517,10 @@ export async function reessayerPublication(fd: FormData): Promise<void> {
     if (publication.statut !== "echec") throw new ErreurUtilisateur("Seule une publication en échec peut être relancée.");
     const fichiers = (await fichiersDe(episode.id)).filter((f) => f.statut === "pret");
     const pret = publication.livrable === "bande_annonce" ? fichiers.some((f) => f.genre === "bande_annonce") : fichiers.some((f) => f.genre === "rendu" && f.langue === publication.langue);
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     verifier(
       // id_externe vidé : un nouvel essai renvoie la vidéo au lieu de croire l'ancien envoi valable.
-      (await supabase.from("publications").update({ statut: pret ? "programmee" : "attend_rendu", programmee_le: new Date().toISOString(), erreur: null, progression: 0, id_externe: null, url: null }).eq("id", publication.id)).error,
+      (await db.from("publications").update({ statut: pret ? "programmee" : "attend_rendu", programmee_le: new Date().toISOString(), erreur: null, progression: 0, id_externe: null, url: null }).eq("id", publication.id)).error,
       "Nouvel essai",
     );
     return { message: "Publication relancée." };
@@ -536,8 +536,8 @@ export async function enregistrerHashtagsEpisode(fd: FormData): Promise<void> {
     const propre = normaliserHashtags(d.hashtags, d.reseau);
     if (propre) hashtags[d.reseau] = propre;
     else delete hashtags[d.reseau];
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update({ hashtags }).eq("id", episode.id)).error, "Hashtags");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update({ hashtags }).eq("id", episode.id)).error, "Hashtags");
     return { message: propre ? "Hashtags de l’épisode enregistrés." : "Hashtags de la série rétablis." };
   });
 }

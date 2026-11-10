@@ -12,11 +12,12 @@ const texte = (defaut?: string) => z.preprocess((v) => (typeof v === "string" &&
 
 /** Schéma des variables utilisées par le worker. */
 export const schemaConfig = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: texte().pipe(z.string().url("doit être l'adresse du projet Supabase (https://xxxx.supabase.co)")),
-  SUPABASE_SERVICE_ROLE_KEY: texte().pipe(z.string().min(20, "clé service_role trop courte")),
+  // Générée automatiquement dans le dossier des données si absente (voir @studio-video-ia/base).
   ENCRYPTION_KEY: texte().pipe(
     z.string().refine((v) => Buffer.from(v, "base64").length === 32, "doit faire 32 octets encodés en base64 (openssl rand -base64 32), la même que pour le web"),
   ),
+  // Adresse du site : sert aux liens que télécharge Instagram (doit alors être publique, en https).
+  APP_URL: texte("http://localhost:3000").pipe(z.string().url("doit être une adresse, ex. https://studio.mon-domaine.fr")),
   OPENAI_TEXT_MODEL: texte("gpt-4.1"),
   OPENAI_IMAGE_MODEL: texte("gpt-image-1"),
   // Qualité fixée explicitement : sans elle, le modèle choisit « auto », souvent la plus chère.
@@ -38,9 +39,8 @@ export const schemaConfig = z.object({
 
 /** Configuration validée du worker. */
 export type Config = {
-  supabaseUrl: string;
-  supabaseCle: string;
   cleChiffrement: string;
+  adresseSite: string;
   modeles: {
     texte: string;
     image: string;
@@ -78,9 +78,8 @@ export function lireConfig(env: Record<string, string | undefined> = process.env
   }
   const c = r.data;
   return {
-    supabaseUrl: c.NEXT_PUBLIC_SUPABASE_URL,
-    supabaseCle: c.SUPABASE_SERVICE_ROLE_KEY,
     cleChiffrement: c.ENCRYPTION_KEY,
+    adresseSite: c.APP_URL,
     modeles: { texte: c.OPENAI_TEXT_MODEL, image: c.OPENAI_IMAGE_MODEL, qualiteImage: c.OPENAI_IMAGE_QUALITY, video: c.XAI_VIDEO_MODEL, resolutionVideo: c.XAI_VIDEO_RESOLUTION,
       voix: c.ELEVENLABS_TTS_MODEL,
       musique: c.ELEVENLABS_MUSIC_MODEL,

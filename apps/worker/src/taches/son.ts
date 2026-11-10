@@ -24,7 +24,7 @@ import { chansonDuClip, chargerEpisode, chargerReglages, enregistrerFichier, sup
 import { demanderTexteIA } from "../ia";
 import { sonder } from "../rendu/executant";
 import { cheminMedia, nomUnique, typeMime } from "../stockage";
-import { ecrire } from "../supabase";
+import { ecrire } from "../bdd";
 
 /** Durée proposée par défaut pour une chanson générée, selon le format du clip. */
 export function dureeChansonParDefaut(format: EpisodeComplet["episode"]["format"]): number {

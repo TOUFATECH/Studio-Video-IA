@@ -8,7 +8,7 @@ import { messageErreur } from "@/lib/erreurs";
 import { COOKIE_ETAT_OAUTH, creerEtat, DUREE_ETAT_MS } from "@/lib/etat-oauth";
 import { adresseRetour, redirigerAvecMessage } from "@/lib/oauth";
 import { id as schemaId } from "@/lib/schemas";
-import { clientServeur } from "@/lib/supabase/serveur";
+import { clientUtilisateur, sessionCourante } from "@/lib/bdd";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,13 +22,13 @@ export async function GET(requete: NextRequest, { params }: { params: Promise<{ 
   const retourReglages = "/reglages?onglet=comptes";
   if (!espace.success) return redirigerAvecMessage(requete.url, retourReglages, "Compte manquant pour la connexion.", "erreur");
   try {
-    const supabase = await clientServeur();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return NextResponse.redirect(new URL("/connexion", requete.url));
-    // L'espace doit appartenir à l'utilisateur (lecture soumise à la RLS).
-    const { data: e } = await supabase.from("espaces").select("id").eq("id", espace.data).maybeSingle();
+    const user = await sessionCourante();
+    if (!user) return NextResponse.redirect(new URL("/connexion", requete.url));
+    const db = await clientUtilisateur(user.id);
+    // L'espace doit appartenir à l'utilisateur (lecture limitée à ses données).
+    const { data: e } = await db.from("espaces").select("id").eq("id", espace.data).maybeSingle();
     if (!e) return redirigerAvecMessage(requete.url, retourReglages, "Compte introuvable.", "erreur");
-    const app = await lireAppOAuth(data.user.id, reseau);
+    const app = await lireAppOAuth(user.id, reseau);
     if (!app) return redirigerAvecMessage(requete.url, "/reglages?onglet=cles", "Enregistre d’abord l’identifiant et le secret de l’application dans Clés API.", "attention");
     const { state, cookie } = creerEtat(espace.data, reseau, cleMaitre());
     const reponse = NextResponse.redirect(urlAutorisation(reseau, app, adresseRetour(reseau), state));

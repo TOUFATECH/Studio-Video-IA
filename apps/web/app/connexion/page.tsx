@@ -1,16 +1,20 @@
-// Page de connexion : e-mail et mot de passe, ou lien magique envoyé par Supabase.
+// Page de connexion : e-mail et mot de passe. Sur un studio neuf, elle propose de créer le premier compte.
+import { nombreUtilisateurs } from "@studio-video-ia/base";
 import type { Metadata } from "next";
+import { inscriptionOuverte } from "@/app/actions/session";
 import { Logo } from "@/components/ui/Icone";
+import { base } from "@/lib/bdd";
 import { parametre } from "@/lib/schemas";
 import { FormulairesConnexion } from "./FormulairesConnexion";
 import styles from "./connexion.module.scss";
 
 export const metadata: Metadata = { title: "Connexion" };
+export const dynamic = "force-dynamic";
 
 /** Écran de connexion. */
 export default async function PageConnexion({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const p = await searchParams;
-  const erreur = parametre(p.erreur);
+  const premier = (await nombreUtilisateurs((await base()).moteur)) === 0;
   return (
     <main className={styles.page}>
       <div className={styles.boite}>
@@ -18,14 +22,11 @@ export default async function PageConnexion({ searchParams }: { searchParams: Pr
           <Logo />
           <span className="h2">Studio Vidéo IA</span>
         </p>
-        <h1 className="h1">Connexion</h1>
-        <p className="petit doux">Ton studio de séries : scénario, images, clips, voix, montage et publication.</p>
-        {erreur ? (
-          <p className="bandeau bandeau--erreur" role="alert">
-            Le lien de connexion n’a pas marché ou a expiré. Demande-en un nouveau.
-          </p>
-        ) : null}
-        <FormulairesConnexion suite={parametre(p.suite) ?? "/"} />
+        <h1 className="h1">{premier ? "Bienvenue" : "Connexion"}</h1>
+        <p className="petit doux">
+          {premier ? "Studio tout neuf : crée ton compte pour commencer. Tout reste sur ta machine." : "Ton studio de séries et de clips : scénario, images, vidéos, voix, montage et publication."}
+        </p>
+        <FormulairesConnexion suite={parametre(p.suite) ?? "/"} creation={premier} inscriptionPossible={await inscriptionOuverte()} />
       </div>
     </main>
   );

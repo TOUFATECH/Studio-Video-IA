@@ -16,13 +16,13 @@ export type SortiePrevue = { episode: Episode; instant: Date; publications: Publ
 
 /** Calcule les sorties à programmer pour la série (épisodes rendus, sans publication, dans l'ordre de lecture). */
 export async function planProgrammation(serie: Serie, maintenant: Date = new Date()): Promise<{ sorties: SortiePrevue[]; comptes: ReseauConnecte[]; fuseau: string }> {
-  const { supabase } = await utilisateur();
+  const { db } = await utilisateur();
   const [rEspace, rSaisons, rEpisodes, rPersos, rReseaux] = await Promise.all([
-    supabase.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle(),
-    supabase.from("saisons").select("*").eq("serie_id", serie.id),
-    supabase.from("episodes").select("*").eq("serie_id", serie.id),
-    supabase.from("personnages").select("*").eq("serie_id", serie.id),
-    supabase.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", serie.espace_id),
+    db.from("espaces").select("*").eq("id", serie.espace_id).maybeSingle(),
+    db.from("saisons").select("*").eq("serie_id", serie.id),
+    db.from("episodes").select("*").eq("serie_id", serie.id),
+    db.from("personnages").select("*").eq("serie_id", serie.id),
+    db.from("reseaux_connectes").select(COLONNES_RESEAU).eq("espace_id", serie.espace_id),
   ]);
   const fuseau = ligne(ligneEspace, rEspace.data)?.fuseau ?? "Europe/Paris";
   const saisons = lignes(ligneSaison, rSaisons.data, "saisons");
@@ -32,10 +32,10 @@ export async function planProgrammation(serie: Serie, maintenant: Date = new Dat
   const ids = episodes.map((e) => e.id);
   if (!ids.length) return { sorties: [], comptes, fuseau };
   const [rPlans, rFichiers, rTaches, rPubs] = await Promise.all([
-    supabase.from("plans").select("*").in("episode_id", ids),
-    supabase.from("fichiers").select("*").in("episode_id", ids),
-    supabase.from("taches").select("*").in("episode_id", ids).in("statut", ["en_file", "en_cours", "en_pause"]),
-    supabase.from("publications").select("*").in("episode_id", ids),
+    db.from("plans").select("*").in("episode_id", ids),
+    db.from("fichiers").select("*").in("episode_id", ids),
+    db.from("taches").select("*").in("episode_id", ids).in("statut", ["en_file", "en_cours", "en_pause"]),
+    db.from("publications").select("*").in("episode_id", ids),
   ]);
   const plans = grouper(lignes(lignePlan, rPlans.data, "plans"), (p) => p.episode_id);
   const fichiersTous = lignes(ligneFichier, rFichiers.data, "fichiers");

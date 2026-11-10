@@ -1,13 +1,11 @@
-// Fichiers du bucket privé « medias » : envoi, lecture, URL signée d'une heure, suppression.
+// Fichiers des médias, sur le disque partagé avec le site (dossier des données) : écriture, lecture,
+// adresse publique signée (Instagram télécharge la vidéo), image en data URI (xAI), suppression.
 // Chemins : <espace_id>/<episode_id>/<genre>/<nom> (ou <espace_id>/test/… et <espace_id>/personnages/…).
 import { randomBytes } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import type { Base } from "./supabase";
+import { copyFile } from "node:fs/promises";
+import { typeDepuisChemin, type Depot } from "@studio-video-ia/base";
 
-/** Nom du bucket privé des médias. */
-export const BUCKET = "medias";
-
-/** Durée de validité des URL signées (1 h : assez pour qu'Instagram ou xAI téléchargent le fichier). */
+/** Durée de validité des adresses signées (1 h : assez pour qu'Instagram télécharge le fichier). */
 export const VALIDITE_URL_SIGNEE_S = 3600;
 
 /** Chemin d'un média d'épisode : <espace>/<episode>/<genre>/<nom>. */
@@ -27,52 +25,85 @@ export function nomUnique(base: string, extension: string): string {
 
 /** Type MIME d'une extension courante. */
 export function typeMime(chemin: string): string {
-  const ext = chemin.split(".").pop()?.toLowerCase() ?? "";
-  const types: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", mp4: "video/mp4", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", srt: "text/plain" };
-  return types[ext] ?? "application/octet-stream";
+  return typeDepuisChemin(chemin);
 }
 
-/** Accès au bucket des médias. */
-export class Stockage {
-  /** Crée l'accès à partir du client service_role. */
-  constructor(private readonly db: Base) {}
+/** Vrai si l'adresse du site est joignable depuis Internet (pas localhost, pas un réseau privé). */
+export function adressePublique(adresse: string): boolean {
+  try {
+    const u = new URL(adresse);
+    return u.protocol === "https:" && !/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
 
-  /** Envoie des octets à un chemin (remplace le fichier s'il existe). */
-  async envoyer(chemin: string, donnees: Uint8Array, type: string = typeMime(chemin)): Promise<void> {
-    const { error } = await this.db.storage.from(BUCKET).upload(chemin, donnees, { contentType: type, upsert: true });
-    if (error) throw new Error(`Envoi vers le stockage impossible (${chemin}) : ${error.message}`);
+/** Accès aux médias. */
+export class Stockage {
+  /** Crée l'accès sur le dépôt local ; `adresseSite` sert aux adresses publiques (APP_URL). */
+  constructor(
+    private readonly depot: Depot,
+    private readonly adresseSite = "",
+  ) {}
+
+  /** Écrit des octets à un chemin (remplace le fichier s'il existe). */
+  async envoyer(chemin: string, donnees: Uint8Array, _type?: string): Promise<void> {
+    try {
+      await this.depot.ecrire(chemin, donnees);
+    } catch (e) {
+      throw new Error(`Écriture du média impossible (${chemin}) : ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
-  /** Envoie un fichier local. */
-  async envoyerFichier(chemin: string, cheminLocal: string, type: string = typeMime(chemin)): Promise<void> {
-    await this.envoyer(chemin, await readFile(cheminLocal), type);
+  /** Copie un fichier local dans les médias. */
+  async envoyerFichier(chemin: string, cheminLocal: string, _type?: string): Promise<void> {
+    try {
+      await this.depot.importer(chemin, cheminLocal);
+    } catch (e) {
+      throw new Error(`Écriture du média impossible (${chemin}) : ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   /** Lit un fichier en mémoire. */
   async lire(chemin: string): Promise<Buffer> {
-    const { data, error } = await this.db.storage.from(BUCKET).download(chemin);
-    if (error || !data) throw new Error(`Lecture du stockage impossible (${chemin}) : ${error?.message ?? "fichier absent"}`);
-    return Buffer.from(await data.arrayBuffer());
+    try {
+      return await this.depot.lire(chemin);
+    } catch {
+      throw new Error(`Média introuvable (${chemin}) : il a peut-être été supprimé. Regénère-le.`);
+    }
   }
 
-  /** Télécharge un fichier vers un chemin local. */
+  /** Copie un fichier vers un chemin local (dossier de travail). */
   async telechargerVers(chemin: string, cheminLocal: string): Promise<string> {
-    await writeFile(cheminLocal, await this.lire(chemin));
+    try {
+      await copyFile(this.depot.absolu(chemin), cheminLocal);
+    } catch {
+      throw new Error(`Média introuvable (${chemin}) : il a peut-être été supprimé. Regénère-le.`);
+    }
     return cheminLocal;
   }
 
-  /** URL signée (1 h par défaut) pour qu'un service externe lise le fichier. Ne jamais la journaliser. */
-  async urlSignee(chemin: string, secondes = VALIDITE_URL_SIGNEE_S): Promise<string> {
-    const { data, error } = await this.db.storage.from(BUCKET).createSignedUrl(chemin, secondes);
-    if (error || !data?.signedUrl) throw new Error(`URL signée impossible (${chemin}) : ${error?.message ?? "réponse vide"}`);
-    return data.signedUrl;
+  /** Image en data URI (base64), pour les API qui acceptent l'image dans la requête (xAI). */
+  async dataUri(chemin: string): Promise<string> {
+    return `data:${typeMime(chemin)};base64,${(await this.lire(chemin)).toString("base64")}`;
+  }
+
+  /**
+   * Adresse publique signée (1 h) pour qu'un service externe télécharge le fichier (Instagram).
+   * Le site doit être joignable depuis Internet en https (APP_URL). Ne jamais la journaliser.
+   */
+  async urlPublique(chemin: string, secondes = VALIDITE_URL_SIGNEE_S): Promise<string> {
+    if (!adressePublique(this.adresseSite)) {
+      throw new Error(
+        "Instagram télécharge la vidéo depuis ton site : APP_URL doit être une adresse https joignable depuis Internet (nom de domaine ou tunnel, voir docs/INSTALLER.md).",
+      );
+    }
+    if ((await this.depot.taille(chemin)) === null) throw new Error(`Média introuvable (${chemin}).`);
+    return `${this.adresseSite.replace(/\/+$/, "")}${this.depot.adresseSignee(chemin, secondes)}`;
   }
 
   /** Supprime des fichiers (sans erreur si la liste est vide). */
   async supprimer(chemins: readonly string[]): Promise<void> {
-    const liste = chemins.filter(Boolean);
-    if (liste.length === 0) return;
-    const { error } = await this.db.storage.from(BUCKET).remove([...liste]);
-    if (error) throw new Error(`Suppression dans le stockage impossible : ${error.message}`);
+    await this.depot.supprimer(chemins.filter(Boolean));
   }
 }

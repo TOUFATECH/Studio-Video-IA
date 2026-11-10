@@ -37,10 +37,17 @@ export const STYLES_VISUELS = ["Cinématique", "3D cartoon", "Anime", "Réaliste
 // ---------- Connexion ----------
 export const schemaConnexion = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
-  mot_de_passe: z.string().min(6, "Mot de passe trop court (6 caractères minimum).").max(200),
+  mot_de_passe: z.string().min(1, "Mot de passe manquant.").max(200),
   suite: z.string().optional(),
 });
-export const schemaLienMagique = z.object({ email: z.string().trim().email("Adresse e-mail invalide."), suite: z.string().optional() });
+export const schemaInscription = z
+  .object({
+    email: z.string().trim().email("Adresse e-mail invalide."),
+    mot_de_passe: z.string().min(10, "Mot de passe trop court (10 caractères minimum).").max(200),
+    confirmation: z.string(),
+    suite: z.string().optional(),
+  })
+  .refine((d) => d.mot_de_passe === d.confirmation, { message: "Les deux mots de passe ne sont pas identiques.", path: ["confirmation"] });
 
 /** Chemin de retour après connexion : uniquement un chemin interne (évite une redirection ouverte). */
 export function cheminSur(suite: string | undefined | null): string {
@@ -277,7 +284,3 @@ export const schemaReglagesClip = z
   .refine((c) => c.extrait_fin === null || c.extrait_fin > c.extrait_debut + 3, { message: "La fin de l’extrait doit venir au moins 3 s après son début.", path: ["extrait_fin"] });
 export const schemaMusique = z.object({ episode_id: id, duree: z.coerce.number().int().min(10, "10 s minimum.").max(600, "10 minutes maximum.") });
 export const schemaEspaceClips = z.object({ serie_id: id, nom: texte(120).min(1, "Donne un nom (le tien, ton nom d’artiste…)."), style_visuel: texte(500) });
-export const schemaImportChanson = z.discriminatedUnion("etape", [
-  z.object({ etape: z.literal("adresse"), cible: id, taille: z.number().int().positive(), extension: z.enum(["mp3", "wav", "m4a"]) }),
-  z.object({ etape: z.literal("valider"), cible: id, chemin: z.string().min(10).max(300) }),
-]);

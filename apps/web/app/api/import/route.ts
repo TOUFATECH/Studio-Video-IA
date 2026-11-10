@@ -5,11 +5,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { espaceAMoi, personnageAMoi } from "@/lib/appartenance";
 import { ErreurUtilisateur, messageErreur } from "@/lib/erreurs";
-import { BUCKET, supprimerObjets } from "@/lib/medias";
+import { ecrireMedia, supprimerObjets } from "@/lib/medias";
 import { id as schemaId } from "@/lib/schemas";
 import { REGLES_IMPORT, verifierImport } from "@/lib/signature";
-import { clientAdmin } from "@/lib/supabase/admin";
-import { clientServeur } from "@/lib/supabase/serveur";
+import { clientAdmin, clientUtilisateur, sessionCourante } from "@/lib/bdd";
 import { mettreEnFile } from "@/lib/taches";
 
 export const runtime = "nodejs";
@@ -23,15 +22,15 @@ function reponse(message: string, statut = 200) {
   return NextResponse.json({ message }, { status: statut });
 }
 
-/** Reçoit un fichier et l'enregistre dans le bucket « medias ». */
+/** Reçoit un fichier et l'enregistre dans les médias. */
 export async function POST(requete: NextRequest) {
   try {
-    const supabase = await clientServeur();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return reponse("Non connecté.", 401);
+    const user = await sessionCourante();
+    if (!user) return reponse("Non connecté.", 401);
+    const db = await clientUtilisateur(user.id);
     // Refus avant lecture du corps : un envoi annoncé au-delà du plus gros fichier permis (20 Mo + marge du formulaire) n'est pas lu.
     const annonce = Number(requete.headers.get("content-length") ?? "0");
-    // (La chanson d'un clip ne passe pas ici : elle part directement au stockage, voir /api/import/chanson.)
+    // (La chanson d'un clip a sa propre route : /api/import/chanson.)
     const plusGros = Math.max(...schemaImport.shape.genre.options.map((g) => REGLES_IMPORT[g].maxOctets));
     if (annonce > plusGros + 1024 * 1024) return reponse("Fichier trop lourd.", 413);
     const fd = await requete.formData();
@@ -65,9 +64,8 @@ export async function POST(requete: NextRequest) {
 
     const dossier = genre === "musique" ? "musique" : genre === "fiche" ? `fiches/${personnageId}` : `voix/${personnageId}`;
     const chemin = `${espaceId}/${dossier}/${randomUUID()}.${verif.extension}`;
-    const admin = clientAdmin();
-    const { error: eUpload } = await admin.storage.from(BUCKET).upload(chemin, octets, { contentType: verif.mime, upsert: false });
-    if (eUpload) throw new Error(`Envoi vers le stockage : ${eUpload.message}`);
+    const admin = await clientAdmin();
+    await ecrireMedia(chemin, octets);
     const { error: eLigne } = await admin.from("fichiers").insert({ espace_id: espaceId, personnage_id: personnageId, genre, chemin, statut: "pret", cout: 0 });
     if (eLigne) {
       await supprimerObjets([chemin]);
@@ -76,7 +74,7 @@ export async function POST(requete: NextRequest) {
 
     if (genre === "fiche" && personnageId) {
       // L'image importée remplace la fiche actuelle : l'ancienne est supprimée.
-      await supabase.from("personnages").update({ fiche_chemin: chemin, fiche_statut: "prete" }).eq("id", personnageId);
+      await db.from("personnages").update({ fiche_chemin: chemin, fiche_statut: "prete" }).eq("id", personnageId);
       if (anciennesFiches.length) {
         await admin.from("fichiers").delete().eq("personnage_id", personnageId).eq("genre", "fiche").in("chemin", anciennesFiches);
         await supprimerObjets(anciennesFiches);

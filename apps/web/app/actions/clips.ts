@@ -21,7 +21,7 @@ function valider<S extends z.ZodTypeAny>(schema: S, fd: FormData): z.infer<S> {
   return r.data;
 }
 
-/** Lève une erreur si une écriture Supabase a échoué. */
+/** Lève une erreur si une écriture en base a échoué. */
 function verifier(erreur: { message: string } | null, quoi: string): void {
   if (erreur) throw new Error(`${quoi} : ${erreur.message}`);
 }
@@ -39,22 +39,22 @@ async function clipAMoi(id: string): Promise<{ episode: Episode; serie: Serie }>
  */
 export async function espaceClips(espaceId: string): Promise<{ serie: Serie; saisonId: string }> {
   const espace = await espaceAMoi(espaceId);
-  const { supabase } = await utilisateur();
-  let serie = ligne(ligneSerie, (await supabase.from("series").select("*").eq("espace_id", espace.id).eq("genre", "clips").maybeSingle()).data);
+  const { db } = await utilisateur();
+  let serie = ligne(ligneSerie, (await db.from("series").select("*").eq("espace_id", espace.id).eq("genre", "clips").maybeSingle()).data);
   if (!serie) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("series")
       .insert({ espace_id: espace.id, nom: espace.nom, genre: "clips", style_visuel: "Clip musical cinématique, lumières travaillées", univers: "", fil_rouge: "" })
       .select("*")
       .single();
     // 23505 : créée au même instant par un autre onglet ; on relit simplement.
     if (error && error.code !== "23505") throw new Error(`Création de l’espace Clips : ${error.message}`);
-    serie = ligne(ligneSerie, data) ?? ligne(ligneSerie, (await supabase.from("series").select("*").eq("espace_id", espace.id).eq("genre", "clips").maybeSingle()).data);
+    serie = ligne(ligneSerie, data) ?? ligne(ligneSerie, (await db.from("series").select("*").eq("espace_id", espace.id).eq("genre", "clips").maybeSingle()).data);
     if (!serie) throw new Error("Espace Clips créé mais illisible.");
   }
-  const { data: saison } = await supabase.from("saisons").select("id").eq("serie_id", serie.id).order("numero").limit(1).maybeSingle();
+  const { data: saison } = await db.from("saisons").select("id").eq("serie_id", serie.id).order("numero").limit(1).maybeSingle();
   if (saison && typeof saison.id === "string") return { serie, saisonId: saison.id };
-  const { data: nouvelle, error: e2 } = await supabase.from("saisons").insert({ serie_id: serie.id, numero: 1 }).select("id").single();
+  const { data: nouvelle, error: e2 } = await db.from("saisons").insert({ serie_id: serie.id, numero: 1 }).select("id").single();
   verifier(e2, "Création de la saison des clips");
   return { serie, saisonId: String(z.object({ id: z.string() }).parse(nouvelle).id) };
 }
@@ -64,11 +64,11 @@ export async function creerClip(fd: FormData): Promise<void> {
   const id = await executer<string>(async () => {
     const d = valider(schemaNouveauClip, fd);
     const { serie, saisonId } = await espaceClips(d.espace_id);
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     const { preferences } = await chargerReglages();
-    const { data: derniers } = await supabase.from("episodes").select("numero").eq("serie_id", serie.id).eq("genre", "clip").order("numero", { ascending: false }).limit(1);
+    const { data: derniers } = await db.from("episodes").select("numero").eq("serie_id", serie.id).eq("genre", "clip").order("numero", { ascending: false }).limit(1);
     const numero = (z.array(z.object({ numero: z.coerce.number() })).catch([]).parse(derniers)[0]?.numero ?? 0) + 1;
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("episodes")
       .insert({
         serie_id: serie.id,
@@ -117,8 +117,8 @@ export async function enregistrerSonParoles(fd: FormData): Promise<void> {
       maj.paroles_alignees = null;
       maj.paroles_traduites = {};
     }
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("episodes").update(maj).eq("id", episode.id)).error, "Enregistrement des paroles");
+    const { db } = await utilisateur();
+    verifier((await db.from("episodes").update(maj).eq("id", episode.id)).error, "Enregistrement des paroles");
     if (d.langue !== episode.langue) await supprimerRendus(episode.id);
     return { message: parolesChangees ? "Enregistré. Relance la synchronisation pour placer les nouvelles paroles dans la chanson." : "Enregistré." };
   });
@@ -136,10 +136,10 @@ export async function enregistrerReglagesClip(fd: FormData): Promise<void> {
     const decoupageChange =
       d.format !== episode.format || d.extrait_debut !== episode.extrait_debut || d.extrait_fin !== episode.extrait_fin || d.bpm !== episode.bpm;
     const sousTitresChanges = d.sous_titres !== (episode.sous_titres[episode.langue] ?? "aucun");
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     verifier(
       (
-        await supabase
+        await db
           .from("episodes")
           .update({
             titre: d.titre,
@@ -155,7 +155,7 @@ export async function enregistrerReglagesClip(fd: FormData): Promise<void> {
       ).error,
       "Enregistrement du clip",
     );
-    const { count } = await supabase.from("plans").select("id", { count: "exact", head: true }).eq("episode_id", episode.id);
+    const { count } = await db.from("plans").select("id", { count: "exact", head: true }).eq("episode_id", episode.id);
     if (sousTitresChanges || (decoupageChange && (count ?? 0) > 0)) await supprimerRendus(episode.id);
     if (decoupageChange && (count ?? 0) > 0) return { message: "Enregistré. Clique « Redécouper » pour caler les plans sur ces nouveaux réglages.", ton: "info" };
     return { message: sousTitresChanges ? "Enregistré. Relance le rendu pour les nouveaux sous-titres." : "Enregistré." };
@@ -189,8 +189,8 @@ export async function synchroniserParoles(fd: FormData): Promise<void> {
   await executer(async () => {
     const { episode_id } = valider(schemaEpisodeSeul, fd);
     const { episode, serie } = await clipAMoi(episode_id);
-    const { supabase } = await utilisateur();
-    const { count } = await supabase.from("fichiers").select("id", { count: "exact", head: true }).eq("episode_id", episode.id).eq("genre", "chanson").eq("statut", "pret");
+    const { db } = await utilisateur();
+    const { count } = await db.from("fichiers").select("id", { count: "exact", head: true }).eq("episode_id", episode.id).eq("genre", "chanson").eq("statut", "pret");
     if (!count) throw new ErreurUtilisateur("Ajoute d’abord la chanson (import ou génération).");
     await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "synchro", priorite: 1 });
     return { message: "Synchronisation en file." };
@@ -214,8 +214,8 @@ export async function modifierEspaceClips(fd: FormData): Promise<void> {
     const d = valider(schemaEspaceClips, fd);
     const serie = await serieAMoi(d.serie_id);
     if (serie.genre !== "clips") throw new ErreurUtilisateur("Ce n’est pas un espace Clips.");
-    const { supabase } = await utilisateur();
-    verifier((await supabase.from("series").update({ nom: d.nom, style_visuel: d.style_visuel }).eq("id", serie.id)).error, "Espace Clips");
+    const { db } = await utilisateur();
+    verifier((await db.from("series").update({ nom: d.nom, style_visuel: d.style_visuel }).eq("id", serie.id)).error, "Espace Clips");
     return { message: "Espace Clips enregistré." };
   });
 }

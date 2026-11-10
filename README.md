@@ -11,59 +11,50 @@ Studio Vidéo IA écrit, génère, monte et publie des séries vidéo :
 - Publication à une date précise : YouTube programme lui-même ; TikTok et Instagram sont publiés à l'heure exacte par le worker.
 - **Espace Clips** : des clips musicaux à partir de ta chanson (importée) ou d'une musique **générée par ElevenLabs** avec tes paroles. Les paroles sont placées dans la chanson (alignement ElevenLabs), le clip est découpé une phrase chantée par plan (calé sur le tempo si tu le donnes), **ChatGPT ou Claude** écrit les scènes, ChatGPT dessine, Grok anime sans son, et le montage pose tout sur la chanson, paroles en sous-titres si tu veux. Formats : vertical 2:00 max (TikTok, Instagram, Short), YouTube 4:00 max, chanson entière 10:00 max.
 
-## Organisation du dépôt
-
-| Dossier | Rôle |
-|---|---|
-| `apps/web` | Application Next.js : interface, connexion, OAuth des réseaux, clés API, page Diagnostic. |
-| `apps/worker` | Worker Node : file de tâches, appels aux IA, rendu ffmpeg, publication, statistiques. Tourne sur un PC ou dans Docker. |
-| `packages/core` | Logique partagée : durées, sous-titres, planning, titres, prompts, état des épisodes, chiffrement. |
-| `packages/integrations` | Clients OpenAI, Anthropic (Claude), xAI, ElevenLabs (voix, musique, alignement des paroles), YouTube, Instagram, TikTok. |
-| `supabase/migrations` | Schéma de la base, règles de sécurité (RLS), stockage. |
-| `docs/` | Configuration des API et guide de test. |
-
-## Mise en route
-
-### 1. Supabase
-
-1. Crée un projet sur https://supabase.com.
-2. **SQL Editor** : exécute dans l'ordre les fichiers `supabase/migrations/0001` à `0006` (ou `supabase db push` avec la CLI).
-3. **Authentication → URL Configuration** : *Site URL* = ton `APP_URL`, et ajoute `<APP_URL>/auth/callback` dans les *Redirect URLs*.
-4. **Project Settings → API** : note l'URL, la clé `anon` et la clé `service_role`.
-
-### 2. Variables d'environnement
+## Installer en 2 minutes (Docker)
 
 ```bash
-cp .env.example .env                    # worker
-cp .env.example apps/web/.env.local     # site web
-openssl rand -base64 32                 # → ENCRYPTION_KEY, la même dans les deux fichiers
+git clone https://github.com/TOUFATECH/Studio-Video-IA.git
+cd Studio-Video-IA
+docker compose up -d --build
 ```
 
-Remplis les valeurs Supabase, `ENCRYPTION_KEY` et `APP_URL`. Les clés OpenAI, xAI, ElevenLabs et Claude (facultative) se saisissent dans l'app, pas dans ces fichiers (sauf pour `npm run test:live`).
+Ouvre http://localhost:3000 : le studio est neuf, crée ton compte. Au premier lancement, le conteneur crée tout seul dans le volume `donnees` :
+- la **base de données SQLite** (`studio.db`) et son schéma ;
+- le dossier des **médias** (images, vidéos, voix, chansons, rendus) ;
+- la **clé de chiffrement** des clés API (`cle-chiffrement`).
 
-### 3. Installer et lancer
+Rien à configurer pour démarrer. Réglages facultatifs : copie `.env.example` en `.env` (adresse du site, modèles, base externe…).
 
-Prérequis : Node.js 20.11 ou plus récent. Pour le worker sur un PC : ffmpeg avec libass (sous-titres), et une police japonaise/coréenne (Noto Sans CJK).
+**Base externe** : mets `DATABASE_URL=postgres://utilisateur:mot-de-passe@serveur:5432/studio` dans `.env` (ton serveur, un hébergeur, ou la base d'un projet Supabase) et relance. Le schéma se crée seul. Pour un PostgreSQL dans Docker : `docker compose --profile postgres up -d` (voir `docs/INSTALLER.md`).
+
+Sans Docker, sur un PC (Node.js 22.13 ou plus récent, ffmpeg) :
 
 ```bash
 npm install
 npm run dev:web        # http://localhost:3000
-npm run dev:worker     # dans un second terminal, sur un PC
+npm run dev:worker     # dans un second terminal
 ```
 
-Ou le worker dans Docker (ffmpeg et les polices sont inclus) :
+Guide complet : `docs/INSTALLER.md` (Docker, PC, base externe, sauvegardes, publication Instagram).
 
-```bash
-docker compose up -d --build
-docker compose logs -f worker
-```
+## Ensuite, dans l'application
 
-### 4. Dans l'application
-
-1. Crée ton compte utilisateur sur `/connexion`.
+1. Crée ton compte sur la page d'accueil (le premier compte se crée toujours ; `INSCRIPTIONS=fermees` bloque les suivants).
 2. **Réglages → Clés API** : OpenAI, xAI, ElevenLabs (et Claude si tu veux l'utiliser pour les clips), puis les applications Google, Meta et TikTok (voir `docs/CONFIGURER-LES-API.md`).
 3. **Réglages → Comptes** : crée tes comptes et connecte leurs réseaux.
 4. **Diagnostic** : tout doit être vert, puis lance le **test complet**.
+
+## Organisation du dépôt
+
+| Dossier | Rôle |
+|---|---|
+| `apps/web` | Application Next.js : interface, comptes utilisateurs, OAuth des réseaux, clés API, médias, page Diagnostic. |
+| `apps/worker` | Worker Node : file de tâches, appels aux IA, rendu ffmpeg, publication, statistiques. |
+| `packages/base` | Base de données : SQLite local (par défaut) ou PostgreSQL externe, schéma et migrations, règles d'accès par utilisateur, comptes et sessions, fichiers des médias. |
+| `packages/core` | Logique partagée : durées, sous-titres, clips musicaux, planning, titres, prompts, état des épisodes, chiffrement. |
+| `packages/integrations` | Clients OpenAI, Anthropic (Claude), xAI, ElevenLabs (voix, musique, alignement des paroles), YouTube, Instagram, TikTok. |
+| `docs/` | Installation, configuration des API, guide de test. |
 
 ## Tester
 
@@ -73,11 +64,13 @@ Voir `docs/TESTER.md`. En résumé :
 npm run typecheck      # types de tout le dépôt
 npm test               # tests automatiques (API simulées + vrai rendu ffmpeg)
 npm run test:live      # appels réels en lecture seule (RUN_LIVE_TESTS=1 et clés dans .env)
-npm run diagnostic     # état du worker, de ffmpeg, des clés et des comptes connectés
+npm run diagnostic     # état de la base, du worker, de ffmpeg, des clés et des comptes connectés
+npm run sauvegarde     # copie de la base, des médias et de la clé dans donnees/sauvegardes/
 ```
 
 ## Sécurité
 
-- Les clés API et les jetons des réseaux sont chiffrés (AES-256-GCM) avec `ENCRYPTION_KEY` et ne sont jamais lisibles depuis le navigateur.
-- Chaque ligne de la base appartient à un utilisateur (RLS). Les médias sont privés et servis par des liens signés temporaires.
-- Ne committe jamais `.env` ni `apps/web/.env.local`.
+- Les clés API et les jetons des réseaux sont chiffrés (AES-256-GCM) avec la clé de chiffrement et ne sont jamais lisibles depuis le navigateur.
+- Mots de passe hachés (scrypt), sessions par jeton aléatoire dont seule l'empreinte est en base.
+- Chaque requête d'un utilisateur est limitée à ses propres données (règles d'accès appliquées par la couche base, testées sur SQLite et PostgreSQL). Les médias sont privés et servis par des liens signés temporaires.
+- Ne committe jamais `.env` ni le dossier `donnees/` (déjà ignorés par Git).

@@ -32,8 +32,8 @@ export async function EtapeSon({ d }: { d: DonneesEpisode }) {
   const coutMusique = (dureeMusique / 60) * d.reglages.tarifs.musique_minute;
   const choixSousTitres = episode.sous_titres[episode.langue] ?? "aucun";
   // Clés présentes (seulement le nom du fournisseur : les valeurs ne sont jamais lisibles ici).
-  const { supabase } = await utilisateur();
-  const { data: cles } = await supabase.from("cles_api").select("fournisseur");
+  const { db } = await utilisateur();
+  const { data: cles } = await db.from("cles_api").select("fournisseur");
   const fournisseurs = new Set((cles ?? []).map((c) => String(c.fournisseur)));
   const progression = tacheSon?.progression;
 

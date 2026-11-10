@@ -2,7 +2,7 @@
 // relance les tâches en pause quand le budget le permet. Ne crée jamais deux tâches pour la même publication.
 import type { Reseau, StatutPublication } from "@studio-video-ia/core";
 import { plafondAtteint, type AccesBudget } from "./budget";
-import { ErreurBase, lignes, ecrire, type Base } from "./supabase";
+import { ErreurBase, lignes, ecrire, type Base } from "./bdd";
 
 /** Ce que le planificateur doit savoir d'une publication programmée. */
 export type PublicationAPlanifier = {
@@ -84,20 +84,27 @@ export async function planifier(acces: AccesPlanificateur): Promise<BilanPlanifi
 /** Statuts d'une tâche considérée comme active (empêche d'en créer une seconde). */
 export const STATUTS_ACTIFS = ["en_file", "en_cours", "en_pause"] as const;
 
-/** Accès réel du planificateur dans Supabase. */
-export function accesPlanificateurSupabase(db: Base, budget: AccesBudget): AccesPlanificateur {
+/** Accès réel du planificateur dans la base. */
+export function accesPlanificateurBase(db: Base, budget: AccesBudget): AccesPlanificateur {
   return {
     ...budget,
     maintenant: () => new Date(),
     publicationsProgrammees: async () => {
-      type Rang = { id: string; episode_id: string; statut: StatutPublication; programmee_le: string; id_externe: string | null; reseaux_connectes: { reseau: Reseau; espace_id: string } | null };
+      type Rang = { id: string; episode_id: string; statut: StatutPublication; programmee_le: string; id_externe: string | null; reseau_connecte_id: string };
       const rangs = await lignes<Rang>(
-        db.from("publications").select("id, episode_id, statut, programmee_le, id_externe, reseaux_connectes(reseau, espace_id)").eq("statut", "programmee").limit(500),
+        db.from("publications").select("id, episode_id, statut, programmee_le, id_externe, reseau_connecte_id").eq("statut", "programmee").limit(500),
         "publications programmées",
       );
-      return rangs
-        .filter((r) => r.reseaux_connectes)
-        .map((r) => ({ id: r.id, episode_id: r.episode_id, statut: r.statut, programmee_le: r.programmee_le, id_externe: r.id_externe, reseau: r.reseaux_connectes?.reseau ?? "youtube", espace_id: r.reseaux_connectes?.espace_id ?? "" }));
+      // Comptes réseau des publications (réseau et espace), lus en une requête.
+      const ids = [...new Set(rangs.map((r) => r.reseau_connecte_id))];
+      const comptes = ids.length
+        ? await lignes<{ id: string; reseau: Reseau; espace_id: string }>(db.from("reseaux_connectes").select("id, reseau, espace_id").in("id", ids), "comptes des publications")
+        : [];
+      const parId = new Map(comptes.map((c) => [c.id, c]));
+      return rangs.flatMap((r) => {
+        const c = parId.get(r.reseau_connecte_id);
+        return c ? [{ id: r.id, episode_id: r.episode_id, statut: r.statut, programmee_le: r.programmee_le, id_externe: r.id_externe, reseau: c.reseau, espace_id: c.espace_id }] : [];
+      });
     },
     publicationsAvecTacheActive: async (ids) => {
       if (ids.length === 0) return new Set();

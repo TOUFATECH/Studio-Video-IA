@@ -65,7 +65,7 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
     ? await etape("Clip 2 s en 480p (xAI)", async () => {
         const r = await genererVideo(
           exigerCle(cles, "xai"),
-          { modele: ctx.config.modeles.video, prompt: "Le renard tourne lentement la tête vers la caméra.", duree: 2, ratio: "9:16", resolution: "480p", genererAudio: false, urlImage: await ctx.stockage.urlSignee(image) },
+          { modele: ctx.config.modeles.video, prompt: "Le renard tourne lentement la tête vers la caméra.", duree: 2, ratio: "9:16", resolution: "480p", genererAudio: false, urlImage: await ctx.stockage.dataUri(image) },
           { signal: ctx.signal, surAttente: (s) => void ctx.progression({ fait: etapes.length, total, etape: `Clip 2 s en 480p (xAI) : génération (${s} s)`, etapes }).catch(() => undefined) },
           ctx.f,
         );

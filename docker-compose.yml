@@ -1,21 +1,56 @@
-# Worker Studio Vidéo IA dans Docker : docker compose up -d --build
-# Les variables viennent de .env (copie de .env.example) ; ffmpeg et les polices sont dans l'image.
+# Studio Vidéo IA dans Docker : docker compose up -d --build, puis http://localhost:3000
+# - « web » : le site ; « worker » : génération, montage ffmpeg, publication, statistiques.
+# - Les deux partagent le volume « donnees » : base SQLite (créée au premier lancement), médias, clé de chiffrement.
+# - Base externe : mets DATABASE_URL=postgres://… dans .env (ou lance le profil « postgres » ci-dessous).
+# - Réglages facultatifs dans .env (copie de .env.example) : APP_URL, modèles, nom du worker…
+
+x-commun: &commun
+  build: .
+  image: studio-video-ia:local
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - donnees:/donnees
+  restart: unless-stopped
+
 services:
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    env_file: .env
+  web:
+    <<: *commun
+    ports:
+      - "${PORT:-3000}:3000"
     environment:
-      # Chemins propres à l'image : ils remplacent ceux du .env, prévus pour un PC.
-      WORKER_TMP_DIR: /data/tmp
+      DONNEES_DIR: /donnees
+      APP_URL: ${APP_URL:-http://localhost:3000}
+
+  worker:
+    <<: *commun
+    command: ["npx", "tsx", "apps/worker/src/index.ts"]
+    environment:
+      DONNEES_DIR: /donnees
+      WORKER_TMP_DIR: /donnees/tmp
       FFMPEG_PATH: ffmpeg
       FFPROBE_PATH: ffprobe
-    volumes:
-      - worker-tmp:/data/tmp
-    restart: unless-stopped
+      APP_URL: ${APP_URL:-http://localhost:3000}
+    depends_on:
+      - web
     # Laisse au worker le temps de remettre ses tâches en file avant l'arrêt forcé.
     stop_grace_period: 40s
 
+  # Facultatif : un PostgreSQL local au lieu de SQLite.
+  # docker compose --profile postgres up -d --build, avec dans .env :
+  # DATABASE_URL=postgres://studio:studio@postgres:5432/studio
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-studio}
+      POSTGRES_DB: studio
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
 volumes:
-  worker-tmp:
+  donnees:
+  postgres:

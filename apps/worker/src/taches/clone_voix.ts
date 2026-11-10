@@ -5,7 +5,7 @@ import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
 import { typeMime } from "../stockage";
-import { ecrire, ligne, lignes } from "../supabase";
+import { ecrire, ligne, lignes } from "../bdd";
 
 /** Données attendues : le personnage dont on clone la voix. */
 export const schemaDonneesClone = z.object({ personnage_id: z.string().min(1) });

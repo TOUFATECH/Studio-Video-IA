@@ -17,3 +17,9 @@ apps/*/.env.local
 apps/worker/tmp/
 tmp/
 .DS_Store
+
+# Données locales : base SQLite, médias, clé de chiffrement générée (jamais dans Git)
+donnees/
+*.db
+*.db-wal
+*.db-shm

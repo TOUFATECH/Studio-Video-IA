@@ -34,17 +34,17 @@ export async function enregistrerRevenu(fd: FormData): Promise<void> {
     const d = r.data;
     const compte = await reseauAMoi(d.reseau_connecte_id);
     if (compte.reseau === "youtube") throw new ErreurUtilisateur("Les revenus YouTube viennent de l’API : pas de saisie manuelle.");
-    const { supabase } = await utilisateur();
+    const { db } = await utilisateur();
     const valeurs = { reseau_connecte_id: compte.id, mois: `${d.mois}-01`, montant: d.montant, devise: d.devise, note: d.note, source: "manuel" };
     if (d.id) {
-      const existant = ligne(ligneRevenu, (await supabase.from("revenus").select("*").eq("id", d.id).maybeSingle()).data);
+      const existant = ligne(ligneRevenu, (await db.from("revenus").select("*").eq("id", d.id).maybeSingle()).data);
       if (!existant || existant.source !== "manuel") throw new ErreurUtilisateur("Saisie introuvable.");
-      const { error } = await supabase.from("revenus").update(valeurs).eq("id", d.id);
+      const { error } = await db.from("revenus").update(valeurs).eq("id", d.id);
       if (error) throw new ErreurUtilisateur(error.code === "23505" ? "Ce mois est déjà saisi pour ce compte." : "Enregistrement impossible.");
       return { message: "Revenu modifié." };
     }
     // Un seul montant manuel par compte et par mois : une nouvelle saisie remplace l'ancienne.
-    const { error } = await supabase.from("revenus").upsert(valeurs, { onConflict: "reseau_connecte_id,mois,source" });
+    const { error } = await db.from("revenus").upsert(valeurs, { onConflict: "reseau_connecte_id,mois,source" });
     if (error) throw new Error(`Revenu : ${error.message}`);
     return { message: "Revenu enregistré." };
   });
@@ -55,10 +55,10 @@ export async function supprimerRevenu(fd: FormData): Promise<void> {
   await executer(async () => {
     const r = schemaIdSeul.safeParse(formulaire(fd));
     if (!r.success) throw new ErreurUtilisateur(premiereErreur(r.error));
-    const { supabase } = await utilisateur();
-    const existant = ligne(ligneRevenu, (await supabase.from("revenus").select("*").eq("id", r.data.id).maybeSingle()).data);
+    const { db } = await utilisateur();
+    const existant = ligne(ligneRevenu, (await db.from("revenus").select("*").eq("id", r.data.id).maybeSingle()).data);
     if (!existant || existant.source !== "manuel") throw new ErreurUtilisateur("Saisie introuvable.");
-    const { error } = await supabase.from("revenus").delete().eq("id", existant.id);
+    const { error } = await db.from("revenus").delete().eq("id", existant.id);
     if (error) throw new Error(`Suppression : ${error.message}`);
     return { message: "Saisie supprimée." };
   });

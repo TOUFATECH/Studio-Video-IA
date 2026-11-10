@@ -2,16 +2,16 @@
 // tâches bloquées, planificateur, synchronisation des statistiques, arrêt propre sur SIGINT / SIGTERM.
 import type { Tache, TypeTache } from "@studio-video-ia/core";
 import { ErreurApi, type Fetch } from "@studio-video-ia/integrations";
-import { accesBudgetSupabase, estPayante, plafondAtteint, type AccesBudget } from "./budget";
+import { accesBudgetBase, estPayante, plafondAtteint, type AccesBudget } from "./budget";
 import { ErreurReconnexion } from "./comptes";
 import { VERSION_WORKER, type Config } from "./config";
 import { creerContexte, ErreurAnnulee, ErreurArret, ErreurPlafond } from "./contexte";
 import { erreurCourte } from "./donnees";
 import { journal, messageErreur } from "./journal";
-import { accesPlanificateurSupabase, planifier, STATUTS_ACTIFS } from "./planificateur";
+import { accesPlanificateurBase, planifier, STATUTS_ACTIFS } from "./planificateur";
 import { aLibass, policePresente, versionOutil } from "./rendu/executant";
 import type { Stockage } from "./stockage";
-import { ecrire, lignes, type Base } from "./supabase";
+import { ecrire, lignes, type Base } from "./bdd";
 import { EXECUTANTS, type Executant } from "./taches";
 
 /** Intervalles des travaux périodiques (ms). */
@@ -76,7 +76,7 @@ export class FileDeTaches {
 
   /** Prépare la file (rien ne démarre avant `demarrer`). */
   constructor(private readonly d: DependancesFile) {
-    this.budget = d.budget ?? accesBudgetSupabase(d.db);
+    this.budget = d.budget ?? accesBudgetBase(d.db);
   }
 
   /** Démarre les boucles de travail et les travaux périodiques. */
@@ -254,7 +254,7 @@ export class FileDeTaches {
 
   /** Passage du planificateur. */
   private async planifier(): Promise<void> {
-    const b = await planifier(accesPlanificateurSupabase(this.d.db, this.budget));
+    const b = await planifier(accesPlanificateurBase(this.d.db, this.budget));
     if (b.tachesCreees || b.publiees || b.reprises) {
       journal("info", `planificateur : ${b.tachesCreees} publication(s) lancée(s), ${b.publiees} marquée(s) publiée(s), ${b.reprises} tâche(s) reprise(s)`);
       this.reveil?.();

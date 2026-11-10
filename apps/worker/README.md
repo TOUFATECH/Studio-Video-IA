@@ -5,11 +5,14 @@ Le worker exécute la file de tâches : écriture des scénarios, images (OpenAI
 
 ## Sur un PC
 
-Prérequis : Node.js 20.11 ou plus récent, ffmpeg **avec libass** (sous-titres) et une police japonaise/coréenne
+Prérequis : Node.js 22.13 ou plus récent, ffmpeg **avec libass** (sous-titres) et une police japonaise/coréenne
 (Noto Sans CJK, paquet `fonts-noto-cjk` sous Debian/Ubuntu).
 
+Le worker partage avec le site la même base (SQLite dans `donnees/studio.db` par défaut, ou `DATABASE_URL`)
+et le même dossier des médias : sur un PC, lance-les depuis le même dépôt ; dans Docker, ils partagent le volume `donnees`.
+
 ```bash
-cp .env.example .env      # à la racine du dépôt, puis remplir les valeurs
+cp .env.example .env      # facultatif : à la racine du dépôt
 npm install
 npm run diagnostic        # vérifie tout avant de lancer
 npm run dev:worker        # relance automatique à chaque modification
@@ -20,10 +23,9 @@ npm run dev:worker        # relance automatique à chaque modification
 ffmpeg et les polices sont inclus dans l'image.
 
 ```bash
-cp .env.example .env
 docker compose up -d --build
 docker compose logs -f worker
-docker compose run --rm worker npx tsx apps/worker/src/diagnostic-cli.ts   # diagnostic dans le conteneur
+docker compose exec worker npx tsx apps/worker/src/diagnostic-cli.ts   # diagnostic dans le conteneur
 ```
 
 ## Variables propres au worker
@@ -36,6 +38,8 @@ docker compose run --rm worker npx tsx apps/worker/src/diagnostic-cli.ts   # dia
 | `FFMPEG_PATH`, `FFPROBE_PATH` | `ffmpeg`, `ffprobe` | Chemins des outils s'ils ne sont pas dans le PATH |
 | `SUBTITLE_FONT` | `Noto Sans CJK JP` | Police des sous-titres |
 | `INSTAGRAM_API_VERSION` | `v25.0` | Version de l'API Graph d'Instagram |
+| `APP_URL` | `http://localhost:3000` | Adresse du site : Instagram y télécharge les vidéos (https public nécessaire) |
+| `DATABASE_URL`, `DONNEES_DIR`, `MEDIAS_DIR` | SQLite dans `donnees/` | Même base et mêmes médias que le site (voir `docs/INSTALLER.md`) |
 
 ## Tests
 

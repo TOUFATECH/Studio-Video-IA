@@ -30,7 +30,7 @@ import { chansonDuClip, chargerEpisode, chargerReglages, enregistrerFichier, err
 import { executerFfmpeg, sonder } from "../rendu/executant";
 import { monter, type PlanAMonter } from "../rendu/montage";
 import { cheminMedia, nomUnique } from "../stockage";
-import { ecrire, ligne, lignes, ligneOuNull } from "../supabase";
+import { ecrire, ligne, lignes, ligneOuNull } from "../bdd";
 import { traduireParoles } from "./decoupage";
 
 /** Données acceptées : langues à rendre (toutes par défaut) et bande annonce (vraie par défaut pour un film). */

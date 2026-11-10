@@ -5,7 +5,7 @@ import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
 import { chargerEpisode } from "../donnees";
 import { cleNom } from "./scenario";
-import { ecrire, lignes } from "../supabase";
+import { ecrire, lignes } from "../bdd";
 
 /** Mystères ouverts que l'IA déclare résolus (comparaison souple : casse, accents, inclusion). */
 export function mysteresResolus(ouverts: readonly Pick<FaitMemoire, "id" | "texte">[], resolus: readonly string[]): string[] {

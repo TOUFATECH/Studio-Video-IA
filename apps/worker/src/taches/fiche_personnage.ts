@@ -6,7 +6,7 @@ import { exigerCle } from "../cles";
 import { avecRelance, type Contexte } from "../contexte";
 import { chargerReglages, enregistrerFichier, erreurCourte } from "../donnees";
 import { cheminEspace, nomUnique } from "../stockage";
-import { ecrire, ligne } from "../supabase";
+import { ecrire, ligne } from "../bdd";
 
 /** Données attendues : le personnage à dessiner. */
 export const schemaDonneesFiche = z.object({ personnage_id: z.string().min(1) });

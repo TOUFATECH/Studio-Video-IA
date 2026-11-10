@@ -6,7 +6,7 @@ import { chargerCompte, ErreurReconnexion, jetonValide, marquerExpire, MESSAGE_R
 import type { Contexte } from "../contexte";
 import { erreurCourte, fichierPret } from "../donnees";
 import { executerFfmpeg } from "../rendu/executant";
-import { ecrire, ligne, lignes } from "../supabase";
+import { ecrire, ligne, lignes } from "../bdd";
 
 /** Clé du fichier à publier selon le livrable : la version de la langue, ou la bande annonce. */
 export function cleLivrable(p: Pick<Publication, "livrable" | "langue">): string {
@@ -116,7 +116,7 @@ async function publier(ctx: Contexte, pub: Publication, compte: CompteReseau): P
       throw new Error(`Limite d'Instagram atteinte (${LIMITE_PUBLICATIONS_INSTAGRAM_24H} publications par 24 h) : reprogramme cette publication plus tard.`);
     }
     // Instagram télécharge la vidéo lui-même : URL signée d'une heure, jamais journalisée.
-    const urlVideo = await ctx.stockage.urlSignee(fichier.chemin);
+    const urlVideo = await ctx.stockage.urlPublique(fichier.chemin);
     const r = await publierReel(
       jeton,
       compte.id_externe,

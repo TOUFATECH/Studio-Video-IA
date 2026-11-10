@@ -1,13 +1,13 @@
 // Invalidation des générations quand l'utilisateur modifie un plan, les langues ou les sous-titres.
-// Appelé après vérification d'appartenance ; écrit en service_role (les fichiers sont en lecture seule pour l'utilisateur).
+// Appelé après vérification d'appartenance ; écrit avec le client serveur (les fichiers sont en lecture seule pour l'utilisateur).
 import "server-only";
 import type { Langue } from "@studio-video-ia/core";
 import { supprimerObjets } from "./medias";
-import { clientAdmin } from "./supabase/admin";
+import { clientAdmin } from "./bdd";
 
 /** Supprime des lignes « fichiers » (et leurs objets) selon un filtre déjà construit. */
 async function supprimer(filtre: { episode_id: string; plan_ids?: readonly string[]; genres: readonly string[]; langues?: readonly Langue[] }): Promise<number> {
-  const admin = clientAdmin();
+  const admin = await clientAdmin();
   let q = admin.from("fichiers").select("id, chemin").eq("episode_id", filtre.episode_id).in("genre", [...filtre.genres]);
   if (filtre.plan_ids) q = q.in("plan_id", [...filtre.plan_ids]);
   if (filtre.langues) q = q.in("langue", [...filtre.langues]);
@@ -38,7 +38,7 @@ export async function invaliderPlans(episodeId: string, planIds: readonly string
 /** Clips modifiés sans toucher aux images (choix du nombre de prises) : supprime clips et rendus. */
 export async function invaliderClips(episodeId: string, planIds: readonly string[], prise: "A" | "B" | null): Promise<void> {
   if (!planIds.length) return;
-  const admin = clientAdmin();
+  const admin = await clientAdmin();
   let q = admin.from("fichiers").select("id, chemin").eq("episode_id", episodeId).eq("genre", "clip").in("plan_id", [...planIds]);
   if (prise) q = q.eq("prise", prise);
   const { data } = await q;
@@ -56,8 +56,8 @@ export async function invaliderImages(episodeId: string, planIds: readonly strin
   await supprimerRendus(episodeId);
 }
 
-/** Chemins des fichiers d'un plan, à supprimer du bucket avant de supprimer le plan (la base efface les lignes en cascade). */
+/** Chemins des fichiers d'un plan, à supprimer des médias avant de supprimer le plan (la base efface les lignes en cascade). */
 export async function cheminsDuPlan(planId: string): Promise<string[]> {
-  const { data } = await clientAdmin().from("fichiers").select("chemin").eq("plan_id", planId);
+  const { data } = await (await clientAdmin()).from("fichiers").select("chemin").eq("plan_id", planId);
   return (data ?? []).map((l) => (typeof l.chemin === "string" ? l.chemin : "")).filter(Boolean);
 }

@@ -1,5 +1,5 @@
-// Types des lignes de la base Supabase et schémas Zod des champs JSON.
-// Les noms suivent exactement les colonnes de supabase/migrations/0001_init.sql.
+// Types des lignes de la base (SQLite ou PostgreSQL) et schémas Zod des champs JSON.
+// Les noms suivent exactement les colonnes de packages/base/src/schema-sqlite.ts.
 import { z } from "zod";
 import {
   LANGUES,
@@ -214,7 +214,7 @@ export type GenreFichier =
   | "echantillon_voix"
   | "chanson";
 
-/** Un fichier stocké dans le bucket « medias » (image, clip, voix, rendu…). */
+/** Un fichier stocké dans le dossier des médias (image, clip, voix, rendu…). */
 export type Fichier = {
   id: string;
   espace_id: string;

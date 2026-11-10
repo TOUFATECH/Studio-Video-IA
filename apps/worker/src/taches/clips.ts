@@ -24,7 +24,7 @@ import { exigerCle } from "../cles";
 import { avecRelance, enParallele, ErreurAnnulee, ErreurArret, ErreurPlafond, type Contexte } from "../contexte";
 import { chargerEpisode, chargerReglages, enregistrerFichier, erreurCourte, fichierPret, nomPlan, unitePrete, type EpisodeComplet } from "../donnees";
 import { cheminMedia, nomUnique } from "../stockage";
-import { ecrire } from "../supabase";
+import { ecrire } from "../bdd";
 
 /** Données acceptées : plans à régénérer (toutes leurs unités), sinon toutes les unités sans fichier prêt. */
 export const schemaDonneesClips = z.object({ plan_ids: z.array(z.string()).optional() });
@@ -126,7 +126,8 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
         const prompt = clipMusical ? promptVideoClip(plan, dureeGrok) : `${promptVideo(plan, duree, grok)}${grok && perso ? ` ${perso.nom} dit : « ${plan.replique} »` : ""}`;
         const { valeur, essais } = await avecRelance(async () => {
           // URL signée recréée à chaque essai : xAI télécharge l'image pendant la génération.
-          const urlImage = await ctx.stockage.urlSignee(image.chemin ?? "");
+          // L'image part dans la requête (data URI) : xAI n'a pas besoin d'accéder aux fichiers locaux.
+          const urlImage = await ctx.stockage.dataUri(image.chemin ?? "");
           return genererVideo(
             cleXai,
             { modele: ctx.config.modeles.video, prompt, duree: dureeGrok, ratio: ratioClips(e.episode.format), resolution: ctx.config.modeles.resolutionVideo, genererAudio: grok, urlImage },

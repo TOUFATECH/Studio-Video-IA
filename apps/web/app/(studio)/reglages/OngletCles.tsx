@@ -23,8 +23,8 @@ const LIGNES: { cle: Fournisseur; nom: string; usage: string; application: boole
 
 /** Liste des clés. */
 export async function OngletCles() {
-  const { supabase } = await utilisateur();
-  const { data } = await supabase.from("cles_api").select("fournisseur, apercu, modifie_le");
+  const { db } = await utilisateur();
+  const { data } = await db.from("cles_api").select("fournisseur, apercu, modifie_le");
   const cles = new Map(
     z
       .array(z.object({ fournisseur: z.string(), apercu: z.string(), modifie_le: z.string() }))

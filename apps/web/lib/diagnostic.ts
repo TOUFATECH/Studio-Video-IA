@@ -6,10 +6,10 @@ import { chiffrer, dechiffrer, lireCleMaitre } from "@studio-video-ia/core/chiff
 import { renouvelerJeton, testerAnthropic, testerCompte, testerElevenLabs, testerOpenAI, testerXai, type Fetch } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { cleMaitre, lireAppOAuth, lireCle } from "./cles";
-import { lireEnv, NOMS_ENV } from "./env";
+import { lireEnv } from "./env";
 import { messageErreur } from "./erreurs";
-import { clientAdmin } from "./supabase/admin";
-import type { ClientSupabase } from "./supabase/serveur";
+import { adresseLisible, versionAttendue } from "@studio-video-ia/base";
+import { base, clientAdmin, type ClientBase } from "./bdd";
 
 /** Une ligne du tableau de diagnostic. */
 export type Verification = { groupe: string; nom: string; ok: boolean; detail: string; aFaire?: string };
@@ -17,43 +17,46 @@ export type Verification = { groupe: string; nom: string; ok: boolean; detail: s
 /** fetch avec délai maximal : une API qui ne répond pas ne bloque pas la page. */
 const fetchLimite: Fetch = (entree, options) => fetch(entree, { ...options, signal: AbortSignal.timeout(10_000) });
 
-/** Variables d'environnement présentes (jamais leur valeur). */
+/** Configuration : adresse du site, clé de chiffrement (fournie ou générée), mode des inscriptions. Jamais de valeur secrète. */
 export function verifierEnv(): Verification[] {
-  const out: Verification[] = NOMS_ENV.map((nom) => ({
+  const out: Verification[] = [];
+  const app = lireEnv("APP_URL");
+  const publique = !!app && app.startsWith("https://") && !/localhost|127\.0\.0\.1|192\.168\.|\b10\./.test(app);
+  out.push({
     groupe: "Configuration",
-    nom,
-    ok: !!lireEnv(nom),
-    detail: lireEnv(nom) ? "Présente" : "Absente",
-    aFaire: lireEnv(nom) ? undefined : `Ajoute ${nom} dans apps/web/.env.local (voir .env.example), puis redémarre.`,
-  }));
-  if (lireEnv("ENCRYPTION_KEY")) {
-    try {
-      lireCleMaitre(lireEnv("ENCRYPTION_KEY"));
-      out.push({ groupe: "Configuration", nom: "Format de ENCRYPTION_KEY", ok: true, detail: "32 octets en base64" });
-    } catch (e) {
-      out.push({ groupe: "Configuration", nom: "Format de ENCRYPTION_KEY", ok: false, detail: messageErreur(e), aFaire: "Génère-la avec « openssl rand -base64 32 » (même valeur pour le web et le worker)." });
-    }
+    nom: "Adresse du site (APP_URL)",
+    ok: !!app,
+    detail: app ? `${app}${publique ? "" : " · locale : Instagram ne pourra pas télécharger les vidéos"}` : "Absente",
+    aFaire: app ? (publique ? undefined : "Pour publier sur Instagram, rends le site joignable en https (nom de domaine ou tunnel), voir docs/INSTALLER.md.") : "Ajoute APP_URL dans .env (ex. http://localhost:3000), puis redémarre.",
+  });
+  try {
+    lireCleMaitre(lireEnv("ENCRYPTION_KEY"));
+    out.push({ groupe: "Configuration", nom: "Clé de chiffrement", ok: true, detail: process.env.ENCRYPTION_KEY_SOURCE === "fichier" ? "Générée au premier lancement (dossier des données)" : "32 octets en base64" });
+  } catch (e) {
+    out.push({ groupe: "Configuration", nom: "Clé de chiffrement", ok: false, detail: messageErreur(e), aFaire: "Laisse ENCRYPTION_KEY vide pour une clé générée, ou mets « openssl rand -base64 32 » (même valeur pour le site et le worker)." });
   }
   return out;
 }
 
-/** Connexion à Supabase et bucket « medias ». */
-export async function verifierSupabase(supabase: ClientSupabase): Promise<Verification[]> {
+/** Base de données (SQLite locale ou PostgreSQL externe) et dossier des médias. */
+export async function verifierBase(db: ClientBase): Promise<Verification[]> {
   const out: Verification[] = [];
-  const { error } = await supabase.from("espaces").select("id", { count: "exact", head: true });
-  out.push({ groupe: "Supabase", nom: "Connexion à la base", ok: !error, detail: error ? error.message : "Lecture des tables autorisée", aFaire: error ? "Vérifie l’URL, la clé publique et que les migrations SQL sont appliquées." : undefined });
+  const b = await base();
+  const { error } = await db.from("espaces").select("id", { count: "exact", head: true });
+  const version = b.migration.version;
+  const attendue = versionAttendue(b.moteur);
+  out.push({
+    groupe: "Base de données",
+    nom: b.moteur.dialecte === "sqlite" ? "Base locale (SQLite)" : "Base externe (PostgreSQL)",
+    ok: !error && version === attendue,
+    detail: error ? error.message : `${adresseLisible(b.config)} · schéma v${version}`,
+    aFaire: error ? "Vérifie DATABASE_URL (ou laisse-la vide pour la base locale)." : version !== attendue ? "Redémarre le site : le schéma se met à jour au démarrage." : undefined,
+  });
   try {
-    const { data, error: e } = await clientAdmin().storage.getBucket("medias");
-    const ok = !e && !!data && !data.public;
-    out.push({
-      groupe: "Supabase",
-      nom: "Bucket « medias »",
-      ok,
-      detail: e ? e.message : data?.public ? "Le bucket est public" : "Présent et privé",
-      aFaire: ok ? undefined : "Applique supabase/migrations/0001_init.sql (il crée le bucket privé « medias »).",
-    });
+    await b.depot.testerEcriture();
+    out.push({ groupe: "Base de données", nom: "Dossier des médias", ok: true, detail: b.depot.dossier });
   } catch (e) {
-    out.push({ groupe: "Supabase", nom: "Bucket « medias »", ok: false, detail: messageErreur(e), aFaire: "Vérifie SUPABASE_SERVICE_ROLE_KEY." });
+    out.push({ groupe: "Base de données", nom: "Dossier des médias", ok: false, detail: messageErreur(e), aFaire: "Vérifie MEDIAS_DIR et les droits d’écriture du dossier (en Docker : le volume /donnees)." });
   }
   return out;
 }
@@ -62,8 +65,8 @@ export async function verifierSupabase(supabase: ClientSupabase): Promise<Verifi
 const schemaInfosWorker = z.object({ libass: z.union([z.boolean(), z.string()]).optional(), police: z.string().optional(), police_presente: z.boolean().nullable().optional(), version: z.string().optional() }).passthrough().catch({});
 
 /** Workers vus récemment, version de ffmpeg, libass et police des sous-titres. */
-export async function verifierWorkers(supabase: ClientSupabase): Promise<Verification[]> {
-  const { data } = await supabase.from("workers_etat").select("*");
+export async function verifierWorkers(db: ClientBase): Promise<Verification[]> {
+  const { data } = await db.from("workers_etat").select("*");
   const lignes = z.array(z.object({ nom: z.string(), vu_le: z.string(), version_ffmpeg: z.string().nullable(), infos: z.unknown() })).catch([]).parse(data);
   if (!lignes.length) return [{ groupe: "Worker", nom: "Worker en ligne", ok: false, detail: "Aucun worker ne s’est jamais signalé", aFaire: "Lance « npm run dev:worker » (ou le service) sur la machine qui génère les vidéos." }];
   return lignes.flatMap((w) => {
@@ -111,7 +114,7 @@ export async function verifierCles(proprietaire: string): Promise<Verification[]
 /** Teste chaque compte connecté, après renouvellement du jeton s'il expire bientôt. */
 export async function verifierComptes(proprietaire: string, espaceIds: readonly string[]): Promise<Verification[]> {
   if (!espaceIds.length) return [];
-  const admin = clientAdmin();
+  const admin = await clientAdmin();
   const { data } = await admin
     .from("reseaux_connectes")
     .select("id, reseau, nom_compte, id_externe, statut, jeton_acces_chiffre, jeton_renouvellement_chiffre, jeton_expire_le")
@@ -166,13 +169,13 @@ export async function verifierComptes(proprietaire: string, espaceIds: readonly 
 }
 
 /** Quotas : Instagram (100 publications par 24 h), YouTube (environ 6 envois par jour avec le quota par défaut). */
-export async function verifierQuotas(supabase: ClientSupabase, espaceIds: readonly string[]): Promise<Verification[]> {
+export async function verifierQuotas(db: ClientBase, espaceIds: readonly string[]): Promise<Verification[]> {
   if (!espaceIds.length) return [];
-  const { data: rc } = await supabase.from("reseaux_connectes").select("id, reseau, nom_compte").in("espace_id", [...espaceIds]).in("reseau", ["instagram", "youtube"]);
+  const { data: rc } = await db.from("reseaux_connectes").select("id, reseau, nom_compte").in("espace_id", [...espaceIds]).in("reseau", ["instagram", "youtube"]);
   const comptes = z.array(z.object({ id: z.string(), reseau: schemaReseau, nom_compte: z.string() })).catch([]).parse(rc);
   if (!comptes.length) return [];
   const depuis = new Date(Date.now() - 86_400_000).toISOString();
-  const { data } = await supabase.from("publications").select("reseau_connecte_id, publiee_le").in("reseau_connecte_id", comptes.map((c) => c.id)).gte("publiee_le", depuis);
+  const { data } = await db.from("publications").select("reseau_connecte_id, publiee_le").in("reseau_connecte_id", comptes.map((c) => c.id)).gte("publiee_le", depuis);
   const pubs = z.array(z.object({ reseau_connecte_id: z.string() })).catch([]).parse(data);
   return comptes.map((c) => {
     const n = pubs.filter((p) => p.reseau_connecte_id === c.id).length;

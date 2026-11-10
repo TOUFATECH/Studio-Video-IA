@@ -7,7 +7,7 @@ import type { Config } from "../src/config";
 import { creerContexte, ErreurAnnulee, ErreurArret, ErreurPlafond } from "../src/contexte";
 import { issueErreur } from "../src/file";
 import type { Stockage } from "../src/stockage";
-import type { Base } from "../src/supabase";
+import type { Base } from "../src/bdd";
 
 /** Faux accès au budget. */
 function budget(depense: number, plafond: number): AccesBudget {
