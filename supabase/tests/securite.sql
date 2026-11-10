@@ -93,3 +93,22 @@ update taches set statut = 'en_cours', verrouille_le = now() - interval '1 hour'
 select liberer_taches_bloquees();
 select 'Après 3 essais : ' || statut from taches limit 1;
 reset role;
+
+-- Espace Clips : un seul par compte, plans calés sur la chanson (15,5 s au plus), clé Claude
+select pg_temp.comme('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+insert into series (espace_id, nom, genre) select id, 'Nova', 'clips' from espaces returning 'A crée son espace Clips : ' || nom;
+insert into series (espace_id, nom, genre) select id, 'Doublon', 'clips' from espaces; -- doit échouer (un seul espace Clips)
+insert into saisons (serie_id, numero) select id, 1 from series where genre = 'clips';
+insert into episodes (serie_id, saison_id, genre, titre, paroles, extrait_debut, extrait_fin, fournisseur_texte)
+  select s.id, sa.id, 'clip', 'Envol', '[Refrain]\nOn s''envole', 7, 127, 'anthropic' from series s join saisons sa on sa.serie_id = s.id where s.genre = 'clips'
+  returning 'A crée un clip : ' || titre || ' (' || fournisseur_texte || ')';
+insert into plans (episode_id, position, type, texte, debut, fin) select id, 0, 'accroche', 'x', 7, 10.5 from episodes where genre = 'clip' returning 'Plan calé sur la chanson : ' || debut || ' → ' || fin;
+insert into plans (episode_id, position, type, texte, debut, fin) select id, 1, 'action', 'x', 10, 30 from episodes where genre = 'clip'; -- doit échouer (plus de 15,5 s)
+update episodes set extrait_fin = 900 where genre = 'clip'; -- doit échouer (extrait de plus de 10 min)
+reset role;
+set role service_role;
+insert into cles_api (proprietaire, fournisseur, valeur_chiffree, apercu) values ('00000000-0000-0000-0000-00000000000a', 'anthropic', 'v1.secret', 'wxyz') returning 'Clé Claude enregistrée : ' || fournisseur;
+insert into taches (espace_id, episode_id, type) select s.espace_id, ep.id, 'synchro' from episodes ep join series s on s.id = ep.serie_id where ep.genre = 'clip' returning 'Tâche de synchronisation : ' || type;
+insert into fichiers (espace_id, episode_id, genre, chemin) select s.espace_id, ep.id, 'chanson', s.espace_id || '/chansons/envol.mp3' from episodes ep join series s on s.id = ep.serie_id where ep.genre = 'clip' returning 'Chanson enregistrée : ' || genre;
+reset role;

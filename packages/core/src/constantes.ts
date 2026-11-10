@@ -39,8 +39,11 @@ export const TYPES_PLAN = {
 export type TypePlan = keyof typeof TYPES_PLAN;
 export const LISTE_TYPES_PLAN = Object.keys(TYPES_PLAN) as TypePlan[];
 
-/** Genres d'épisode : un vrai épisode, ou le générique de début ou de fin d'une saison. */
-export type GenreEpisode = "episode" | "opening" | "ending";
+/** Genres d'épisode : un vrai épisode, le générique de début ou de fin d'une saison, ou un clip musical. */
+export type GenreEpisode = "episode" | "opening" | "ending" | "clip";
+
+/** Genre d'une série : une série d'histoires, ou l'espace Clips du compte (un seul par compte). */
+export type GenreSerie = "serie" | "clips";
 
 /** Durées de clip proposées. Grok accepte 1 à 15 s ; on se limite à ces paliers pour un montage régulier. */
 export const DUREES_AUTORISEES = [3, 5, 8, 10, 15] as const;
@@ -77,6 +80,23 @@ export function estHorizontal(format: FormatEpisode): boolean {
   return format !== "court";
 }
 
+/**
+ * Durée maximale d'un clip musical par format, en secondes :
+ * court (vertical, TikTok, Instagram, Short) 2:00, moyen (YouTube 16:9) 4:00, long (chanson entière en 16:9) 10:00.
+ */
+export const DUREE_MAX_CLIP: Record<FormatEpisode, number> = { court: 120, moyen: 240, long: 600 };
+
+/** Libellé de chaque format pour un clip. */
+export const NOMS_FORMATS_CLIP: Record<FormatEpisode, string> = {
+  court: "Vertical · 2:00 max · TikTok, Instagram, Short YouTube",
+  moyen: "YouTube · 4:00 max · 16:9",
+  long: "Chanson entière · 10:00 max · 16:9 · YouTube",
+};
+
+/** Fournisseur du texte d'un clip (scènes et paroles) : ChatGPT (OpenAI) ou Claude (Anthropic). */
+export type FournisseurTexte = "openai" | "anthropic";
+export const NOMS_FOURNISSEURS_TEXTE: Record<FournisseurTexte, string> = { openai: "ChatGPT", anthropic: "Claude" };
+
 /** Vrai si l'épisode a une bande annonce verticale (épisode YouTube et film). */
 export function aBandeAnnonce(format: FormatEpisode, genre: GenreEpisode): boolean {
   return genre === "episode" && format !== "court";
@@ -110,6 +130,24 @@ export const HASHTAGS: Record<Langue, string> = {
   ja: "#アニメ #物語 #ショート",
   ko: "#애니메이션 #이야기 #쇼츠",
   pt: "#história #animação #série",
+};
+
+/** Hashtags de départ d'un clip musical, par langue. */
+export const HASHTAGS_CLIP: Record<Langue, string> = {
+  fr: "#clip #musique #music",
+  en: "#musicvideo #music #newmusic",
+  ja: "#MV #音楽 #music",
+  ko: "#뮤직비디오 #음악 #music",
+  pt: "#clipe #música #music",
+};
+
+/** Mention « clip officiel » par langue, utilisée dans les titres de clips. */
+export const MOT_CLIP: Record<Langue, string> = {
+  fr: "Clip officiel",
+  en: "Official Music Video",
+  ja: "公式MV",
+  ko: "공식 뮤직비디오",
+  pt: "Videoclipe oficial",
 };
 
 /** Accroche courte par langue, utilisée dans la troisième proposition de titre. */

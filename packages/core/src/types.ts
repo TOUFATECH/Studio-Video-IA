@@ -7,7 +7,9 @@ import {
   RESEAUX,
   type ChoixSousTitres,
   type FormatEpisode,
+  type FournisseurTexte,
   type GenreEpisode,
+  type GenreSerie,
   type Langue,
   type Livrable,
   type Reseau,
@@ -38,6 +40,8 @@ export const schemaTarifs = z.object({
   image: z.number().min(0),
   video_seconde: z.number().min(0),
   voix_1000_car: z.number().min(0),
+  /** Prix d'une minute de musique générée (ElevenLabs Music). Absent des anciens réglages : valeur d'exemple. */
+  musique_minute: z.number().min(0).default(0.5),
 });
 export type Tarifs = z.infer<typeof schemaTarifs>;
 
@@ -96,8 +100,14 @@ export type Serie = {
   rythme: Rythme;
   /** Hashtags par défaut de la série, par réseau. */
   hashtags: Partial<Record<Reseau, string>>;
+  /** « serie » pour une série d'histoires, « clips » pour l'espace Clips du compte. */
+  genre: GenreSerie;
   cree_le: string;
 };
+
+/** Une ligne de paroles placée dans la chanson (secondes depuis le début du fichier audio). */
+export const schemaLigneParole = z.object({ texte: z.string(), debut: z.number().min(0), fin: z.number().min(0) });
+export type LigneParole = z.infer<typeof schemaLigneParole>;
 
 /** Un personnage de la bible. */
 export type Personnage = {
@@ -147,6 +157,26 @@ export type Episode = {
   memoire_faite: boolean;
   /** Hashtags propres à l'épisode (remplacent ceux de la série pour ce réseau). */
   hashtags: Partial<Record<Reseau, string>>;
+  // ----- Champs propres aux clips musicaux (genre « clip ») -----
+  /** Style visuel du clip ; vide = celui de l'espace Clips. */
+  style_visuel: string;
+  /** Paroles saisies (les lignes « [Refrain] » marquent les sections). */
+  paroles: string;
+  /** Paroles placées dans la chanson par la synchronisation ; null tant qu'elle n'est pas faite. */
+  paroles_alignees: LigneParole[] | null;
+  /** Traduction de chaque ligne alignée, par langue (même ordre que `paroles_alignees`). */
+  paroles_traduites: Partial<Record<Langue, string[]>>;
+  /** Tempo en battements par minute, si connu : les coupes tombent alors sur le temps. */
+  bpm: number | null;
+  /** Début et fin de l'extrait de la chanson utilisé (secondes). Fin null = jusqu'au bout, dans la limite du format. */
+  extrait_debut: number;
+  extrait_fin: number | null;
+  /** Style musical demandé pour générer la chanson (ElevenLabs Music). */
+  musique_style: string;
+  /** Vrai pour générer une musique sans chant. */
+  instrumental: boolean;
+  /** IA qui écrit les scènes et les paroles du clip. */
+  fournisseur_texte: FournisseurTexte;
   cree_le: string;
 };
 
@@ -165,6 +195,9 @@ export type Plan = {
   valide: boolean;
   modifie: boolean;
   prise_choisie: "A" | "B";
+  /** Pour un clip : début et fin du plan dans la chanson (secondes). Null pour un épisode. */
+  debut: number | null;
+  fin: number | null;
 };
 
 /** Genre de fichier produit ou importé. */
@@ -178,7 +211,8 @@ export type GenreFichier =
   | "fiche"
   | "bruitage"
   | "musique"
-  | "echantillon_voix";
+  | "echantillon_voix"
+  | "chanson";
 
 /** Un fichier stocké dans le bucket « medias » (image, clip, voix, rendu…). */
 export type Fichier = {
@@ -211,7 +245,10 @@ export type TypeTache =
   | "fiche_personnage"
   | "memoire"
   | "clone_voix"
-  | "test_complet";
+  | "test_complet"
+  | "paroles"
+  | "musique"
+  | "synchro";
 /** État d'une tâche. */
 export type StatutTache = "en_file" | "en_cours" | "terminee" | "echec" | "en_pause" | "annulee";
 
@@ -326,7 +363,7 @@ export type Revenu = {
 };
 
 /** Fournisseurs de clés API. google, meta et tiktok contiennent un couple identifiant/secret d'application OAuth. */
-export const FOURNISSEURS = ["openai", "xai", "elevenlabs", "google", "meta", "tiktok"] as const;
+export const FOURNISSEURS = ["openai", "xai", "elevenlabs", "google", "meta", "tiktok", "anthropic"] as const;
 export type Fournisseur = (typeof FOURNISSEURS)[number];
 
 /** Contenu d'une clé d'application OAuth (Google, Meta, TikTok). */
@@ -349,6 +386,25 @@ export const schemaScenarioIA = z.object({
 });
 export type ScenarioIA = z.infer<typeof schemaScenarioIA>;
 
+/** Scènes d'un clip renvoyées par l'IA : une description par segment, dans l'ordre. */
+export const schemaClipIA = z.object({
+  titre: z.string().min(1),
+  plans: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        texte: z.string().min(3),
+        personnage: z.string().nullable().optional(),
+      }),
+    )
+    .min(1),
+});
+export type ClipIA = z.infer<typeof schemaClipIA>;
+
+/** Paroles écrites par l'IA à partir d'une idée. */
+export const schemaParolesIA = z.object({ titre: z.string().min(1), paroles: z.string().min(10) });
+export type ParolesIA = z.infer<typeof schemaParolesIA>;
+
 /** Faits extraits par l'IA à la fin d'un épisode. */
 export const schemaFaitsIA = z.object({
   faits: z.array(
@@ -362,4 +418,4 @@ export const schemaFaitsIA = z.object({
 });
 export type FaitsIA = z.infer<typeof schemaFaitsIA>;
 
-export type { ChoixSousTitres, FormatEpisode, GenreEpisode, Langue, Livrable, Reseau, SourceVoix, TypePlan };
+export type { ChoixSousTitres, FormatEpisode, FournisseurTexte, GenreEpisode, GenreSerie, Langue, Livrable, Reseau, SourceVoix, TypePlan };

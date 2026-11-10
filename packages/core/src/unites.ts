@@ -1,4 +1,5 @@
 // Unités de génération d'un épisode (une image, un clip, une voix, un rendu) et leur coût estimé.
+import { dureeGenerationClip } from "./clip";
 import { aBandeAnnonce, type Langue } from "./constantes";
 import type { Episode, Fichier, Personnage, Plan, Tarifs } from "./types";
 
@@ -63,10 +64,13 @@ export function unitesRendu(episode: Pick<Episode, "langues" | "format" | "genre
   return out;
 }
 
-/** Coût estimé d'une unité selon les tarifs saisis. Les rendus sont faits par ffmpeg : gratuits. */
-export function coutUnite(u: Unite, dureeClip: number, tarifs: Tarifs): number {
+/**
+ * Coût estimé d'une unité selon les tarifs saisis. Les rendus sont faits par ffmpeg : gratuits.
+ * Un clip est payé sur la durée demandée à Grok (palier au-dessus de la durée du plan pour un clip musical).
+ */
+export function coutUnite(u: Unite, dureeClip: number, tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">): number {
   if (u.genre === "image") return tarifs.image;
-  if (u.genre === "clip") return dureeClip * tarifs.video_seconde;
+  if (u.genre === "clip") return dureeGenerationClip(dureeClip) * tarifs.video_seconde;
   if (u.genre === "voix") {
     // Les traductions sont souvent plus longues : on compte au moins 40 caractères par réplique.
     const car = Math.max(40, u.plan?.replique.length ?? 40);
@@ -81,7 +85,7 @@ export function coutEstimeEpisode(
   plans: readonly Plan[],
   personnages: readonly Personnage[],
   durees: Map<string, number>,
-  tarifs: Tarifs,
+  tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">,
 ): number {
   const unites = [...unitesStoryboard(plans), ...unitesClips(episode, plans, personnages)];
   return unites.reduce((s, u) => s + coutUnite(u, u.plan ? durees.get(u.plan.id) ?? 5 : 0, tarifs), 0);

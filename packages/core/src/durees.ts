@@ -2,7 +2,12 @@
 import { DUREES_AUTORISEES, DUREE_GENERIQUES, TYPES_PLAN, type FormatEpisode, type TypePlan } from "./constantes";
 
 /** Ce dont la répartition a besoin d'un plan. */
-export type PlanDuree = { id: string; type: TypePlan; duree_fixee: number | null; section?: string };
+export type PlanDuree = { id: string; type: TypePlan; duree_fixee: number | null; section?: string; debut?: number | null; fin?: number | null };
+
+/** Vrai si tous les plans portent leur place dans une chanson (clip musical) : leur durée est alors imposée. */
+export function plansCales(plans: readonly PlanDuree[]): boolean {
+  return plans.length > 0 && plans.every((p) => p.debut != null && p.fin != null);
+}
 
 /**
  * Choisit une durée autorisée (3, 5, 8, 10 ou 15 s) pour chaque plan afin d'approcher `cible`.
@@ -60,6 +65,11 @@ export function sectionsDe(plans: readonly PlanDuree[]): string[] {
  */
 export function dureesParPlan(plans: readonly PlanDuree[], cible: number, format: FormatEpisode): Map<string, number> {
   const m = new Map<string, number>();
+  // Clip musical : chaque plan dure exactement le temps de son passage dans la chanson.
+  if (plansCales(plans)) {
+    for (const p of plans) m.set(p.id, Math.round(((p.fin ?? 0) - (p.debut ?? 0)) * 1000) / 1000);
+    return m;
+  }
   if (format !== "long") {
     const d = repartirDurees(plans, cible);
     plans.forEach((p, i) => m.set(p.id, d[i] ?? 0));
@@ -80,7 +90,7 @@ export function dureeTotale(plans: readonly PlanDuree[], cible: number, format: 
   const m = dureesParPlan(plans, cible, format);
   let total = 0;
   for (const v of m.values()) total += v;
-  return total + (format === "long" && avecGeneriques ? DUREE_GENERIQUES : 0);
+  return total + (format === "long" && avecGeneriques && !plansCales(plans) ? DUREE_GENERIQUES : 0);
 }
 
 /** Nombre de plans à demander à l'IA pour une durée cible (environ 7 s par plan). */

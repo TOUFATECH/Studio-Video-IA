@@ -31,7 +31,7 @@ import { apercu, chiffrer, dechiffrer, lireCleMaitre } from "../src/chiffrement"
 
 /** Fabrique un plan de test. */
 function plan(id: string, type: TypePlan, extra: Partial<Plan> = {}): Plan {
-  return { id, episode_id: "e1", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: false, modifie: false, prise_choisie: "A", ...extra };
+  return { id, episode_id: "e1", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: false, modifie: false, prise_choisie: "A", debut: null, fin: null, ...extra };
 }
 
 /** Fabrique un épisode de test. */
@@ -39,7 +39,9 @@ function episode(extra: Partial<Episode> = {}): Episode {
   return {
     id: "e1", serie_id: "s1", saison_id: "sa1", genre: "episode", numero: 2, titre: "Le pont", idee: "idée", format: "court", duree_cible: 75,
     langue: "fr", langues: ["fr", "en"], sous_titres: { fr: "fr", en: "aucun" }, prises: 1, enchainer: true, musique: true, bruitages: true,
-    chapitres: [], titres_traduits: { ja: "橋" }, choix_titres: {}, miniature: null, memoire_faite: false, hashtags: {}, cree_le: "2026-01-01", ...extra,
+    chapitres: [], titres_traduits: { ja: "橋" }, choix_titres: {}, miniature: null, memoire_faite: false, hashtags: {},
+    style_visuel: "", paroles: "", paroles_alignees: null, paroles_traduites: {}, bpm: null, extrait_debut: 0, extrait_fin: null, musique_style: "", instrumental: false, fournisseur_texte: "openai",
+    cree_le: "2026-01-01", ...extra,
   };
 }
 

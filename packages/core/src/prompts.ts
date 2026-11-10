@@ -163,3 +163,98 @@ export function promptBruitage(serie: Pick<Serie, "univers">, plans: readonly Pi
   const extrait = plans.slice(0, 3).map((p) => p.texte).join(" ");
   return `Ambiance sonore de fond, sans musique ni voix : ${serie.univers || ""} ${extrait}`.slice(0, 400);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Clips musicaux
+// ---------------------------------------------------------------------------------------------
+
+/** Style visuel d'un clip : le sien s'il est rempli, sinon celui de l'espace Clips. */
+export function styleVisuelClip(serie: Pick<Serie, "style_visuel">, episode: Pick<Episode, "style_visuel">): string {
+  return episode.style_visuel.trim() || serie.style_visuel;
+}
+
+/** Un segment du clip tel qu'envoyé à l'IA : son index, sa place dans la chanson et ce qui y est chanté. */
+export type SegmentPourIA = { index: number; debut: number; fin: number; texte: string; type: string };
+
+/**
+ * Prompt d'écriture des scènes d'un clip musical (ChatGPT ou Claude).
+ * Une description d'image par segment, qui illustre ce qui est chanté à ce moment et l'énergie de la musique.
+ * Réponse attendue conforme à `schemaClipIA`.
+ */
+export function promptClip(params: {
+  serie: Pick<Serie, "nom" | "style_visuel">;
+  episode: Pick<Episode, "titre" | "idee" | "style_visuel" | "langue" | "format" | "musique_style">;
+  personnages: readonly Pick<Personnage, "nom" | "description">[];
+  segments: readonly SegmentPourIA[];
+}): MessagesIA {
+  const { episode } = params;
+  const noms = params.personnages.map((p) => p.nom).join(", ");
+  const system = [
+    "Tu es réalisateur de clips musicaux. Le clip est généré plan par plan : une image fixe par plan (ChatGPT Images), animée ensuite en vidéo de quelques secondes par une IA (Grok), puis montée sur la chanson.",
+    "Pour chaque segment, écris en français une description de ce qu'on VOIT (une ou deux phrases concrètes : sujet, action, cadrage, lumière, couleurs), qui illustre les paroles chantées à ce moment ou l'énergie de la musique quand il n'y a pas de paroles.",
+    "Le clip raconte une histoire visuelle cohérente du début à la fin : mêmes personnages avec la même apparence, mêmes lieux qui reviennent, une progression jusqu'au refrain (segments de type climax, les plus spectaculaires) et une image finale forte.",
+    "Varie les cadrages (plan large, plan moyen, gros plan) d'un segment à l'autre. Pas de texte écrit, pas de logo, pas de personne réelle ou célèbre, pas d'artiste existant.",
+    noms ? `Personnages récurrents possibles (indique "personnage" quand l'un d'eux est à l'image, sinon null) : ${noms}.` : 'Pas de personnage imposé : "personnage" vaut toujours null.',
+    'Réponds uniquement en JSON : {"titre": string, "plans": [{"index": number, "texte": string, "personnage": string|null}]} avec exactement un plan par segment, dans le même ordre.',
+  ].join("\n");
+  const persos = params.personnages.map((p) => `- ${p.nom} : ${p.description || "(sans description)"}`).join("\n");
+  const segments = params.segments
+    .map((s) => `${s.index}. [${s.type}] ${s.debut.toFixed(1)}–${s.fin.toFixed(1)} s : ${s.texte ? `« ${s.texte} »` : "(instrumental)"}`)
+    .join("\n");
+  const user = [
+    `Artiste / espace : ${params.serie.nom}`,
+    `Titre de la chanson : ${episode.titre || "(à proposer)"}`,
+    `Langue de la chanson : ${NOMS_LANGUES[episode.langue]}`,
+    `Style visuel : ${styleVisuelClip(params.serie, episode) || "(libre, cohérent avec la musique)"}`,
+    episode.musique_style ? `Style musical : ${episode.musique_style}` : "",
+    `Idée du clip : ${episode.idee || "(libre, inspirée des paroles)"}`,
+    `Cadrage : ${episode.format === "court" ? "vertical 9:16" : "horizontal 16:9"}`,
+    persos ? `Personnages :\n${persos}` : "",
+    "",
+    `Segments (${params.segments.length}) :`,
+    segments,
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+  return { system, user };
+}
+
+/** Prompt d'écriture de paroles à partir d'une idée. Réponse conforme à `schemaParolesIA`. */
+export function promptParoles(params: { idee: string; style: string; langue: Langue; dureeCible: number; titre: string }): MessagesIA {
+  const lignes = Math.max(8, Math.min(48, Math.round(params.dureeCible / 4)));
+  return {
+    system: [
+      "Tu es parolier. Tu écris des paroles originales, chantables, avec des rimes ou assonances naturelles et un refrain qui revient.",
+      "Marque chaque section sur sa propre ligne entre crochets : [Couplet 1], [Refrain], [Couplet 2], [Pont]…",
+      "N'imite aucun artiste existant, ne reprends aucune parole existante.",
+      'Réponds uniquement en JSON : {"titre": string, "paroles": string} (les sauts de ligne en \\n).',
+    ].join("\n"),
+    user: [
+      `Langue des paroles : ${NOMS_LANGUES[params.langue]}`,
+      `Titre de travail : ${params.titre || "(à proposer)"}`,
+      `Style musical : ${params.style || "(libre)"}`,
+      `Durée visée : environ ${Math.round(params.dureeCible)} s, soit à peu près ${lignes} lignes chantées.`,
+      `Idée : ${params.idee || "(libre)"}`,
+    ].join("\n"),
+  };
+}
+
+/**
+ * Prompt de traduction des paroles ligne par ligne, pour les sous-titres d'un clip.
+ * Réponse : {"titre": {"<langue>": string}, "lignes": {"<langue>": string[]}} avec autant de lignes que l'original.
+ */
+export function promptTraductionParoles(params: { titre: string; lignes: readonly string[]; de: Langue; vers: readonly Langue[] }): MessagesIA {
+  return {
+    system: [
+      "Tu traduis des paroles de chanson pour des sous-titres. Garde le sens et l'image, une ligne traduite par ligne originale, courte et lisible.",
+      'Réponds uniquement en JSON : {"titre": {"<langue>": string}, "lignes": {"<langue>": [string]}} avec EXACTEMENT le même nombre de lignes que l\'original, dans le même ordre. Codes de langue : fr, en, ja, ko, pt.',
+    ].join("\n"),
+    user: `Langue d'origine : ${params.de}\nLangues cibles : ${params.vers.join(", ")}\nTitre : ${params.titre}\nLignes (${params.lignes.length}) :\n${params.lignes.map((l, i) => `${i + 1}. ${l}`).join("\n")}`,
+  };
+}
+
+/** Prompt d'animation d'un plan de clip (Grok) : mouvement calé sur l'énergie de la musique, sans son généré. */
+export function promptVideoClip(plan: Pick<Plan, "texte" | "type">, duree: number): string {
+  const energie = plan.type === "climax" ? "mouvement ample et énergique, en rythme" : plan.type === "decor" ? "mouvement de caméra lent et fluide" : "mouvement naturel, en rythme avec une musique";
+  return `${plan.texte} Animation de ${duree} secondes, ${energie}, cohérente avec l'image de départ. Pas de paroles, pas de texte à l'écran.`;
+}

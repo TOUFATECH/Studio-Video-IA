@@ -9,3 +9,4 @@ export * from "./hashtags";
 export * from "./titres";
 export * from "./prompts";
 export * from "./statut";
+export * from "./clip";

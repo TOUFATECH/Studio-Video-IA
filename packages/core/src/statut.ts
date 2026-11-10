@@ -6,7 +6,7 @@ import type { Episode, Fichier, Personnage, Plan, Publication, Tache } from "./t
 export type Ton = "neutre" | "info" | "attention" | "erreur" | "succes" | "secondaire";
 
 /** Étape de l'épisode où se trouve l'action suivante. */
-export type Etape = "scenario" | "storyboard" | "clips" | "montage" | "publication";
+export type Etape = "son" | "scenario" | "storyboard" | "clips" | "montage" | "publication";
 
 /** Compteurs d'une famille d'unités : faites, en échec, total. */
 export type Compte = { fait: number; echec: number; total: number };
@@ -72,7 +72,14 @@ export function etatEpisode(params: {
   let ton: Ton;
   let etape: Etape;
   let action: string;
-  if (n === 0) [statut, ton, etape, action] = ["Idée", "neutre", "scenario", "Écrire le scénario"];
+  const chanson = fichiers.some((f) => f.genre === "chanson" && f.statut === "pret");
+  const estClip = episode.genre === "clip";
+  if (n === 0 && estClip && tacheEnCours && etapeDeTache(tacheEnCours) === "son")
+    [statut, ton, etape, action] = [libelleTache(tacheEnCours), tacheEnCours.statut === "en_cours" ? "info" : "attention", "son", "Voir la progression"];
+  else if (n === 0 && estClip && !chanson) [statut, ton, etape, action] = ["Chanson à ajouter", "neutre", "son", "Ajouter la chanson"];
+  else if (n === 0 && estClip && episode.paroles_alignees === null) [statut, ton, etape, action] = ["Paroles à synchroniser", "secondaire", "son", "Synchroniser les paroles"];
+  else if (n === 0 && estClip && !tacheEnCours) [statut, ton, etape, action] = ["Prêt à découper", "secondaire", "scenario", "Découper le clip"];
+  else if (n === 0 && !tacheEnCours) [statut, ton, etape, action] = ["Idée", "neutre", "scenario", "Écrire le scénario"];
   else if (tacheEnCours?.statut === "en_pause") [statut, ton, etape, action] = ["Budget atteint", "erreur", etapeDeTache(tacheEnCours), "Voir le budget"];
   else if (tacheEnCours) [statut, ton, etape, action] = [libelleTache(tacheEnCours), tacheEnCours.statut === "en_cours" ? "info" : "attention", etapeDeTache(tacheEnCours), "Voir la progression"];
   else if (storyboard.echec || clips.echec || rendus.echec) [statut, ton, etape, action] = ["Échec à corriger", "erreur", clips.echec ? "clips" : storyboard.echec ? "storyboard" : "montage", "Corriger l’échec"];
@@ -81,24 +88,29 @@ export function etatEpisode(params: {
   else if (!clipsFinis) [statut, ton, etape, action] = [clips.fait ? "Clips à compléter" : "Clips à lancer", "secondaire", "clips", "Lancer les clips"];
   else if (!rendusFinis) [statut, ton, etape, action] = ["À monter", "secondaire", "montage", "Lancer le rendu"];
   else if (echecsPub) [statut, ton, etape, action] = ["Publication en échec", "erreur", "publication", "Voir la publication"];
-  else if (publiees) [statut, ton, etape, action] = ["Publié", "succes", "publication", "Écrire la suite"];
+  else if (publiees) [statut, ton, etape, action] = ["Publié", "succes", "publication", estClip ? "Nouveau clip" : "Écrire la suite"];
   else if (programmees) [statut, ton, etape, action] = ["Programmé", "info", "publication", "Voir la publication"];
-  else [statut, ton, etape, action] = [episode.genre === "episode" ? "Prêt à publier" : "Prêt", "succes", "publication", "Publier"];
+  else [statut, ton, etape, action] = [episode.genre === "episode" || estClip ? "Prêt à publier" : "Prêt", "succes", "publication", "Publier"];
 
   // Pondération : scénario 10 %, storyboard 20 %, clips 40 %, rendu 10 %, publication 20 %.
   const part = (c: Compte): number => (c.total ? c.fait / c.total : 0);
+  // Un clip compte la chanson (3 %) et la synchronisation (3 %) dans ses 10 % de départ.
+  const publiable = episode.genre === "episode" || estClip;
   const pourcentage =
     n === 0
-      ? episode.idee
-        ? 4
-        : 0
-      : Math.min(100, Math.round(10 + 20 * part(storyboard) * (0.5 + 0.5 * (valides / n)) + 40 * part(clips) + 10 * part(rendus) + (episode.genre !== "episode" ? 20 : publiees ? 20 : programmees ? 10 : 0)));
+      ? estClip
+        ? (chanson ? 3 : 0) + (episode.paroles_alignees !== null ? 3 : 0)
+        : episode.idee
+          ? 4
+          : 0
+      : Math.min(100, Math.round(10 + 20 * part(storyboard) * (0.5 + 0.5 * (valides / n)) + 40 * part(clips) + 10 * part(rendus) + (!publiable ? 20 : publiees ? 20 : programmees ? 10 : 0)));
 
   return { statut, ton, etape, pourcentage, storyboard, valides, clips, rendus, publiees, programmees, echecs, tacheEnCours, action };
 }
 
 /** Étape de l'épisode concernée par une tâche. */
 export function etapeDeTache(t: Pick<Tache, "type">): Etape {
+  if (t.type === "paroles" || t.type === "musique" || t.type === "synchro") return "son";
   if (t.type === "storyboard") return "storyboard";
   if (t.type === "clips") return "clips";
   if (t.type === "rendu" || t.type === "memoire") return "montage";
@@ -119,6 +131,9 @@ export function libelleTache(t: Pick<Tache, "type" | "statut">): string {
     memoire: "Mémoire",
     clone_voix: "Clonage de voix",
     test_complet: "Test complet",
+    paroles: "Paroles",
+    musique: "Musique",
+    synchro: "Synchronisation",
   };
   if (t.statut === "en_file") return `${noms[t.type]} · en file`;
   if (t.statut === "en_pause") return `${noms[t.type]} · en pause`;

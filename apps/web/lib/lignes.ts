@@ -222,7 +222,7 @@ export const ligneMemoire = z.object({
 
 export const ligneReglages = z.object({
   proprietaire: z.string(),
-  tarifs: schemaTarifs.catch({ image: 0.07, video_seconde: 0.05, voix_1000_car: 0.3 }),
+  tarifs: schemaTarifs.catch({ image: 0.07, video_seconde: 0.05, voix_1000_car: 0.3, musique_minute: 0.5 }),
   preferences: schemaPreferences.catch({ parallele: 2, sous_titres: "aucun", prises: 1, memoire_auto: true }),
 });
 

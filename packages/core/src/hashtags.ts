@@ -1,5 +1,5 @@
 // Hashtags par réseau : nettoyage, limites de chaque réseau, choix entre l'épisode, la série et les valeurs par défaut.
-import { HASHTAGS, type Langue, type Reseau } from "./constantes";
+import { HASHTAGS, HASHTAGS_CLIP, type Langue, type Reseau } from "./constantes";
 
 /** Hashtags par réseau, tels qu'enregistrés dans `series.hashtags` et `episodes.hashtags`. */
 export type HashtagsParReseau = Partial<Record<Reseau, string>>;
@@ -25,10 +25,14 @@ export function normaliserHashtags(saisie: string, reseau: Reseau): string {
   return out.join(" ");
 }
 
-/** Hashtags par défaut pour une série et une langue : ceux de la langue, puis le nom de la série en un mot. */
-export function hashtagsParDefaut(nomSerie: string, langue: Langue): string {
+/**
+ * Hashtags par défaut pour une série et une langue : ceux de la langue, puis le nom de la série en un mot.
+ * Pour un clip musical, les hashtags musique remplacent ceux des séries.
+ */
+export function hashtagsParDefaut(nomSerie: string, langue: Langue, clip = false): string {
+  const base = (clip ? HASHTAGS_CLIP : HASHTAGS)[langue];
   const mot = nomSerie.normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
-  return mot ? `${HASHTAGS[langue]} #${mot}` : HASHTAGS[langue];
+  return mot ? `${base} #${mot}` : base;
 }
 
 /** Hashtags retenus pour une publication : ceux de l'épisode, sinon ceux de la série, sinon les valeurs par défaut. */
@@ -38,8 +42,9 @@ export function hashtagsPour(params: {
   nomSerie: string;
   serie: HashtagsParReseau;
   episode: HashtagsParReseau;
+  clip?: boolean;
 }): string {
-  const brut = params.episode[params.reseau]?.trim() || params.serie[params.reseau]?.trim() || hashtagsParDefaut(params.nomSerie, params.langue);
+  const brut = params.episode[params.reseau]?.trim() || params.serie[params.reseau]?.trim() || hashtagsParDefaut(params.nomSerie, params.langue, params.clip ?? false);
   return normaliserHashtags(brut, params.reseau);
 }
 
