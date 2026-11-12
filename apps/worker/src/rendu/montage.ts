@@ -88,6 +88,21 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
     }
   }
 
+  // Texte à l'écran des plans (« Épisode 2 bientôt »…) : un second fichier SRT, affiché en haut de l'image.
+  let texteEcran: string | null = null;
+  if (p.plans.some((x) => x.plan.texte_ecran?.trim())) {
+    const reperes: { debut: number; fin: number; texte: string }[] = [];
+    let t0 = dureeAvant;
+    for (const x of p.plans) {
+      if (x.plan.texte_ecran?.trim()) reperes.push({ debut: t0, fin: t0 + x.duree, texte: x.plan.texte_ecran.trim() });
+      t0 += x.duree;
+    }
+    if (await aLibass(p.ffmpeg)) {
+      texteEcran = join(p.dossier, "texte-ecran.srt");
+      await writeFile(texteEcran, versSrt(reperes), "utf8");
+    }
+  }
+
   const videos: string[] = [];
   const audios: string[] = [];
   /** Découpe un fichier en segment vidéo + audio aux paramètres communs. */
@@ -165,6 +180,7 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
       sortie: p.sortie,
       chanson: p.chanson ?? null,
       logo: p.logo ?? null,
+      texteEcran,
     }),
     p.signal,
   );

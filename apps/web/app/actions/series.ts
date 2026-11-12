@@ -1,6 +1,6 @@
 "use server";
 // Actions des séries : création, saisons, épisodes, suite, bible, personnages, mémoire, rythme, hashtags, programmation.
-import { BORNES_DUREE, MAX_HASHTAGS, RESEAUX, normaliserHashtags, type Episode, type Langue, type Serie } from "@studio-video-ia/core";
+import { BORNES_DUREE, MAX_HASHTAGS, RESEAUX, VOIX_GROK_DEFAUT, normaliserHashtags, type Episode, type Langue, type Serie } from "@studio-video-ia/core";
 import { redirect } from "next/navigation";
 import { executer } from "@/lib/action";
 import { espaceAMoi, personnageAMoi, saisonAMoi, serieAMoi } from "@/lib/appartenance";
@@ -18,6 +18,7 @@ import {
   schemaIdSeul,
   schemaNouvelleSerie,
   schemaPersonnage,
+  schemaVoixGrok,
   schemaRythmeFormulaire,
   schemaSaisonSeule,
   schemaSerieSeule,
@@ -233,7 +234,8 @@ export async function ajouterPersonnage(fd: FormData): Promise<void> {
     await serieAMoi(serie_id);
     const { db } = await utilisateur();
     const { count } = await db.from("personnages").select("id", { count: "exact", head: true }).eq("serie_id", serie_id);
-    const { error } = await db.from("personnages").insert({ serie_id, nom: "Nouveau personnage", position: count ?? 0 });
+    // Un nouveau personnage parle avec une voix Grok préréglée (lèvres synchronisées dans les clips).
+    const { error } = await db.from("personnages").insert({ serie_id, nom: "Nouveau personnage", position: count ?? 0, source_voix: "grok", voix_id: VOIX_GROK_DEFAUT });
     verifier(error, "Ajout du personnage");
     return { message: "Personnage ajouté." };
   });
@@ -247,7 +249,8 @@ export async function modifierPersonnage(fd: FormData): Promise<void> {
     const { db } = await utilisateur();
     const { error } = await db
       .from("personnages")
-      .update({ nom: d.nom, description: d.description, source_voix: d.source_voix, voix_id: d.source_voix === "grok" ? "" : d.voix_id, accord_clone: d.accord_clone })
+      // Voix Grok : voix_id est une voix préréglée (« eve », « leo »…), sinon la voix par défaut.
+      .update({ nom: d.nom, description: d.description, source_voix: d.source_voix, voix_id: d.source_voix === "grok" ? (schemaVoixGrok.safeParse(d.voix_id).success ? d.voix_id : VOIX_GROK_DEFAUT) : d.voix_id, accord_clone: d.accord_clone })
       .eq("id", d.id);
     verifier(error, "Enregistrement du personnage");
     return { message: `${d.nom} enregistré.` };
@@ -268,9 +271,9 @@ export async function supprimerPersonnage(fd: FormData): Promise<void> {
 /** Met en file la génération de la fiche de référence (face, profil, dos) d'un personnage. */
 export async function genererFiche(fd: FormData): Promise<void> {
   await executer(async () => {
-    const { id } = valider(schemaIdSeul, fd);
+    const { id, propositions } = valider(schemaIdSeul.extend({ propositions: z.coerce.number().int().min(1).max(4).default(1) }), fd);
     const { personnage, serie } = await personnageAMoi(id);
-    await exigerMiseEnFile({ espace_id: serie.espace_id, type: "fiche_personnage", donnees: { personnage_id: personnage.id } });
+    await exigerMiseEnFile({ espace_id: serie.espace_id, type: "fiche_personnage", donnees: { personnage_id: personnage.id, propositions } });
     const { db } = await utilisateur();
     await db.from("personnages").update({ fiche_statut: "en_cours" }).eq("id", personnage.id);
     return { message: `Fiche de ${personnage.nom} en file.` };

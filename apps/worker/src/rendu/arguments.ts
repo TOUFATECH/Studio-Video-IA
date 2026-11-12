@@ -59,6 +59,12 @@ export function styleSousTitres(police: string, orientation: Orientation): strin
   return [`PlayResX=${largeur}`, `PlayResY=${hauteur}`, `FontName=${police}`, `FontSize=${taille}`, "PrimaryColour=&H00FFFFFF", "OutlineColour=&H00000000", "BorderStyle=1", "Outline=2", "Shadow=0", `MarginV=${marge}`, "Alignment=2"].join(",");
 }
 
+/** Style du texte à l'écran d'un plan : en haut au centre (Alignment=6, numérotation SSA de libass), gras, plus grand que les sous-titres. */
+export function styleTexteEcran(police: string, orientation: Orientation): string {
+  const { largeur, hauteur } = DIMENSIONS[orientation];
+  return [`PlayResX=${largeur}`, `PlayResY=${hauteur}`, `FontName=${police}`, "FontSize=64", "Bold=1", "PrimaryColour=&H00FFFFFF", "OutlineColour=&H00000000", "BorderStyle=1", "Outline=3", "Shadow=0", `MarginV=${orientation === "vertical" ? 260 : 80}`, "Alignment=6"].join(",");
+}
+
 /** Filtre `subtitles` complet, avec le chemin du fichier SRT et le style correctement échappés. */
 export function filtreSousTitres(cheminSrt: string, police: string, orientation: Orientation): string {
   return `subtitles=filename=${echapperValeurFiltre(cheminSrt)}:force_style=${echapperValeurFiltre(styleSousTitres(police, orientation))}`;
@@ -191,6 +197,8 @@ export type ParamsFinal = {
   chanson?: ChansonPlacee | null;
   /** Logo de la marque (PNG) incrusté en haut à droite pendant toute la vidéo. */
   logo?: string | null;
+  /** Fichier SRT du texte à l'écran des plans (en haut de l'image), ou null. */
+  texteEcran?: string | null;
 };
 
 /** Taille et marge du logo incrusté, en proportion de la largeur de la vidéo. */
@@ -273,7 +281,10 @@ export function argumentsFinal(p: ParamsFinal): string[] {
       : `[base]alimiter=limit=0.95[a]`,
   );
   const sortieTexte = p.logo ? "[vt]" : "[v]";
-  filtres.push(p.sousTitres ? `[0:v]${filtreSousTitres(p.sousTitres, p.police, p.orientation)}${sortieTexte}` : `[0:v]null${sortieTexte}`);
+  const chaine: string[] = [];
+  if (p.sousTitres) chaine.push(filtreSousTitres(p.sousTitres, p.police, p.orientation));
+  if (p.texteEcran) chaine.push(`subtitles=filename=${echapperValeurFiltre(p.texteEcran)}:force_style=${echapperValeurFiltre(styleTexteEcran(p.police, p.orientation))}`);
+  filtres.push(`[0:v]${chaine.length ? chaine.join(",") : "null"}${sortieTexte}`);
   if (p.logo) {
     // Logo en incrustation en haut à droite, légèrement transparent, sur toute la durée.
     const { largeur: l } = DIMENSIONS[p.orientation];

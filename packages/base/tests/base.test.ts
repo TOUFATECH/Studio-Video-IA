@@ -5,8 +5,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { creerUtilisateur, fermerSession, ouvrirBase, ouvrirSession, TABLES, utilisateurDeSession, verifierIdentifiants, type Base } from "../src/index";
+import { creerUtilisateur, enregistrerTotp, fermerSession, lireTotp, moteurSqlite, ouvrirBase, ouvrirSession, TABLES, utilisateurDeSession, verifierIdentifiants, type Base } from "../src/index";
 import { migrer } from "../src/migrations";
+import { MIGRATIONS_SQLITE } from "../src/schema-sqlite";
 
 const MOTEURS: { nom: string; url: (dossier: string) => string }[] = [{ nom: "SQLite", url: (d) => `sqlite:${join(d, "test.db")}` }];
 if (process.env.TEST_DATABASE_URL) MOTEURS.push({ nom: "PostgreSQL", url: () => process.env.TEST_DATABASE_URL ?? "" });
@@ -56,6 +57,44 @@ describe.each(MOTEURS)("base $nom", ({ url }) => {
           ? (await base.moteur.lire(`select name from pragma_table_info('${table}')`)).map((l) => String(l.name))
           : (await base.moteur.lire(`select column_name as name from information_schema.columns where table_name = ?`, [table])).map((l) => String(l.name));
       expect(colonnes.sort(), table).toEqual(Object.keys(info.colonnes).sort());
+    }
+  });
+
+  it("enregistre la double authentification (secret chiffré, activation)", async () => {
+    const u = await creerUtilisateur(base.moteur, "totp@exemple.fr", "un-mot-de-passe");
+    expect(await lireTotp(base.moteur, u.id)).toEqual({ chiffre: null, actif: false });
+    await enregistrerTotp(base.moteur, u.id, "v1.secret", true);
+    expect(await lireTotp(base.moteur, u.id)).toEqual({ chiffre: "v1.secret", actif: true });
+    await enregistrerTotp(base.moteur, u.id, null, false);
+    expect(await lireTotp(base.moteur, u.id)).toEqual({ chiffre: null, actif: false });
+  });
+
+  it("migre une base v1 existante vers la v2 sans perdre ses fichiers", async () => {
+    if (base.moteur.dialecte !== "sqlite") return;
+    const d = mkdtempSync(join(tmpdir(), "svi-v1-"));
+    const m = await moteurSqlite(join(d, "v1.db"));
+    try {
+      // Base telle que la laissait la version 1, avec un fichier et sa dépense.
+      await m.script(MIGRATIONS_SQLITE[0]?.sql ?? "");
+      await m.script(`create table if not exists schema_version (version integer primary key, nom text not null, applique_le text not null)`);
+      await m.executer(`insert into schema_version values (1, 'v1', '2026-01-01')`);
+      await m.executer(`insert into utilisateurs (id, email, mot_de_passe) values ('u1', 'a@b.fr', 'x')`);
+      await m.executer(`insert into espaces (id, proprietaire, nom) values ('e1', 'u1', 'Compte')`);
+      await m.executer(`insert into fichiers (id, espace_id, genre, chemin, cout) values ('f1', 'e1', 'musique', 'e1/m.mp3', 0.5)`);
+      const bilan = await migrer(m);
+      expect(bilan.appliquees).toEqual([2]);
+      const [f] = await m.lire(`select genre, chemin, cout, consigne, actif_le, personne_reelle from fichiers where id = 'f1'`);
+      expect(f).toMatchObject({ genre: "musique", chemin: "e1/m.mp3", consigne: "", actif_le: null });
+      expect(Number(f?.cout)).toBe(0.5);
+      // La dépense d'un nouveau fichier est toujours journalisée (déclencheur recréé).
+      await m.executer(`insert into fichiers (id, espace_id, genre, chemin, cout) values ('f2', 'e1', 'reference', 'e1/r.jpg', 1)`);
+      const [dep] = await m.lire(`select count(*) as n from depenses where fichier_id = 'f2'`);
+      expect(Number(dep?.n)).toBe(1);
+      // Photo d'une vraie personne sans accord : refusée par la base.
+      await expect(m.executer(`insert into fichiers (id, espace_id, genre, chemin, personne_reelle, accord_image) values ('f3', 'e1', 'reference', 'e1/p.jpg', 1, 0)`)).rejects.toThrow();
+    } finally {
+      await m.fermer();
+      rmSync(d, { recursive: true, force: true });
     }
   });
 

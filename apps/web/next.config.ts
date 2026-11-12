@@ -19,7 +19,7 @@ if (existsSync(envRacine)) {
 const config: NextConfig = {
   transpilePackages: ["@studio-video-ia/core", "@studio-video-ia/integrations", "@studio-video-ia/base"],
   // Pilote PostgreSQL chargé par Node tel quel (base externe) ; la base locale utilise node:sqlite, intégré à Node.
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "sharp"],
   poweredByHeader: false,
   // Pas d'ESLint dans ce lot : la vérification passe par « tsc --noEmit ».
   eslint: { ignoreDuringBuilds: true },

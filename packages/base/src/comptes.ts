@@ -102,3 +102,15 @@ export async function nombreUtilisateurs(m: Moteur): Promise<number> {
   const [l] = await m.lire(`select count(*) as n from utilisateurs`);
   return Number(l?.n ?? 0);
 }
+
+/** État de la double authentification d'un utilisateur : secret chiffré (ou null) et activation. */
+export async function lireTotp(moteur: Moteur, utilisateurId: string): Promise<{ chiffre: string | null; actif: boolean }> {
+  const [l] = await moteur.lire(`select totp_chiffre, totp_actif from utilisateurs where id = ?`, [utilisateurId]);
+  return { chiffre: typeof l?.totp_chiffre === "string" ? l.totp_chiffre : null, actif: l?.totp_actif === true || Number(l?.totp_actif) === 1 };
+}
+
+/** Enregistre le secret chiffré (null pour l'effacer) et l'activation de la double authentification. */
+export async function enregistrerTotp(moteur: Moteur, utilisateurId: string, chiffre: string | null, actif: boolean): Promise<void> {
+  const valeur = moteur.dialecte === "sqlite" ? (actif ? 1 : 0) : actif;
+  await moteur.executer(`update utilisateurs set totp_chiffre = ?, totp_actif = ? where id = ?`, [chiffre, valeur, utilisateurId]);
+}

@@ -1,5 +1,6 @@
 "use client";
-// Import d'un fichier vers /api/import (échantillon de voix, musique, image de référence), puis rafraîchissement.
+// Import d'un fichier vers /api/import (échantillon de voix, musique, image de référence, photo ou vidéo de la bibliothèque,
+// remplacement de l'image ou du clip d'un plan), puis rafraîchissement. Glisser-déposer accepté sur le champ.
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 
@@ -10,14 +11,21 @@ export function ImportFichier({
   libelle,
   accepte,
   aide,
+  cibleType,
+  droitImage = false,
 }: {
-  genre: "echantillon_voix" | "musique" | "fiche";
-  /** Identifiant visé : personnage (voix, fiche) ou espace (musique). */
+  genre: "echantillon_voix" | "musique" | "fiche" | "reference" | "remplacement_image" | "remplacement_clip";
+  /** Identifiant visé : personnage (voix, fiche), espace (musique), élément de la bibliothèque ou plan (remplacement). */
   cible: string;
   libelle: string;
   accepte: string;
   aide: string;
+  /** Référence : personnage ou élément de la bibliothèque. */
+  cibleType?: "personnage" | "element";
+  /** Affiche les cases « vraie personne » et « accord de la personne » (droit à l'image). */
+  droitImage?: boolean;
 }) {
+  const [reelle, setReelle] = useState(false);
   const router = useRouter();
   const idChamp = useId();
   const [etat, setEtat] = useState<{ ton: "info" | "erreur" | "succes"; texte: string } | null>(null);
@@ -49,6 +57,7 @@ export function ImportFichier({
     <form onSubmit={envoyer} className="pile pile--serree">
       <input type="hidden" name="genre" value={genre} />
       <input type="hidden" name="cible" value={cible} />
+      {cibleType ? <input type="hidden" name="cible_type" value={cibleType} /> : null}
       <label className="etiquette" htmlFor={idChamp}>
         {libelle}
       </label>
@@ -59,6 +68,20 @@ export function ImportFichier({
         </button>
       </div>
       <p className="tres-petit doux">{aide}</p>
+      {droitImage ? (
+        <div className="pile pile--serree">
+          <label className="ligne ligne--serree tres-petit">
+            <input type="checkbox" name="personne_reelle" checked={reelle} onChange={(e) => setReelle(e.target.checked)} />
+            Photo ou vidéo d’une vraie personne
+          </label>
+          {reelle ? (
+            <label className="ligne ligne--serree tres-petit">
+              <input type="checkbox" name="accord" required />
+              J’ai l’accord de cette personne pour utiliser son image (obligatoire)
+            </label>
+          ) : null}
+        </div>
+      ) : null}
       {etat ? (
         <p className={`bandeau bandeau--${etat.ton}`} role="status">
           {etat.texte}

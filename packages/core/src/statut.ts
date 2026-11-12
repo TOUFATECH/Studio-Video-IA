@@ -172,3 +172,14 @@ export function statutProduction(episode: Pick<Episode, "scenario_valide" | "vid
   else if (nombrePlans > 0 && episode.scenario_valide) statut = "Scénario validé";
   return { statut, rang: STATUTS_PRODUCTION.indexOf(statut) };
 }
+
+/**
+ * Temps restant estimé d'une tâche (secondes), d'après le temps déjà passé par unité faite.
+ * Null tant qu'aucune unité n'est terminée.
+ */
+export function tempsRestant(p: { fait?: number; total?: number; secondes?: number }): number | null {
+  const fait = p.fait ?? 0;
+  const total = p.total ?? 0;
+  if (!fait || !p.secondes || total <= fait) return null;
+  return Math.round((p.secondes / fait) * (total - fait));
+}

@@ -1,6 +1,9 @@
 // Tests des schémas Zod des Server Actions et du passage FormData → objet.
 import { describe, expect, it } from "vitest";
 import {
+  schemaArc,
+  schemaCodeTotp,
+  schemaPlanDetaille,
   cheminSur,
   formulaire,
   schemaCle,
@@ -94,7 +97,17 @@ describe("autres schémas", () => {
   });
   it("valide les préférences", () => {
     const r = schemaPreferencesFormulaire.parse({ parallele: "3", sous_titres: "en", prises: "2" });
-    expect(r).toEqual({ parallele: 3, sous_titres: "en", prises: 2, memoire_auto: false, theme: "sombre" });
+    expect(r).toEqual({ parallele: 3, sous_titres: "en", prises: 2, memoire_auto: false, theme: "sombre", propositions: 1, controle_qualite: false, plafond_episode: 20 });
+  });
+  it("valide un plan détaillé (durée 1 à 8 s, effet, transition) et l'arc de saison", () => {
+    const ok = schemaPlanDetaille.safeParse({ id: ID, scene_id: "", duree: "2.5", decor_id: "", activite_id: "", personnages: [ID], variantes: [], cadrage: "gros plan", mouvement: "zoom lent", transition: "flash", effet: "zoom", texte_ecran: "", son: "" });
+    expect(ok.success && ok.data.duree).toBe(2.5);
+    expect(schemaPlanDetaille.safeParse({ id: ID, duree: "9", personnages: [], variantes: [], cadrage: "", mouvement: "", transition: "coupe", effet: "aucun", texte_ecran: "", son: "" }).success).toBe(false);
+    expect(schemaPlanDetaille.safeParse({ id: ID, duree: "", personnages: [], variantes: [], cadrage: "", mouvement: "", transition: "coupe", effet: "explosion", texte_ecran: "", son: "" }).success).toBe(false);
+    expect(schemaArc.safeParse({ saison_id: ID, idee: "Le glow-up", nombre: "12" }).success).toBe(true);
+    expect(schemaArc.safeParse({ saison_id: ID, idee: "x", nombre: "31" }).success).toBe(false);
+    expect(schemaCodeTotp.safeParse({ code: " 123456 " }).success).toBe(true);
+    expect(schemaCodeTotp.safeParse({ code: "12345" }).success).toBe(false);
   });
   it("refuse un fuseau inconnu et une couleur invalide", () => {
     const base = { id: ID, nom: "Japon", couleur: "#47C68B", fuseau: "Asia/Tokyo", plafond_mensuel: "40" };

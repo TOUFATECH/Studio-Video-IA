@@ -29,11 +29,20 @@ export function dateVersion(f: Pick<Fichier, "cree_le"> & { actif_le?: string | 
   return f.actif_le && f.actif_le > f.cree_le ? f.actif_le : f.cree_le;
 }
 
-/** Index clé → fichier, en gardant la version retenue (la plus récente) quand il y en a plusieurs. */
+/**
+ * Index clé → fichier, en gardant la version retenue (la plus récente) quand il y en a plusieurs.
+ * Un clip plus ancien que l'image retenue de son plan est périmé (il part de l'ancienne image) : il est écarté,
+ * mais reste dans l'historique des versions.
+ */
 export function indexerFichiers(fichiers: readonly Fichier[]): Map<string, Fichier> {
   const m = new Map<string, Fichier>();
   const tries = [...fichiers].sort((a, b) => dateVersion(a).localeCompare(dateVersion(b)));
   for (const f of tries) m.set(cleFichier(f), f);
+  for (const [cle, f] of m) {
+    if (f.genre !== "clip" || !f.plan_id) continue;
+    const image = m.get(`${f.plan_id}:image`);
+    if (image?.statut === "pret" && dateVersion(image) > dateVersion(f)) m.delete(cle);
+  }
   return m;
 }
 

@@ -7,6 +7,7 @@ import { OngletBudget } from "./OngletBudget";
 import { OngletCles } from "./OngletCles";
 import { OngletComptes } from "./OngletComptes";
 import { OngletPreferences } from "./OngletPreferences";
+import { OngletSecurite } from "./OngletSecurite";
 
 export const metadata: Metadata = { title: "Réglages" };
 
@@ -16,6 +17,7 @@ const ONGLETS = [
   { cle: "cles", libelle: "Clés API" },
   { cle: "budget", libelle: "Budget" },
   { cle: "preferences", libelle: "Préférences" },
+  { cle: "securite", libelle: "Sécurité" },
 ] as const;
 
 /** Page Réglages. */
@@ -41,6 +43,7 @@ export default async function PageReglages({ searchParams }: { searchParams: Pro
       {onglet === "cles" ? <OngletCles /> : null}
       {onglet === "budget" ? <OngletBudget portee={portee} /> : null}
       {onglet === "preferences" ? <OngletPreferences /> : null}
+      {onglet === "securite" ? <OngletSecurite /> : null}
     </div>
   );
 }

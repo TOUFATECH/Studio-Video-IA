@@ -155,7 +155,7 @@ describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
     const plans = [
       { ...plan("z", ""), effet: "zoom" as const, transition: "fondu" as const },
       { ...plan("t", ""), effet: "tremblement" as const, transition: "flash" as const },
-      { ...plan("r", ""), effet: "ralenti" as const },
+      { ...plan("r", ""), effet: "ralenti" as const, texte_ecran: "Épisode 2 bientôt" },
     ];
     const r = await monter({
       ffmpeg: FFMPEG,

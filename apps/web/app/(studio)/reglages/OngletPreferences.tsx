@@ -59,6 +59,31 @@ export async function OngletPreferences() {
           <input type="checkbox" name="memoire_auto" defaultChecked={preferences.memoire_auto} />
           <span>Mettre à jour la mémoire après chaque rendu</span>
         </label>
+        <h2 className="h3">Génération des images</h2>
+        <div className="ligne ligne--bas">
+          <div className="champ">
+            <label className="etiquette" htmlFor="pf-prop">
+              Propositions d’image par plan
+            </label>
+            <select id="pf-prop" name="propositions" defaultValue={String(preferences.propositions)}>
+              {[1, 2, 3, 4].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="champ">
+            <label className="etiquette" htmlFor="pf-plafond">
+              Confirmation au-delà de (€ par épisode)
+            </label>
+            <input id="pf-plafond" name="plafond_episode" type="number" min={0} max={10000} step={1} defaultValue={preferences.plafond_episode} style={{ width: 140 }} />
+          </div>
+        </div>
+        <label className="case">
+          <input type="checkbox" name="controle_qualite" defaultChecked={preferences.controle_qualite} />
+          <span>Contrôle qualité de chaque image par l’IA (personnages, visages, décor, texte parasite) ; un plan douteux est signalé en orange</span>
+        </label>
         <div>
           <BoutonEnvoi variante="principal">Enregistrer</BoutonEnvoi>
         </div>

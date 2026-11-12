@@ -1,10 +1,10 @@
 // Chargement de tout ce qu'affiche la page d'un épisode, avec les URL signées de ses médias.
 import "server-only";
-import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers, aGeneriques, DUREE_GENERIQUES } from "@studio-video-ia/core";
+import { coutEstimeEpisode, dureesParPlan, etatEpisode, indexerFichiers, aGeneriques, DUREE_GENERIQUES, statutProduction } from "@studio-video-ia/core";
 import { notFound } from "next/navigation";
 import { COLONNES_RESEAU } from "@/lib/appartenance";
 import { ordreLecture } from "@/lib/episodes";
-import { ligne, ligneEpisode, ligneEspace, ligneFichier, ligneMemoire, lignePersonnage, lignePlan, lignePublication, ligneReseau, ligneSaison, ligneSerie, lignes, ligneTache } from "@/lib/lignes";
+import { ligne, ligneElement, ligneEpisode, ligneEspace, ligneFichier, ligneMemoire, lignePersonnage, lignePlan, lignePublication, ligneReseau, ligneSaison, ligneScene, ligneSerie, lignes, ligneTache } from "@/lib/lignes";
 import { urlsSignees } from "@/lib/medias";
 import { chargerReglages } from "@/lib/reglages";
 import { id as schemaId } from "@/lib/schemas";
@@ -35,6 +35,11 @@ export async function chargerEpisode(brut: string) {
     chargerReglages(),
   ]);
   if (!espace) notFound();
+  // Scènes de l'épisode et bibliothèque visible par la série (ses éléments et ceux partagés dans le compte).
+  const [scenes, elements] = await Promise.all([
+    db.from("scenes").select("*").eq("episode_id", episode.id).order("position").then((x) => lignes(ligneScene, x.data, "scenes")),
+    db.from("elements").select("*").eq("espace_id", serie.espace_id).order("position").then((x) => lignes(ligneElement, x.data, "elements").filter((e) => e.serie_id === null || e.serie_id === serie.id)),
+  ]);
   const saison = saisons.find((s) => s.id === episode.saison_id);
   const ordre = ordreLecture(episodesSerie, saisons);
   const position = ordre.findIndex((e) => e.id === episode.id);
@@ -53,8 +58,12 @@ export async function chargerEpisode(brut: string) {
   const miniatures = episode.miniature?.chemins ?? [];
   const urls = await urlsSignees([...fichiers.filter((f) => f.statut === "pret").map((f) => f.chemin), ...fiches, ...miniatures]);
   const depense = fichiers.reduce((a, f) => a + f.cout, 0);
-  const estimation = coutEstimeEpisode(episode, plans, personnages, durees, reglages.tarifs);
+  const estimation = coutEstimeEpisode(episode, plans, personnages, durees, reglages.tarifs, reglages.preferences.propositions);
+  const production = statutProduction(episode, etat, plans.length);
   return {
+    scenes,
+    elements,
+    production,
     episode,
     serie,
     espace,

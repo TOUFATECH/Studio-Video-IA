@@ -236,6 +236,11 @@ describe("durées par réseau", () => {
     expect(indexerFichiers([v1, v2]).get("p1:image")?.id).toBe("v2");
     expect(indexerFichiers([{ ...v1, actif_le: "2026-01-03T00:00:00Z" }, v2]).get("p1:image")?.id).toBe("v1");
     expect(versionsDe([v1, v2], "p1:image").map((f) => f.id)).toEqual(["v2", "v1"]);
+    // Un clip fait avant la nouvelle image est périmé ; un clip refait après redevient le bon.
+    const clip: Fichier = { ...base, id: "c1", genre: "clip", prise: "A", chemin: "c", cree_le: "2026-01-01T12:00:00Z" };
+    expect(indexerFichiers([v1, clip]).get("p1:clip:A")?.id).toBe("c1");
+    expect(indexerFichiers([v1, clip, v2]).get("p1:clip:A")).toBeUndefined();
+    expect(indexerFichiers([v1, clip, v2, { ...clip, id: "c2", cree_le: "2026-01-03T00:00:00Z" }]).get("p1:clip:A")?.id).toBe("c2");
   });
   it("donne les 9 statuts de production dans l'ordre", () => {
     const c = (fait: number, total: number) => ({ fait, echec: 0, total });

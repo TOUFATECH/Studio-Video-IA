@@ -8,6 +8,7 @@ import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { parametre, schemaOngletSerie } from "@/lib/schemas";
 import { chargerSerie } from "./chargement";
 import { OngletBible } from "./OngletBible";
+import { OngletBibliotheque } from "./OngletBibliotheque";
 import { OngletEpisodes } from "./OngletEpisodes";
 import { OngletMemoire } from "./OngletMemoire";
 import { OngletPublication } from "./OngletPublication";
@@ -18,6 +19,7 @@ export const metadata: Metadata = { title: "Série" };
 const ONGLETS = [
   { cle: "episodes", libelle: "Épisodes" },
   { cle: "bible", libelle: "Bible et personnages" },
+  { cle: "bibliotheque", libelle: "Bibliothèque" },
   { cle: "memoire", libelle: "Mémoire" },
   { cle: "publication", libelle: "Publication" },
 ] as const;
@@ -32,10 +34,11 @@ export default async function PageSerie({ params, searchParams }: { params: Prom
   const compteurs: Record<(typeof ONGLETS)[number]["cle"], string> = {
     episodes: String(nbEpisodes),
     bible: String(d.personnages.length),
+    bibliotheque: String(d.elements.length + d.personnages.length),
     memoire: String(d.memoire.length),
     publication: "",
   };
-  const actif = d.taches.length > 0 || d.fiches.length > 0 || d.personnages.some((x) => x.fiche_statut === "en_cours");
+  const actif = d.taches.length > 0 || d.fiches.length > 0 || d.arcs.size > 0 || d.personnages.some((x) => x.fiche_statut === "en_cours");
 
   return (
     <div className="pile pile--large">
@@ -69,6 +72,7 @@ export default async function PageSerie({ params, searchParams }: { params: Prom
       </nav>
       {onglet === "episodes" ? <OngletEpisodes d={d} /> : null}
       {onglet === "bible" ? <OngletBible d={d} /> : null}
+      {onglet === "bibliotheque" ? <OngletBibliotheque d={d} /> : null}
       {onglet === "memoire" ? <OngletMemoire d={d} /> : null}
       {onglet === "publication" ? <OngletPublication d={d} /> : null}
     </div>

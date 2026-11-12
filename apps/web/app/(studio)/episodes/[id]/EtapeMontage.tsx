@@ -4,6 +4,7 @@ import Link from "next/link";
 import { lienEpisode } from "@/lib/episodes";
 import { choisirMiniature, choisirTitre, lancerRendu, modifierLangues, modifierMontage, modifierSousTitres } from "@/app/actions/episodes";
 import { ImportFichier } from "@/components/ImportFichier";
+import { modifierMarqueMontage, validerVideo } from "@/app/actions/studio";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
 import { Pastille, Puce } from "@/components/ui/elements";
 import type { DonneesEpisode } from "./chargement";
@@ -187,6 +188,32 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
         </section>
       ) : null}
 
+      <section aria-labelledby="marque-h" className="carte pile pile--serree">
+        <h2 id="marque-h" className="h3">
+          Marque
+        </h2>
+        {d.elements.some((e) => e.genre === "marque") ? (
+          <form action={modifierMarqueMontage} className="ligne">
+            {champ}
+            <label className="case">
+              <input type="checkbox" name="logo" defaultChecked={episode.logo} />
+              <span>Logo en incrustation</span>
+            </label>
+            <label className="case">
+              <input type="checkbox" name="carte_fin" defaultChecked={episode.carte_fin} />
+              <span>Carte de fin avec le logo (3 s)</span>
+            </label>
+            <BoutonEnvoi>Enregistrer</BoutonEnvoi>
+          </form>
+        ) : (
+          <p className="tres-petit doux">
+            Ajoute ta marque (logo PNG transparent, couleurs) dans la{" "}
+            <Link href={`/series/${serie.id}?onglet=bibliotheque`}>bibliothèque de la série</Link> pour poser le logo sur chaque vidéo et une carte de fin.
+          </p>
+        )}
+        <p className="tres-petit doux">Effets (zoom, tremblement, ralenti) et transitions (fondu, flash) se règlent plan par plan dans le storyboard du scénario.</p>
+      </section>
+
       <section aria-labelledby="rendu-h" className="carte pile pile--serree">
         <div className="ligne ligne--entre">
           <h2 id="rendu-h" className="h2">
@@ -200,6 +227,14 @@ export function EtapeMontage({ d }: { d: DonneesEpisode }) {
           </form>
         </div>
         {!clipsOk ? <p className="tres-petit texte-attention">{clip ? "Il manque des vidéos : termine l’étape Vidéos." : "Il manque des clips : termine l’étape Clips et voix."}</p> : null}
+        {d.etat.rendus.fait > 0 ? (
+          <form action={validerVideo} className="ligne">
+            {champ}
+            <input type="hidden" name="valide" value={episode.video_validee ? "" : "on"} />
+            <BoutonEnvoi variante={episode.video_validee ? "discret" : "principal"}>{episode.video_validee ? "Retirer la validation" : "Valider la vidéo finale"}</BoutonEnvoi>
+            <span className="tres-petit doux">{episode.video_validee ? "Vidéo validée : prête à publier." : "Rien n’est publié sans ta validation, sauf si la publication automatique est activée pour la série."}</span>
+          </form>
+        ) : null}
         <ul className="liste-nue">
           {episode.langues.map((l) => {
             const f = index.get(`rendu:${l}`);
