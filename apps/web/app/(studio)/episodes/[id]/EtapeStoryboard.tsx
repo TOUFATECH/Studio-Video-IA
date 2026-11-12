@@ -138,7 +138,7 @@ export function EtapeStoryboard({ d }: { d: DonneesEpisode }) {
                 <summary className="tres-petit">
                   Versions ({versions.length}) · retouche · commentaires{ouverts.length ? ` (${ouverts.length})` : ""}
                 </summary>
-                <div className="pile pile--serree marge-haut">
+                <div className={`marge-haut ${styles.outilsPlan}`}>
                   {versions.length > 1 ? (
                     <div className="ligne ligne--serree" role="list" aria-label={`Versions de l’image du plan ${i + 1}`}>
                       {versions.map((v, k) => {

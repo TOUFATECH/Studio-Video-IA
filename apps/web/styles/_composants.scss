@@ -186,6 +186,11 @@
   min-width: 0;
   flex: 1 1 180px;
 
+  // Dans une pile (colonne), la base de 180 px deviendrait une hauteur : le champ garde sa taille naturelle.
+  .pile > & {
+    flex: none;
+  }
+
   &--etroit {
     flex: 0 1 140px;
   }

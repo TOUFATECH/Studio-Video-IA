@@ -151,6 +151,24 @@
   gap: 12px;
 }
 
+// Outils ouverts (versions, refaire, retouche, commentaires) : la carte prend toute la ligne
+// pour que les champs restent lisibles au lieu de s'empiler dans une colonne de 150 px.
+.vignette:has(> details[open]) {
+  grid-column: 1 / -1;
+
+  .cadre {
+    width: 100%;
+    max-width: 220px;
+  }
+}
+
+.outilsPlan {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
 .vignette {
   display: flex;
   flex-direction: column;

@@ -17,12 +17,12 @@ const ACCEPTE_REFERENCE = "image/png,image/jpeg,image/webp,video/mp4,video/quick
 const AIDE_REFERENCE = "Photo PNG, JPG ou WebP (15 Mo) ou vidéo MP4 ou MOV (60 Mo), depuis le téléphone ou l’ordinateur. Redressée et recadrée automatiquement.";
 
 /** Ordre et textes d'aide des sections de la bibliothèque. */
-const SECTIONS: { genre: GenreElement; aide: string }[] = [
-  { genre: "decor", aide: "Photos et vidéos du vrai lieu (salon, façade, rue) : données à l’IA avec chaque plan pour que le lieu soit le vrai." },
-  { genre: "variante", aide: "« Avant la coupe », « tenue de soirée », « capuche cachant tous les cheveux » : une référence à part, choisie par plan." },
-  { genre: "activite", aide: "Ce que fait le personnage (couper, jouer à la PS5, danser) : un modèle de consigne de mouvement réutilisable." },
-  { genre: "marque", aide: "Logo (PNG transparent), couleurs, police : logo posé sur chaque vidéo et carte de fin." },
-  { genre: "son", aide: "Musique, ambiance, bruitages à réutiliser (notes pour l’IA ; la musique d’épisode s’importe dans Réglages)." },
+const SECTIONS: { genre: GenreElement; titre: string; aide: string }[] = [
+  { genre: "decor", titre: "Décors", aide: "Photos et vidéos du vrai lieu (salon, façade, rue) : données à l’IA avec chaque plan pour que le lieu soit le vrai." },
+  { genre: "variante", titre: "Variantes de personnages", aide: "« Avant la coupe », « tenue de soirée », « capuche cachant tous les cheveux » : une référence à part, choisie par plan." },
+  { genre: "activite", titre: "Activités", aide: "Ce que fait le personnage (couper, jouer à la PS5, danser) : un modèle de consigne de mouvement réutilisable." },
+  { genre: "marque", titre: "Marque", aide: "Logo (PNG transparent), couleurs, police : logo posé sur chaque vidéo et carte de fin." },
+  { genre: "son", titre: "Sons", aide: "Musique, ambiance, bruitages à réutiliser (notes pour l’IA ; la musique d’épisode s’importe dans Réglages)." },
 ];
 
 /** Où apparaît une fiche : codes d'épisode et numéros de plans. */
@@ -248,18 +248,18 @@ export async function OngletBibliotheque({ d }: { d: DonneesSerie }) {
         </div>
       </section>
 
-      {SECTIONS.map(({ genre, aide }) => {
+      {SECTIONS.map(({ genre, titre, aide }) => {
         const liste = d.elements.filter((e) => e.genre === genre);
         return (
           <section key={genre} aria-labelledby={`bib-${genre}-h`} className="pile">
-            <div className="ligne ligne--entre ligne--bas">
+            <div className="pile pile--serree">
               <div>
                 <h2 id={`bib-${genre}-h`} className="h2">
-                  {GENRES_ELEMENT[genre]}s
+                  {titre}
                 </h2>
                 <p className="tres-petit doux">{aide}</p>
               </div>
-              <form action={ajouterElement} className="ligne ligne--serree ligne--bas">
+              <form action={ajouterElement} className="ligne ligne--serree ligne--bas" style={{ maxWidth: 640 }}>
                 <input type="hidden" name="serie_id" value={d.serie.id} />
                 <input type="hidden" name="genre" value={genre} />
                 {genre === "variante" ? (
@@ -276,7 +276,7 @@ export async function OngletBibliotheque({ d }: { d: DonneesSerie }) {
                 ) : (
                   <input type="hidden" name="personnage_id" value="" />
                 )}
-                <input name="nom" type="text" maxLength={120} required placeholder={genre === "decor" ? "Salon O’QG" : genre === "variante" ? "Capuche cachant les cheveux" : "Nom"} aria-label={`Nom du nouvel élément (${GENRES_ELEMENT[genre].toLowerCase()})`} />
+                <input name="nom" type="text" maxLength={120} required className="extensible" style={{ flex: "1 1 200px", width: "auto" }} placeholder={genre === "decor" ? "Salon O’QG" : genre === "variante" ? "Capuche cachant les cheveux" : "Nom"} aria-label={`Nom du nouvel élément (${GENRES_ELEMENT[genre].toLowerCase()})`} />
                 <BoutonEnvoi desactive={genre === "variante" && !d.personnages.length}>Ajouter</BoutonEnvoi>
               </form>
             </div>
