@@ -1,3 +1,4 @@
+import { CHAMPS_FICHIER_DEFAUT } from "@studio-video-ia/core";
 // Tests des tâches des clips musicaux : données acceptées, durée par défaut, texte de secours, chanson retenue.
 import { describe, expect, it } from "vitest";
 import type { Fichier } from "@studio-video-ia/core";
@@ -8,7 +9,7 @@ import { dureeChansonParDefaut, schemaDonneesMusique } from "../src/taches/son";
 
 /** Fichier factice. */
 function fichier(extra: Partial<Fichier>): Fichier {
-  return { id: Math.random().toString(36), espace_id: "s", episode_id: "e", plan_id: null, personnage_id: null, genre: "chanson", langue: null, prise: null, chemin: "s/e/chanson/a.mp3", duree_s: 180, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...extra };
+  return { id: Math.random().toString(36), espace_id: "s", episode_id: "e", plan_id: null, personnage_id: null, genre: "chanson", langue: null, prise: null, chemin: "s/e/chanson/a.mp3", duree_s: 180, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...CHAMPS_FICHIER_DEFAUT, ...extra };
 }
 
 describe("clips musicaux (worker)", () => {

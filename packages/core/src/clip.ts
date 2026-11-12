@@ -1,6 +1,6 @@
 // Clips musicaux : lecture des paroles, placement des paroles dans la chanson, découpage en plans
 // calés sur les paroles et le tempo, plan de composition pour générer la musique, sous-titres des paroles.
-import { DUREES_AUTORISEES, DUREE_MAX_CLIP, type ChoixSousTitres, type FormatEpisode, type Langue, type TypePlan } from "./constantes";
+import { DUREE_MAX_CLIP, type ChoixSousTitres, type FormatEpisode, type Langue, type TypePlan } from "./constantes";
 import { couperLignes, type Repere } from "./sous-titres";
 import type { Episode, LigneParole } from "./types";
 
@@ -302,12 +302,11 @@ export function decouperInstrumental(extrait: Extrait, bpm: number | null): Segm
 }
 
 /**
- * Durée demandée à Grok pour un plan : le palier autorisé (3, 5, 8, 10 ou 15 s) juste au-dessus de la durée du plan.
- * Le clip est ensuite coupé à la durée exacte au montage. Pour un épisode, la durée est déjà un palier.
+ * Durée demandée à Grok pour un plan : la seconde entière juste au-dessus de la durée du plan (1 à 15 s,
+ * Grok Imagine Video 1.5 accepte toute durée entière). Le clip est ensuite coupé à la durée exacte au montage.
  */
 export function dureeGenerationClip(dureePlan: number): number {
-  const paliers: readonly number[] = DUREES_AUTORISEES;
-  return paliers.find((p) => p >= dureePlan - 0.01) ?? 15;
+  return Math.min(15, Math.max(1, Math.ceil(dureePlan - 0.01)));
 }
 
 // ---------------------------------------------------------------------------------------------

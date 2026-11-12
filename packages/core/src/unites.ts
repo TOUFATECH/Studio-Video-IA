@@ -24,12 +24,22 @@ export function cleFichier(f: Pick<Fichier, "plan_id" | "genre" | "langue" | "pr
   return `${f.plan_id ?? ""}:${f.genre}`;
 }
 
-/** Index clé → fichier, en gardant le plus récent quand il y en a plusieurs. */
+/** Date qui classe les versions : le choix de l'utilisateur (actif_le) passe avant la date de création. */
+export function dateVersion(f: Pick<Fichier, "cree_le"> & { actif_le?: string | null }): string {
+  return f.actif_le && f.actif_le > f.cree_le ? f.actif_le : f.cree_le;
+}
+
+/** Index clé → fichier, en gardant la version retenue (la plus récente) quand il y en a plusieurs. */
 export function indexerFichiers(fichiers: readonly Fichier[]): Map<string, Fichier> {
   const m = new Map<string, Fichier>();
-  const tries = [...fichiers].sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+  const tries = [...fichiers].sort((a, b) => dateVersion(a).localeCompare(dateVersion(b)));
   for (const f of tries) m.set(cleFichier(f), f);
   return m;
+}
+
+/** Toutes les versions prêtes d'une unité, de la plus récente à la plus ancienne (historique). */
+export function versionsDe(fichiers: readonly Fichier[], cle: string): Fichier[] {
+  return fichiers.filter((f) => f.statut === "pret" && f.chemin && cleFichier(f) === cle).sort((a, b) => b.cree_le.localeCompare(a.cree_le));
 }
 
 /** Vrai si le plan a une réplique dite par une voix ElevenLabs (et non par l'audio du clip Grok). */
@@ -68,8 +78,8 @@ export function unitesRendu(episode: Pick<Episode, "langues" | "format" | "genre
  * Coût estimé d'une unité selon les tarifs saisis. Les rendus sont faits par ffmpeg : gratuits.
  * Un clip est payé sur la durée demandée à Grok (palier au-dessus de la durée du plan pour un clip musical).
  */
-export function coutUnite(u: Unite, dureeClip: number, tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">): number {
-  if (u.genre === "image") return tarifs.image;
+export function coutUnite(u: Unite, dureeClip: number, tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">, propositions = 1): number {
+  if (u.genre === "image") return tarifs.image * Math.max(1, propositions);
   if (u.genre === "clip") return dureeGenerationClip(dureeClip) * tarifs.video_seconde;
   if (u.genre === "voix") {
     // Les traductions sont souvent plus longues : on compte au moins 40 caractères par réplique.
@@ -86,7 +96,25 @@ export function coutEstimeEpisode(
   personnages: readonly Personnage[],
   durees: Map<string, number>,
   tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">,
+  propositions = 1,
 ): number {
   const unites = [...unitesStoryboard(plans), ...unitesClips(episode, plans, personnages)];
-  return unites.reduce((s, u) => s + coutUnite(u, u.plan ? durees.get(u.plan.id) ?? 5 : 0, tarifs), 0);
+  return unites.reduce((s, u) => s + coutUnite(u, u.plan ? durees.get(u.plan.id) ?? 5 : 0, tarifs, propositions), 0);
+}
+
+/**
+ * Coût estimé d'un lancement : seulement les unités demandées (images ou clips), avant de les mettre en file.
+ * Sert à demander confirmation au-delà du plafond par épisode.
+ */
+export function coutLancement(params: {
+  genre: "image" | "clip";
+  episode: Pick<Episode, "prises" | "langues">;
+  plans: readonly Plan[];
+  personnages: readonly Personnage[];
+  durees: Map<string, number>;
+  tarifs: Pick<Tarifs, "image" | "video_seconde" | "voix_1000_car">;
+  propositions?: number;
+}): number {
+  const unites = params.genre === "image" ? unitesStoryboard(params.plans) : unitesClips(params.episode, params.plans, params.personnages);
+  return unites.reduce((s, u) => s + coutUnite(u, u.plan ? params.durees.get(u.plan.id) ?? 5 : 0, params.tarifs, params.propositions ?? 1), 0);
 }

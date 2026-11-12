@@ -19,10 +19,11 @@ export const schemaConfig = z.object({
   // Adresse du site : sert aux liens que télécharge Instagram (doit alors être publique, en https).
   APP_URL: texte("http://localhost:3000").pipe(z.string().url("doit être une adresse, ex. https://studio.mon-domaine.fr")),
   OPENAI_TEXT_MODEL: texte("gpt-4.1"),
-  OPENAI_IMAGE_MODEL: texte("gpt-image-1"),
+  OPENAI_IMAGE_MODEL: texte("gpt-image-2"),
   // Qualité fixée explicitement : sans elle, le modèle choisit « auto », souvent la plus chère.
   OPENAI_IMAGE_QUALITY: texte("medium").pipe(z.enum(["low", "medium", "high"])),
-  XAI_VIDEO_MODEL: texte("grok-imagine-video"),
+  XAI_VIDEO_MODEL: texte("grok-imagine-video-1.5"),
+  XAI_STT_MODEL: texte("grok-stt"),
   XAI_VIDEO_RESOLUTION: texte("720p").pipe(z.enum(["480p", "720p", "1080p"])),
   ELEVENLABS_TTS_MODEL: texte("eleven_multilingual_v2"),
   ELEVENLABS_MUSIC_MODEL: texte("music_v1"),
@@ -50,6 +51,7 @@ export type Config = {
     voix: string;
     musique: string;
     transcription: string;
+    transcriptionXai: string;
     claude: string;
   };
   nom: string;
@@ -84,6 +86,7 @@ export function lireConfig(env: Record<string, string | undefined> = process.env
       voix: c.ELEVENLABS_TTS_MODEL,
       musique: c.ELEVENLABS_MUSIC_MODEL,
       transcription: c.ELEVENLABS_STT_MODEL,
+      transcriptionXai: c.XAI_STT_MODEL,
       claude: c.ANTHROPIC_MODEL,
     },
     nom: c.WORKER_NAME,

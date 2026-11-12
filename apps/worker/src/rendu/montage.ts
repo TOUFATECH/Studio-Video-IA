@@ -3,11 +3,27 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { construireReperes, versSrt, type Langue, type Plan, type Repere } from "@studio-video-ia/core";
-import { argumentsConcat, argumentsFinal, argumentsSegment, listeConcat, VOLUMES, type ChansonPlacee, type Orientation, type VoixPlacee } from "./arguments";
+import {
+  argumentsCarteFin,
+  argumentsConcat,
+  argumentsFinal,
+  argumentsSegment,
+  listeConcat,
+  VOLUMES,
+  type ChansonPlacee,
+  type EffetMontage,
+  type Orientation,
+  type TransitionMontage,
+  type VoixPlacee,
+} from "./arguments";
 import { aLibass, ErreurOutil, executerFfmpeg, MESSAGE_SANS_LIBASS, sonder } from "./executant";
 
-/** Un plan à monter : le plan (pour les sous-titres), son clip local, sa durée et sa voix éventuelle. */
+/** Un plan à monter : le plan (pour les sous-titres, l'effet et la transition), son clip local, sa durée et sa voix éventuelle. */
 export type PlanAMonter = { plan: Plan; clip: string; duree: number; voix: string | null };
+
+/** Durée du rappel de l'épisode précédent et de la carte de fin (secondes). */
+export const DUREE_RAPPEL = 2;
+export const DUREE_CARTE_FIN = 3;
 
 /** Paramètres d'un montage. */
 export type ParamsMontage = {
@@ -23,6 +39,11 @@ export type ParamsMontage = {
   /** Opening (avant) et ending (après) déjà rendus, pour un film. */
   avant?: string | null;
   apres?: string | null;
+  /** Rappel de l'épisode précédent : un clip dont on garde les 2 premières secondes, placé en tout premier. */
+  rappel?: string | null;
+  /** Logo de la marque : incrustation (logo) et carte de fin (carteFin, avec la couleur de la marque). */
+  logo?: string | null;
+  carteFin?: { logo: string; couleur: string | null } | null;
   musique?: string | null;
   bruitage?: string | null;
   /** Sous-titres : langue choisie et langue d'origine (null : aucun). */
@@ -42,7 +63,7 @@ export type ResultatMontage = { chemin: string; duree: number; avecSousTitres: b
 export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
   if (p.plans.length === 0) throw new Error("Aucun plan à monter.");
   const durees = new Map(p.plans.map((x) => [x.plan.id, x.duree]));
-  const total = p.plans.length + (p.avant ? 1 : 0) + (p.apres ? 1 : 0) + 2;
+  const total = p.plans.length + (p.avant ? 1 : 0) + (p.apres ? 1 : 0) + (p.rappel ? 1 : 0) + (p.carteFin ? 1 : 0) + 2;
   let fait = 0;
   const etape = (texte: string): void => p.surEtape?.(texte, fait, total);
 
@@ -51,6 +72,9 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
   let srt: string | null = null;
   let dureeAvant = 0;
   if (p.avant) dureeAvant = (await sonder(p.ffprobe, p.avant, p.signal)).duree;
+  // Le rappel passe avant tout : voix et sous-titres sont décalés d'autant.
+  const dureeRappel = p.rappel ? DUREE_RAPPEL : 0;
+  dureeAvant += dureeRappel;
   if (p.sousTitres || p.reperesParoles?.length) {
     const reperes = p.reperesParoles?.length
       ? p.reperesParoles
@@ -67,30 +91,42 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
   const videos: string[] = [];
   const audios: string[] = [];
   /** Découpe un fichier en segment vidéo + audio aux paramètres communs. */
-  const segment = async (nom: string, entree: string, duree: number, volume: number, recadrer: boolean): Promise<void> => {
+  const segment = async (nom: string, entree: string, duree: number, volume: number, recadrer: boolean, effet?: EffetMontage, transition?: TransitionMontage): Promise<void> => {
     const infos = await sonder(p.ffprobe, entree, p.signal);
     if (!infos.aVideo) throw new Error(`Le fichier ${nom} n'a pas de piste vidéo.`);
     const sortieVideo = join(p.dossier, `${nom}.mp4`);
     const sortieAudio = join(p.dossier, `${nom}.wav`);
-    await executerFfmpeg(p.ffmpeg, argumentsSegment({ entree, sortieVideo, sortieAudio, duree, orientation: p.orientation, aAudio: infos.aAudio, volume, recadrer }), p.signal);
+    await executerFfmpeg(p.ffmpeg, argumentsSegment({ entree, sortieVideo, sortieAudio, duree, orientation: p.orientation, aAudio: infos.aAudio, volume, recadrer, effet, transition }), p.signal);
     videos.push(sortieVideo);
     audios.push(sortieAudio);
     fait++;
   };
 
+  if (p.rappel) {
+    etape("Rappel de l'épisode précédent");
+    await segment("seg-rappel", p.rappel, DUREE_RAPPEL, VOLUMES.clipsAvecVoix, false, "aucun", "coupe");
+  }
   if (p.avant) {
     etape("Opening");
-    await segment("seg-avant", p.avant, dureeAvant, 1, false);
+    await segment("seg-avant", p.avant, dureeAvant - dureeRappel, 1, false);
   }
   const volumeClips = p.chanson ? VOLUMES.clipsMusicaux : avecVoix ? VOLUMES.clipsAvecVoix : VOLUMES.clipsSansVoix;
   for (const [i, x] of p.plans.entries()) {
     etape(`Découpe du plan ${i + 1}/${p.plans.length}`);
-    await segment(`seg-${String(i).padStart(4, "0")}`, x.clip, x.duree, volumeClips, p.recadrer ?? false);
+    // Un rappel est suivi d'un flash : la transition d'entrée du premier plan le marque.
+    const transition = i === 0 && p.rappel && x.plan.transition === "coupe" ? "flash" : x.plan.transition;
+    await segment(`seg-${String(i).padStart(4, "0")}`, x.clip, x.duree, volumeClips, p.recadrer ?? false, x.plan.effet, transition);
   }
   if (p.apres) {
     etape("Ending");
     const dureeApres = (await sonder(p.ffprobe, p.apres, p.signal)).duree;
     await segment("seg-apres", p.apres, dureeApres, 1, false);
+  }
+  if (p.carteFin) {
+    etape("Carte de fin");
+    const carte = join(p.dossier, "carte-fin.mp4");
+    await executerFfmpeg(p.ffmpeg, argumentsCarteFin({ logo: p.carteFin.logo, couleur: p.carteFin.couleur, orientation: p.orientation, duree: DUREE_CARTE_FIN, sortie: carte }), p.signal);
+    await segment("seg-carte", carte, DUREE_CARTE_FIN, 1, false, "aucun", "fondu");
   }
 
   etape("Assemblage");
@@ -128,6 +164,7 @@ export async function monter(p: ParamsMontage): Promise<ResultatMontage> {
       dureeTotale,
       sortie: p.sortie,
       chanson: p.chanson ?? null,
+      logo: p.logo ?? null,
     }),
     p.signal,
   );

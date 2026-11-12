@@ -2,7 +2,7 @@
 // 1 image (OpenAI, qualité basse) → 1 clip de 2 s en 480p (xAI) → 1 voix courte (ElevenLabs) → rendu ffmpeg sous-titré.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { schemaLangue, type Langue, type Plan } from "@studio-video-ia/core";
+import { CHAMPS_PLAN_DEFAUT, schemaLangue, type Langue, type Plan } from "@studio-video-ia/core";
 import { genererImage, genererVideo, listerVoix, synthetiserVoix } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
@@ -96,7 +96,7 @@ export async function tacheTestComplet(ctx: Contexte): Promise<void> {
   let cheminRendu: string | null = null;
   if (clip) {
     await etape(`Rendu ffmpeg sous-titré (${langue})`, async () => {
-      const plan: Plan = { id: "test", episode_id: "test", position: 0, section: "principal", type: "dialogue", texte: "", personnage_id: "test", replique: PHRASES_TEST[langue], repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null };
+      const plan: Plan = { id: "test", episode_id: "test", position: 0, section: "principal", type: "dialogue", texte: "", personnage_id: "test", replique: PHRASES_TEST[langue], repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT };
       const r = await monter({
         ffmpeg: ctx.config.ffmpeg,
         ffprobe: ctx.config.ffprobe,

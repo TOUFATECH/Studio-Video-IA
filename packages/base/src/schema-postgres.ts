@@ -381,5 +381,127 @@ drop trigger if exists plans_coherence on plans;
 create trigger plans_coherence before insert or update on plans for each row execute function verifier_plan();
 `;
 
+/** Version 2 : bibliothèque, scènes, plans détaillés, versions des fichiers, arc de saison, double authentification. */
+const V2 = `
+create table if not exists elements (
+  id uuid primary key default gen_random_uuid(),
+  espace_id uuid not null references espaces(id) on delete cascade,
+  serie_id uuid references series(id) on delete cascade,
+  genre text not null check (genre in ('decor','activite','marque','son','variante')),
+  nom text not null check (length(nom) between 1 and 120),
+  description text not null default '' check (length(description) <= 4000),
+  moment text not null default '',
+  consigne text not null default '' check (length(consigne) <= 2000),
+  personnage_id uuid references personnages(id) on delete cascade,
+  couleurs jsonb not null default '{}',
+  position int not null default 0,
+  cree_le timestamptz not null default now(),
+  check (genre <> 'variante' or personnage_id is not null)
+);
+create index if not exists elements_espace on elements (espace_id, genre);
+
+create or replace function verifier_element() returns trigger language plpgsql as $$
+begin
+  if new.serie_id is not null and not exists (select 1 from series where id = new.serie_id and espace_id = new.espace_id) then
+    raise exception 'La série de l''élément doit appartenir au même compte.';
+  end if;
+  if new.personnage_id is not null and not exists (select 1 from personnages p join series s on s.id = p.serie_id where p.id = new.personnage_id and s.espace_id = new.espace_id) then
+    raise exception 'Le personnage de la variante doit appartenir au même compte.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists elements_coherence on elements;
+create trigger elements_coherence before insert or update on elements for each row execute function verifier_element();
+
+create table if not exists scenes (
+  id uuid primary key default gen_random_uuid(),
+  episode_id uuid not null references episodes(id) on delete cascade,
+  position int not null default 0,
+  titre text not null default '',
+  lieu_id uuid references elements(id) on delete set null,
+  moment text not null default '',
+  resume text not null default '',
+  personnages jsonb not null default '[]' check (jsonb_typeof(personnages) = 'array')
+);
+create index if not exists scenes_episode on scenes (episode_id, position);
+
+create or replace function element_du_compte_episode(el uuid, ep uuid) returns boolean language sql stable as $$
+  select exists (select 1 from elements x join series s on s.espace_id = x.espace_id join episodes e on e.serie_id = s.id where x.id = el and e.id = ep);
+$$;
+create or replace function verifier_scene() returns trigger language plpgsql as $$
+begin
+  if new.lieu_id is not null and not element_du_compte_episode(new.lieu_id, new.episode_id) then
+    raise exception 'Le lieu doit appartenir au compte de la série.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists scenes_coherence on scenes;
+create trigger scenes_coherence before insert or update on scenes for each row execute function verifier_scene();
+
+alter table plans add column if not exists scene_id uuid references scenes(id) on delete set null;
+alter table plans add column if not exists duree numeric(6,3) check (duree is null or (duree >= 1 and duree <= 15));
+alter table plans add column if not exists decor_id uuid references elements(id) on delete set null;
+alter table plans add column if not exists activite_id uuid references elements(id) on delete set null;
+alter table plans add column if not exists personnages jsonb not null default '[]' check (jsonb_typeof(personnages) = 'array');
+alter table plans add column if not exists variantes jsonb not null default '[]' check (jsonb_typeof(variantes) = 'array');
+alter table plans add column if not exists cadrage text not null default '';
+alter table plans add column if not exists mouvement text not null default '';
+alter table plans add column if not exists transition text not null default 'coupe' check (transition in ('coupe','fondu','flash'));
+alter table plans add column if not exists effet text not null default 'aucun' check (effet in ('aucun','zoom','tremblement','ralenti'));
+alter table plans add column if not exists texte_ecran text not null default '';
+alter table plans add column if not exists son text not null default '';
+alter table plans add column if not exists commentaires jsonb not null default '[]' check (jsonb_typeof(commentaires) = 'array');
+
+create or replace function verifier_plan() returns trigger language plpgsql as $$
+begin
+  if new.personnage_id is not null and not exists (
+    select 1 from personnages p join episodes e on e.serie_id = p.serie_id where p.id = new.personnage_id and e.id = new.episode_id) then
+    raise exception 'Le personnage doit appartenir à la série de l''épisode.';
+  end if;
+  if new.scene_id is not null and not exists (select 1 from scenes where id = new.scene_id and episode_id = new.episode_id) then
+    raise exception 'La scène doit appartenir au même épisode que le plan.';
+  end if;
+  if (new.decor_id is not null and not element_du_compte_episode(new.decor_id, new.episode_id))
+     or (new.activite_id is not null and not element_du_compte_episode(new.activite_id, new.episode_id)) then
+    raise exception 'Le décor ou l''activité doit appartenir au compte de la série.';
+  end if;
+  return new;
+end $$;
+
+alter table saisons add column if not exists titre text not null default '';
+alter table saisons add column if not exists arc text not null default '' check (length(arc) <= 20000);
+alter table saisons add column if not exists nombre_episodes int check (nombre_episodes is null or nombre_episodes between 1 and 30);
+
+alter table episodes add column if not exists accroche text not null default '';
+alter table episodes add column if not exists deroule text not null default '' check (length(deroule) <= 20000);
+alter table episodes add column if not exists fin_suite text not null default '';
+alter table episodes add column if not exists rappel boolean not null default true;
+alter table episodes add column if not exists logo boolean not null default true;
+alter table episodes add column if not exists carte_fin boolean not null default true;
+alter table episodes add column if not exists scenario_valide boolean not null default false;
+alter table episodes add column if not exists video_validee boolean not null default false;
+
+alter table utilisateurs add column if not exists totp_chiffre text;
+alter table utilisateurs add column if not exists totp_actif boolean not null default false;
+
+alter table fichiers drop constraint if exists fichiers_genre_check;
+alter table fichiers add constraint fichiers_genre_check check (genre in ('image','clip','voix','rendu','bande_annonce','miniature','fiche','bruitage','musique','echantillon_voix','chanson','reference'));
+alter table fichiers add column if not exists element_id uuid references elements(id) on delete cascade;
+alter table fichiers add column if not exists actif_le timestamptz;
+alter table fichiers add column if not exists consigne text not null default '';
+alter table fichiers add column if not exists fournisseur text not null default '';
+alter table fichiers add column if not exists controle jsonb;
+alter table fichiers add column if not exists personne_reelle boolean not null default false;
+alter table fichiers add column if not exists accord_image boolean not null default false;
+alter table fichiers add column if not exists nom_origine text not null default '';
+alter table fichiers drop constraint if exists fichiers_accord_check;
+alter table fichiers add constraint fichiers_accord_check check (not personne_reelle or accord_image);
+create index if not exists fichiers_element on fichiers (element_id);
+create index if not exists fichiers_personnage on fichiers (personnage_id, genre);
+`;
+
 /** Migrations PostgreSQL, dans l'ordre (mêmes numéros que SQLite). */
-export const MIGRATIONS_POSTGRES: readonly { version: number; nom: string; sql: string }[] = [{ version: 1, nom: "schéma initial", sql: V1 }];
+export const MIGRATIONS_POSTGRES: readonly { version: number; nom: string; sql: string }[] = [
+  { version: 1, nom: "schéma initial", sql: V1 },
+  { version: 2, nom: "bibliothèque, scènes, versions, double authentification", sql: V2 },
+];

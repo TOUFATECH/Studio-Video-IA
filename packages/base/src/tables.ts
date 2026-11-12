@@ -24,7 +24,7 @@ const H = "horodatage" as const;
 
 /** Toutes les tables connues de l'application. */
 export const TABLES = {
-  utilisateurs: { colonnes: { id: T, email: T, mot_de_passe: T, cree_le: H }, cle: ["id"], idAuto: true },
+  utilisateurs: { colonnes: { id: T, email: T, mot_de_passe: T, cree_le: H, totp_chiffre: T, totp_actif: B }, cle: ["id"], idAuto: true },
   sessions: { colonnes: { id: T, utilisateur_id: T, expire_le: H, cree_le: H }, cle: ["id"], idAuto: false },
   espaces: { colonnes: { id: T, proprietaire: T, nom: T, couleur: T, plafond_mensuel: N, fuseau: T, cree_le: H }, cle: ["id"], idAuto: true },
   reglages: { colonnes: { proprietaire: T, tarifs: J, preferences: J, modifie_le: H }, cle: ["proprietaire"], idAuto: false },
@@ -47,13 +47,14 @@ export const TABLES = {
     cle: ["id"],
     idAuto: true,
   },
-  saisons: { colonnes: { id: T, serie_id: T, numero: E, opening_id: T, ending_id: T }, cle: ["id"], idAuto: true },
+  saisons: { colonnes: { id: T, serie_id: T, numero: E, opening_id: T, ending_id: T, titre: T, arc: T, nombre_episodes: E }, cle: ["id"], idAuto: true },
   episodes: {
     colonnes: {
       id: T, serie_id: T, saison_id: T, genre: T, numero: E, titre: T, idee: T, format: T, duree_cible: E, langue: T, langues: "tableau",
       sous_titres: J, prises: E, enchainer: B, musique: B, bruitages: B, chapitres: J, titres_traduits: J, choix_titres: J, miniature: J,
       memoire_faite: B, hashtags: J, style_visuel: T, paroles: T, paroles_alignees: J, paroles_traduites: J, bpm: N, extrait_debut: N,
-      extrait_fin: N, musique_style: T, instrumental: B, fournisseur_texte: T, cree_le: H,
+      extrait_fin: N, musique_style: T, instrumental: B, fournisseur_texte: T, cree_le: H, accroche: T, deroule: T, fin_suite: T, rappel: B,
+      logo: B, carte_fin: B, scenario_valide: B, video_validee: B,
     },
     cle: ["id"],
     idAuto: true,
@@ -61,7 +62,8 @@ export const TABLES = {
   plans: {
     colonnes: {
       id: T, episode_id: T, position: E, section: T, type: T, texte: T, personnage_id: T, replique: T, repliques_traduites: J, duree_fixee: E,
-      valide: B, modifie: B, prise_choisie: T, debut: N, fin: N,
+      valide: B, modifie: B, prise_choisie: T, debut: N, fin: N, scene_id: T, duree: N, decor_id: T, activite_id: T, personnages: J, variantes: J,
+      cadrage: T, mouvement: T, transition: T, effet: T, texte_ecran: T, son: T, commentaires: J,
     },
     cle: ["id"],
     idAuto: true,
@@ -69,7 +71,8 @@ export const TABLES = {
   fichiers: {
     colonnes: {
       id: T, espace_id: T, episode_id: T, plan_id: T, personnage_id: T, genre: T, langue: T, prise: T, chemin: T, duree_s: N,
-      secondes_generation: N, cout: N, statut: T, erreur: T, essais: E, cree_le: H,
+      secondes_generation: N, cout: N, statut: T, erreur: T, essais: E, cree_le: H, element_id: T, actif_le: H, consigne: T, fournisseur: T,
+      controle: J, personne_reelle: B, accord_image: B, nom_origine: T,
     },
     cle: ["id"],
     idAuto: true,
@@ -91,6 +94,12 @@ export const TABLES = {
     idAuto: true,
   },
   memoire: { colonnes: { id: T, serie_id: T, episode_id: T, genre: T, texte: T, ouvert: B, cree_le: H }, cle: ["id"], idAuto: true },
+  elements: {
+    colonnes: { id: T, espace_id: T, serie_id: T, genre: T, nom: T, description: T, moment: T, consigne: T, personnage_id: T, couleurs: J, position: E, cree_le: H },
+    cle: ["id"],
+    idAuto: true,
+  },
+  scenes: { colonnes: { id: T, episode_id: T, position: E, titre: T, lieu_id: T, moment: T, resume: T, personnages: J }, cle: ["id"], idAuto: true },
   workers_etat: { colonnes: { nom: T, vu_le: H, version_ffmpeg: T, infos: J }, cle: ["nom"], idAuto: false },
   depenses: { colonnes: { id: T, espace_id: T, fichier_id: T, genre: T, montant: N, cree_le: H }, cle: ["id"], idAuto: true },
   videos_reseau: {
@@ -169,6 +178,8 @@ export const REGLES: Partial<Record<NomTable, Regle>> = {
   episodes: { condition: `t.serie_id in ${MES_SERIES}`, operations: TOUT },
   plans: { condition: `t.episode_id in ${MES_EPISODES}`, operations: TOUT },
   memoire: { condition: `t.serie_id in ${MES_SERIES}`, operations: TOUT },
+  elements: { condition: `t.espace_id in ${MES_ESPACES}`, operations: TOUT },
+  scenes: { condition: `t.episode_id in ${MES_EPISODES}`, operations: TOUT },
   publications: { condition: `t.episode_id in ${MES_EPISODES} and t.reseau_connecte_id in ${MES_RESEAUX}`, operations: TOUT },
   // Fichiers, tâches et dépenses s'écrivent par le serveur ou le worker après vérification.
   fichiers: { condition: `t.espace_id in ${MES_ESPACES}`, operations: ["lecture"] },

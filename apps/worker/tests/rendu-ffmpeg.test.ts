@@ -1,3 +1,4 @@
+import { CHAMPS_PLAN_DEFAUT } from "@studio-video-ia/core";
 // Test d'intégration RÉEL avec ffmpeg : 3 clips de test (l'un sans audio), une voix, rendu vertical sous-titré en français.
 // Ignoré proprement si ffmpeg ou ffprobe sont absents.
 import { spawnSync } from "node:child_process";
@@ -21,7 +22,7 @@ const disponible = present(FFMPEG) && present(FFPROBE);
 
 /** Plan minimal pour le montage. */
 function plan(id: string, replique: string): Plan {
-  return { id, episode_id: "e", position: 0, section: "principal", type: replique ? "dialogue" : "action", texte: "", personnage_id: replique ? "p" : null, replique, repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null };
+  return { id, episode_id: "e", position: 0, section: "principal", type: replique ? "dialogue" : "action", texte: "", personnage_id: replique ? "p" : null, replique, repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT };
 }
 
 describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
@@ -145,5 +146,34 @@ describe.skipIf(!disponible)("rendu réel avec ffmpeg", () => {
     expect(infos.hauteur).toBe(1080);
     expect(infos.aAudio).toBe(true);
     expect(r.avecSousTitres).toBe(libass);
+  }, 120_000);
+
+  it("monte avec effets, transitions, rappel, logo et carte de fin (cahier des charges)", async () => {
+    // Logo PNG de test avec transparence.
+    const logo = join(dossier, "logo.png");
+    await executerFfmpeg(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red@0.8:s=400x200,format=rgba", "-frames:v", "1", logo]);
+    const plans = [
+      { ...plan("z", ""), effet: "zoom" as const, transition: "fondu" as const },
+      { ...plan("t", ""), effet: "tremblement" as const, transition: "flash" as const },
+      { ...plan("r", ""), effet: "ralenti" as const },
+    ];
+    const r = await monter({
+      ffmpeg: FFMPEG,
+      ffprobe: FFPROBE,
+      dossier: await mkdtemp(join(dossier, "effets-")),
+      sortie: join(dossier, "effets.mp4"),
+      orientation: "vertical",
+      plans: plans.map((p, i) => ({ plan: p, clip: clips[i] ?? "", duree: 2, voix: null })),
+      rappel: clips[0] ?? null,
+      logo,
+      carteFin: { logo, couleur: "#FF6A3D" },
+      police: POLICE,
+    });
+    const infos = await sonder(FFPROBE, r.chemin);
+    // 2 s de rappel + 3 plans de 2 s + 3 s de carte de fin.
+    expect(Math.abs(infos.duree - 11)).toBeLessThanOrEqual(0.3);
+    expect(infos.largeur).toBe(1080);
+    expect(infos.hauteur).toBe(1920);
+    expect(infos.aAudio).toBe(true);
   }, 120_000);
 });

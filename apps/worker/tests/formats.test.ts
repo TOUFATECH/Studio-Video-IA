@@ -1,3 +1,4 @@
+import { CHAMPS_PLAN_DEFAUT } from "@studio-video-ia/core";
 // Tests des choix liés au format : orientation des images et des clips, choix des plans pour les miniatures.
 import type { Plan, TypePlan } from "@studio-video-ia/core";
 import { describe, expect, it } from "vitest";
@@ -7,7 +8,7 @@ import { tailleImage } from "../src/taches/storyboard";
 
 /** Fabrique un plan minimal. */
 function plan(id: string, type: TypePlan, position: number): Plan {
-  return { id, episode_id: "e", position, section: "principal", type, texte: "", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null };
+  return { id, episode_id: "e", position, section: "principal", type, texte: "", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT };
 }
 
 describe("formats", () => {

@@ -16,7 +16,7 @@ import {
   type Fichier,
   type LigneParole,
 } from "@studio-video-ia/core";
-import { alignerParoles, composerMusique, ErreurApi, transcrireAudio } from "@studio-video-ia/integrations";
+import { alignerParoles, composerMusique, ErreurApi, transcrireAudio, transcrireXai } from "@studio-video-ia/integrations";
 import { z } from "zod";
 import { exigerCle } from "../cles";
 import type { Contexte } from "../contexte";
@@ -129,16 +129,25 @@ export async function tacheSynchro(ctx: Contexte): Promise<void> {
 
   let alignees: LigneParole[];
   const maj: Record<string, unknown> = {};
+  const cles = await ctx.cles();
   if (e.episode.instrumental) {
     alignees = [];
     await ctx.progression({ fait: 1, total: 1, etape: "Musique instrumentale : rien à synchroniser" });
+  } else if (cles.xai) {
+    // Grok Speech to Text : chaque mot chanté avec son minutage ; les lignes saisies sont posées dessus.
+    await ctx.progression({ fait: 0, total: 1, etape: texteLignes.length ? `Placement de ${texteLignes.length} lignes dans la chanson (Grok)` : "Pas de paroles saisies : transcription de la chanson (Grok)" });
+    const r = await transcrireXai(cles.xai, { audio: audio.donnees, nom: audio.nom, type: audio.type, langue: e.episode.langue, modele: ctx.config.modeles.transcriptionXai }, ctx.f);
+    const mots = r.mots.map((m) => ({ text: m.texte, start: m.debut, end: m.fin }));
+    alignees = texteLignes.length ? regrouperEnLignes(texteLignes, mots) : lignesDepuisTranscription(mots, e.episode.langue);
+    if (alignees.length === 0) throw new Error("Aucune parole reconnue dans la chanson. Si elle est instrumentale, coche « Instrumental ».");
+    if (!texteLignes.length) maj.paroles = alignees.map((l) => l.texte).join("\n");
   } else if (texteLignes.length > 0) {
     await ctx.progression({ fait: 0, total: 1, etape: `Placement de ${texteLignes.length} lignes dans la chanson` });
-    const r = await alignerParoles(exigerCle(await ctx.cles(), "elevenlabs"), { audio, texte: texteLignes.join("\n") }, ctx.f);
+    const r = await alignerParoles(exigerCle(cles, "elevenlabs"), { audio, texte: texteLignes.join("\n") }, ctx.f);
     alignees = regrouperEnLignes(texteLignes, r.words, r.characters);
   } else {
     await ctx.progression({ fait: 0, total: 1, etape: "Pas de paroles saisies : transcription de la chanson" });
-    const r = await transcrireAudio(exigerCle(await ctx.cles(), "elevenlabs"), { audio, langue: e.episode.langue, modele: ctx.config.modeles.transcription }, ctx.f);
+    const r = await transcrireAudio(exigerCle(cles, "elevenlabs"), { audio, langue: e.episode.langue, modele: ctx.config.modeles.transcription }, ctx.f);
     alignees = lignesDepuisTranscription(r.mots, e.episode.langue);
     if (alignees.length === 0) throw new Error("Aucune parole reconnue dans la chanson. Si elle est instrumentale, coche « Instrumental ».");
     maj.paroles = alignees.map((l) => l.texte).join("\n");

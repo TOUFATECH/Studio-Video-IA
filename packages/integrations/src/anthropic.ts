@@ -45,7 +45,11 @@ function analyser<T>(texte: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>)
   return { ok: false, erreur: r.error.issues.slice(0, 5).map((i) => `${i.path.join(".") || "racine"} : ${i.message}`).join(" ; ") };
 }
 
-type MessageClaude = { role: "user" | "assistant"; content: string };
+type BlocClaude = { type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+type MessageClaude = { role: "user" | "assistant"; content: string | BlocClaude[] };
+
+/** Image jointe à une question (contrôle qualité) : type MIME et octets. */
+export type ImageClaude = { type: string; donnees: Uint8Array };
 
 /**
  * Demande une réponse JSON à Claude (POST /v1/messages) et la valide avec Zod.
@@ -57,8 +61,19 @@ export async function demanderJsonClaude<T>(
   messages: { system: string; user: string },
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   f: Fetch = fetch,
+  images: readonly ImageClaude[] = [],
 ): Promise<T> {
-  const conversation: MessageClaude[] = [{ role: "user", content: messages.user }];
+  // Les images passent avant le texte, comme le recommande la documentation d'Anthropic.
+  const premier: MessageClaude = images.length
+    ? {
+        role: "user",
+        content: [
+          ...images.map((im) => ({ type: "image" as const, source: { type: "base64" as const, media_type: im.type, data: Buffer.from(im.donnees).toString("base64") } })),
+          { type: "text" as const, text: messages.user },
+        ],
+      }
+    : { role: "user", content: messages.user };
+  const conversation: MessageClaude[] = [premier];
   const system = `${messages.system}\nRéponds avec le seul objet JSON, sans texte autour ni bloc de code.`;
   let derniereErreur = "";
   for (let essai = 0; essai < 2; essai++) {

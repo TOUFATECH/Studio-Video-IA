@@ -373,5 +373,159 @@ when new.personnage_id is not null and not exists (
 begin select raise(abort, 'Le personnage doit appartenir à la série de l''épisode.'); end;
 `;
 
+/**
+ * Version 2 : cahier des charges « Studio Séries IA ».
+ * Bibliothèque (décors, activités, marque, sons, variantes), scènes, plans détaillés, versions des fichiers
+ * (choix, consigne, fournisseur, contrôle qualité), arc de saison, story d'épisode, double authentification.
+ */
+const V2 = `
+create table if not exists elements (
+  id text primary key default ${UUID},
+  espace_id text not null references espaces(id) on delete cascade,
+  -- null : élément partagé avec toutes les séries du compte.
+  serie_id text references series(id) on delete cascade,
+  genre text not null check (genre in ('decor','activite','marque','son','variante')),
+  nom text not null check (length(nom) between 1 and 120),
+  description text not null default '' check (length(description) <= 4000),
+  moment text not null default '',
+  consigne text not null default '' check (length(consigne) <= 2000),
+  personnage_id text references personnages(id) on delete cascade,
+  couleurs text not null default '{}' check (json_valid(couleurs)),
+  position integer not null default 0,
+  cree_le text not null default ${MAINTENANT},
+  check (genre <> 'variante' or personnage_id is not null)
+);
+create index if not exists elements_espace on elements (espace_id, genre);
+
+-- Un élément reste dans son compte : sa série et son personnage sont de ce compte.
+create trigger if not exists elements_coherence_ins before insert on elements
+begin
+  select raise(abort, 'La série de l''élément doit appartenir au même compte.')
+   where new.serie_id is not null and not exists (select 1 from series where id = new.serie_id and espace_id = new.espace_id);
+  select raise(abort, 'Le personnage de la variante doit appartenir au même compte.')
+   where new.personnage_id is not null and not exists (select 1 from personnages p join series s on s.id = p.serie_id where p.id = new.personnage_id and s.espace_id = new.espace_id);
+end;
+create trigger if not exists elements_coherence_maj before update on elements
+begin
+  select raise(abort, 'La série de l''élément doit appartenir au même compte.')
+   where new.serie_id is not null and not exists (select 1 from series where id = new.serie_id and espace_id = new.espace_id);
+  select raise(abort, 'Le personnage de la variante doit appartenir au même compte.')
+   where new.personnage_id is not null and not exists (select 1 from personnages p join series s on s.id = p.serie_id where p.id = new.personnage_id and s.espace_id = new.espace_id);
+end;
+
+create table if not exists scenes (
+  id text primary key default ${UUID},
+  episode_id text not null references episodes(id) on delete cascade,
+  position integer not null default 0,
+  titre text not null default '',
+  lieu_id text references elements(id) on delete set null,
+  moment text not null default '',
+  resume text not null default '',
+  personnages text not null default '[]' check (json_valid(personnages) and json_type(personnages) = 'array')
+);
+create index if not exists scenes_episode on scenes (episode_id, position);
+
+alter table plans add column scene_id text references scenes(id) on delete set null;
+alter table plans add column duree real check (duree is null or (duree >= 1 and duree <= 15));
+alter table plans add column decor_id text references elements(id) on delete set null;
+alter table plans add column activite_id text references elements(id) on delete set null;
+alter table plans add column personnages text not null default '[]' check (json_valid(personnages) and json_type(personnages) = 'array');
+alter table plans add column variantes text not null default '[]' check (json_valid(variantes) and json_type(variantes) = 'array');
+alter table plans add column cadrage text not null default '';
+alter table plans add column mouvement text not null default '';
+alter table plans add column transition text not null default 'coupe' check (transition in ('coupe','fondu','flash'));
+alter table plans add column effet text not null default 'aucun' check (effet in ('aucun','zoom','tremblement','ralenti'));
+alter table plans add column texte_ecran text not null default '';
+alter table plans add column son text not null default '';
+alter table plans add column commentaires text not null default '[]' check (json_valid(commentaires) and json_type(commentaires) = 'array');
+
+-- La scène d'un plan est une scène du même épisode ; son décor et son activité sont du même compte.
+create trigger if not exists plans_scene_ins before insert on plans
+begin
+  select raise(abort, 'La scène doit appartenir au même épisode que le plan.')
+   where new.scene_id is not null and not exists (select 1 from scenes where id = new.scene_id and episode_id = new.episode_id);
+  select raise(abort, 'Le décor ou l''activité doit appartenir au compte de la série.')
+   where (new.decor_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.decor_id and e.id = new.episode_id))
+      or (new.activite_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.activite_id and e.id = new.episode_id));
+end;
+create trigger if not exists plans_scene_maj before update on plans
+begin
+  select raise(abort, 'La scène doit appartenir au même épisode que le plan.')
+   where new.scene_id is not null and not exists (select 1 from scenes where id = new.scene_id and episode_id = new.episode_id);
+  select raise(abort, 'Le décor ou l''activité doit appartenir au compte de la série.')
+   where (new.decor_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.decor_id and e.id = new.episode_id))
+      or (new.activite_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.activite_id and e.id = new.episode_id));
+end;
+create trigger if not exists scenes_lieu_ins before insert on scenes
+when new.lieu_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.lieu_id and e.id = new.episode_id)
+begin select raise(abort, 'Le lieu doit appartenir au compte de la série.'); end;
+create trigger if not exists scenes_lieu_maj before update on scenes
+when new.lieu_id is not null and not exists (select 1 from elements el join series s on s.espace_id = el.espace_id join episodes e on e.serie_id = s.id where el.id = new.lieu_id and e.id = new.episode_id)
+begin select raise(abort, 'Le lieu doit appartenir au compte de la série.'); end;
+
+alter table saisons add column titre text not null default '';
+alter table saisons add column arc text not null default '' check (length(arc) <= 20000);
+alter table saisons add column nombre_episodes integer check (nombre_episodes is null or nombre_episodes between 1 and 30);
+
+alter table episodes add column accroche text not null default '';
+alter table episodes add column deroule text not null default '' check (length(deroule) <= 20000);
+alter table episodes add column fin_suite text not null default '';
+alter table episodes add column rappel integer not null default 1 check (rappel in (0,1));
+alter table episodes add column logo integer not null default 1 check (logo in (0,1));
+alter table episodes add column carte_fin integer not null default 1 check (carte_fin in (0,1));
+alter table episodes add column scenario_valide integer not null default 0 check (scenario_valide in (0,1));
+alter table episodes add column video_validee integer not null default 0 check (video_validee in (0,1));
+
+alter table utilisateurs add column totp_chiffre text;
+alter table utilisateurs add column totp_actif integer not null default 0 check (totp_actif in (0,1));
+
+-- Fichiers : nouveau genre « reference » (photos et vidéos de la bibliothèque) et suivi des versions.
+-- SQLite ne sait pas changer une contrainte : la table est reconstruite (aucune autre table ne la référence).
+create table fichiers_v2 (
+  id text primary key default ${UUID},
+  espace_id text not null references espaces(id) on delete cascade,
+  episode_id text references episodes(id) on delete cascade,
+  plan_id text references plans(id) on delete cascade,
+  personnage_id text references personnages(id) on delete cascade,
+  element_id text references elements(id) on delete cascade,
+  genre text not null check (genre in ('image','clip','voix','rendu','bande_annonce','miniature','fiche','bruitage','musique','echantillon_voix','chanson','reference')),
+  langue text check (langue in ${LANGUES}),
+  prise text check (prise in ('A','B')),
+  chemin text,
+  duree_s real,
+  secondes_generation real,
+  cout real not null default 0,
+  statut text not null default 'pret' check (statut in ('pret','echec')),
+  erreur text,
+  essais integer not null default 0,
+  -- Version retenue : la plus récente par « actif_le », sinon par date de création.
+  actif_le text,
+  consigne text not null default '',
+  fournisseur text not null default '',
+  controle text check (controle is null or json_valid(controle)),
+  -- Photo d'une vraie personne : son accord est obligatoire (case cochée à l'import).
+  personne_reelle integer not null default 0 check (personne_reelle in (0,1)),
+  accord_image integer not null default 0 check (accord_image in (0,1)),
+  nom_origine text not null default '',
+  cree_le text not null default ${MAINTENANT},
+  check (personne_reelle = 0 or accord_image = 1)
+);
+insert into fichiers_v2 (id, espace_id, episode_id, plan_id, personnage_id, genre, langue, prise, chemin, duree_s, secondes_generation, cout, statut, erreur, essais, cree_le)
+  select id, espace_id, episode_id, plan_id, personnage_id, genre, langue, prise, chemin, duree_s, secondes_generation, cout, statut, erreur, essais, cree_le from fichiers;
+drop table fichiers;
+alter table fichiers_v2 rename to fichiers;
+create index if not exists fichiers_episode on fichiers (episode_id, genre);
+create index if not exists fichiers_espace_mois on fichiers (espace_id, cree_le);
+create index if not exists fichiers_element on fichiers (element_id);
+create index if not exists fichiers_personnage on fichiers (personnage_id, genre);
+create trigger if not exists fichiers_depense after insert on fichiers when new.cout > 0
+begin
+  insert into depenses (id, espace_id, fichier_id, genre, montant, cree_le) values (${UUID}, new.espace_id, new.id, new.genre, new.cout, new.cree_le);
+end;
+`;
+
 /** Migrations SQLite, dans l'ordre. Ajouter une version à la fin, ne jamais modifier une version publiée. */
-export const MIGRATIONS_SQLITE: readonly { version: number; nom: string; sql: string }[] = [{ version: 1, nom: "schéma initial", sql: V1 }];
+export const MIGRATIONS_SQLITE: readonly { version: number; nom: string; sql: string }[] = [
+  { version: 1, nom: "schéma initial", sql: V1 },
+  { version: 2, nom: "bibliothèque, scènes, versions, double authentification", sql: V2 },
+];

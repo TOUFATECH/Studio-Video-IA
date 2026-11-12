@@ -1,7 +1,15 @@
 // Validation Zod des lignes lues dans la base, colonnes JSON comprises.
 // Une colonne JSON mal formée retombe sur une valeur par défaut au lieu de casser la page.
 import {
+  GENRES_ELEMENT,
   schemaChapitre,
+  schemaCommentaire,
+  schemaControle,
+  schemaEffet,
+  schemaTransition,
+  type Element,
+  type GenreElement,
+  type Scene,
   schemaLigneParole,
   schemaLangue,
   schemaPreferences,
@@ -99,6 +107,38 @@ export const ligneSaison = z.object({
   numero: nombre,
   opening_id: z.string().nullable(),
   ending_id: z.string().nullable(),
+  titre: z.string().default(""),
+  arc: z.string().default(""),
+  nombre_episodes: nombreNul.default(null),
+});
+
+/** Tableau d'identifiants (colonne JSON). */
+const identifiants = z.array(z.string()).catch([]).default([]);
+
+export const ligneScene = z.object({
+  id: z.string(),
+  episode_id: z.string(),
+  position: nombre,
+  titre: z.string(),
+  lieu_id: z.string().nullable(),
+  moment: z.string(),
+  resume: z.string(),
+  personnages: identifiants,
+});
+
+export const ligneElement = z.object({
+  id: z.string(),
+  espace_id: z.string(),
+  serie_id: z.string().nullable(),
+  genre: z.enum(Object.keys(GENRES_ELEMENT) as [GenreElement, ...GenreElement[]]),
+  nom: z.string(),
+  description: z.string(),
+  moment: z.string(),
+  consigne: z.string(),
+  personnage_id: z.string().nullable(),
+  couleurs: z.object({ principale: z.string().optional(), secondaire: z.string().optional(), police: z.string().optional() }).catch({}).default({}),
+  position: nombre,
+  cree_le: z.string(),
 });
 
 export const ligneEpisode = z.object({
@@ -135,6 +175,14 @@ export const ligneEpisode = z.object({
   musique_style: z.string().default(""),
   instrumental: z.boolean().default(false),
   fournisseur_texte: z.enum(["openai", "anthropic"]).catch("openai").default("openai"),
+  accroche: z.string().default(""),
+  deroule: z.string().default(""),
+  fin_suite: z.string().default(""),
+  rappel: z.boolean().default(true),
+  logo: z.boolean().default(true),
+  carte_fin: z.boolean().default(true),
+  scenario_valide: z.boolean().default(false),
+  video_validee: z.boolean().default(false),
   cree_le: z.string(),
 });
 
@@ -154,6 +202,19 @@ export const lignePlan = z.object({
   prise_choisie: z.enum(["A", "B"]),
   debut: nombreNul.default(null),
   fin: nombreNul.default(null),
+  scene_id: z.string().nullable().default(null),
+  duree: nombreNul.default(null),
+  decor_id: z.string().nullable().default(null),
+  activite_id: z.string().nullable().default(null),
+  personnages: identifiants,
+  variantes: identifiants,
+  cadrage: z.string().default(""),
+  mouvement: z.string().default(""),
+  transition: schemaTransition.catch("coupe").default("coupe"),
+  effet: schemaEffet.catch("aucun").default("aucun"),
+  texte_ecran: z.string().default(""),
+  son: z.string().default(""),
+  commentaires: z.array(schemaCommentaire).catch([]).default([]),
 });
 
 export const ligneFichier = z.object({
@@ -162,7 +223,7 @@ export const ligneFichier = z.object({
   episode_id: z.string().nullable(),
   plan_id: z.string().nullable(),
   personnage_id: z.string().nullable(),
-  genre: z.enum(["image", "clip", "voix", "rendu", "bande_annonce", "miniature", "fiche", "bruitage", "musique", "echantillon_voix", "chanson"]),
+  genre: z.enum(["image", "clip", "voix", "rendu", "bande_annonce", "miniature", "fiche", "bruitage", "musique", "echantillon_voix", "chanson", "reference"]),
   langue: schemaLangue.nullable(),
   prise: z.enum(["A", "B"]).nullable(),
   chemin: z.string().nullable(),
@@ -173,6 +234,14 @@ export const ligneFichier = z.object({
   erreur: z.string().nullable(),
   essais: nombre,
   cree_le: z.string(),
+  element_id: z.string().nullable().default(null),
+  actif_le: z.string().nullable().default(null),
+  consigne: z.string().default(""),
+  fournisseur: z.string().default(""),
+  controle: schemaControle.nullable().catch(null).default(null),
+  personne_reelle: z.boolean().default(false),
+  accord_image: z.boolean().default(false),
+  nom_origine: z.string().default(""),
 });
 
 /** Progression d'une tâche ; les étapes du test complet sont lues à part (voir schemaEtapesTest). */
@@ -238,7 +307,7 @@ export const ligneMemoire = z.object({
 export const ligneReglages = z.object({
   proprietaire: z.string(),
   tarifs: schemaTarifs.catch({ image: 0.07, video_seconde: 0.05, voix_1000_car: 0.3, musique_minute: 0.5 }),
-  preferences: schemaPreferences.catch({ parallele: 2, sous_titres: "aucun", prises: 1, memoire_auto: true }),
+  preferences: schemaPreferences.catch({ parallele: 2, sous_titres: "aucun", prises: 1, memoire_auto: true, propositions: 1, controle_qualite: true, plafond_episode: 20 }),
 });
 
 export const ligneVideo = z.object({
@@ -326,6 +395,8 @@ export type Controles = [
   Verifie<z.infer<typeof ligneSerie>, Serie>,
   Verifie<z.infer<typeof lignePersonnage>, Personnage>,
   Verifie<z.infer<typeof ligneSaison>, Saison>,
+  Verifie<z.infer<typeof ligneScene>, Scene>,
+  Verifie<z.infer<typeof ligneElement>, Element>,
   Verifie<z.infer<typeof ligneEpisode>, Episode>,
   Verifie<z.infer<typeof lignePlan>, Plan>,
   Verifie<z.infer<typeof ligneFichier>, Fichier>,

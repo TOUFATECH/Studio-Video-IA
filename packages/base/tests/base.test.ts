@@ -48,7 +48,7 @@ describe.each(MOTEURS)("base $nom", ({ url }) => {
   });
 
   it("crée le schéma une seule fois, avec les colonnes décrites", async () => {
-    expect(base.migration.version).toBe(1);
+    expect(base.migration.version).toBe(2);
     expect((await migrer(base.moteur)).appliquees).toEqual([]);
     for (const [table, info] of Object.entries(TABLES)) {
       const colonnes =

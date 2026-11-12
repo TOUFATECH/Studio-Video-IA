@@ -7,8 +7,27 @@ import { appelJson, erreurReponseInvalide, versOctets } from "./http";
 export const BASE_OPENAI = "https://api.openai.com/v1";
 const FOURNISSEUR = "OpenAI";
 
+/** Partie d'un message : texte ou image (data URI). */
+export type PartieMessage = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" | "auto" } };
+
 /** Un message de conversation au format OpenAI. */
-export type MessageChat = { role: "system" | "user" | "assistant"; content: string };
+export type MessageChat = { role: "system" | "user" | "assistant"; content: string | PartieMessage[] };
+
+/** Image jointe à une question (contrôle qualité) : type MIME et octets. */
+export type ImageJointe = { type: string; donnees: Uint8Array };
+
+/** Ajoute des images au dernier message de l'utilisateur (vision). */
+export function joindreImages(messages: MessageChat[], images: readonly ImageJointe[]): MessageChat[] {
+  if (images.length === 0) return messages;
+  const i = messages.map((m) => m.role).lastIndexOf("user");
+  if (i < 0) return messages;
+  const texte = messages[i]?.content;
+  const parties: PartieMessage[] = [
+    { type: "text", text: typeof texte === "string" ? texte : "" },
+    ...images.map((im) => ({ type: "image_url" as const, image_url: { url: `data:${im.type};base64,${Buffer.from(im.donnees).toString("base64")}`, detail: "high" as const } })),
+  ];
+  return messages.map((m, j) => (j === i ? { ...m, content: parties } : m));
+}
 
 /** Messages acceptés : la paire {system, user} produite par les prompts de core, ou une liste complète. */
 export type MessagesEntree = { system: string; user: string } | readonly MessageChat[];
@@ -75,8 +94,9 @@ export async function demanderJson<T>(
   messages: MessagesEntree,
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   f: Fetch = fetch,
+  images: readonly ImageJointe[] = [],
 ): Promise<T> {
-  const conversation = versMessages(messages);
+  const conversation = joindreImages(versMessages(messages), images);
   let derniereErreur = "";
   for (let essai = 0; essai < 2; essai++) {
     const rep = await appelJson(

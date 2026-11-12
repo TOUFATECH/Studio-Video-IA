@@ -1,3 +1,4 @@
+import { CHAMPS_FICHIER_DEFAUT } from "@studio-video-ia/core";
 // Tests des fonctions pures des tâches et des outils : bande annonce, prises, personnages, traductions, mémoire,
 // vidéos des comptes, configuration, parallélisme et relance, tableau du diagnostic.
 import { describe, expect, it } from "vitest";
@@ -13,16 +14,16 @@ import { clipDuPlan, selectionBandeAnnonce } from "../src/taches/rendu";
 import { trouverPersonnage } from "../src/taches/scenario";
 import { lignesVideos } from "../src/taches/stats";
 import { personnagesPresents, tailleImage } from "../src/taches/storyboard";
-import { indexerFichiers } from "@studio-video-ia/core";
+import { CHAMPS_PLAN_DEFAUT, indexerFichiers } from "@studio-video-ia/core";
 
 /** Plan de test. */
 function plan(id: string, type: TypePlan, extra: Partial<Plan> = {}): Plan {
-  return { id, episode_id: "e", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...extra };
+  return { id, episode_id: "e", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: true, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT, ...extra };
 }
 
 /** Fichier de test. */
 function fichier(extra: Partial<Fichier>): Fichier {
-  return { id: Math.random().toString(36), espace_id: "s", episode_id: "e", plan_id: null, personnage_id: null, genre: "clip", langue: null, prise: "A", chemin: "x", duree_s: null, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...extra };
+  return { id: Math.random().toString(36), espace_id: "s", episode_id: "e", plan_id: null, personnage_id: null, genre: "clip", langue: null, prise: "A", chemin: "x", duree_s: null, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...CHAMPS_FICHIER_DEFAUT, ...extra };
 }
 
 const PERSOS: Personnage[] = [

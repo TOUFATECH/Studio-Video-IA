@@ -2,6 +2,7 @@
 import { indexerFichiers, unitesClips, unitesRendu, unitesStoryboard, type Unite } from "./unites";
 import type { Episode, Fichier, Personnage, Plan, Publication, Tache } from "./types";
 
+
 /** Couleur sémantique d'un statut (traduite en couleur par l'interface). */
 export type Ton = "neutre" | "info" | "attention" | "erreur" | "succes" | "secondaire";
 
@@ -138,4 +139,36 @@ export function libelleTache(t: Pick<Tache, "type" | "statut">): string {
   if (t.statut === "en_file") return `${noms[t.type]} · en file`;
   if (t.statut === "en_pause") return `${noms[t.type]} · en pause`;
   return `${noms[t.type]} en cours`;
+}
+
+/** Les 9 statuts de production d'un épisode, dans l'ordre (cahier des charges). */
+export const STATUTS_PRODUCTION = [
+  "Brouillon",
+  "Scénario validé",
+  "Images générées",
+  "Storyboard validé",
+  "Vidéos générées",
+  "Monté",
+  "Validé",
+  "Programmé",
+  "Publié",
+] as const;
+export type StatutProduction = (typeof STATUTS_PRODUCTION)[number];
+
+/**
+ * Statut de production d'un épisode, du brouillon à la publication.
+ * Les images viennent avant la validation du storyboard : on valide les images une à une.
+ */
+export function statutProduction(episode: Pick<Episode, "scenario_valide" | "video_validee">, etat: Pick<EtatEpisode, "storyboard" | "valides" | "clips" | "rendus" | "publiees" | "programmees">, nombrePlans: number): { statut: StatutProduction; rang: number } {
+  const complet = (c: Compte): boolean => c.total > 0 && c.fait === c.total;
+  let statut: StatutProduction = "Brouillon";
+  if (etat.publiees > 0) statut = "Publié";
+  else if (etat.programmees > 0) statut = "Programmé";
+  else if (episode.video_validee && complet(etat.rendus)) statut = "Validé";
+  else if (nombrePlans > 0 && complet(etat.rendus)) statut = "Monté";
+  else if (nombrePlans > 0 && complet(etat.clips)) statut = "Vidéos générées";
+  else if (nombrePlans > 0 && etat.valides === nombrePlans && complet(etat.storyboard)) statut = "Storyboard validé";
+  else if (nombrePlans > 0 && complet(etat.storyboard)) statut = "Images générées";
+  else if (nombrePlans > 0 && episode.scenario_valide) statut = "Scénario validé";
+  return { statut, rang: STATUTS_PRODUCTION.indexOf(statut) };
 }
