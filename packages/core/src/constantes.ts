@@ -54,12 +54,12 @@ export const DUREE_GENERIQUES = 60;
 
 /**
  * Bornes de durée cible par format, en secondes.
- * court : épisode vertical pour TikTok, Instagram et Short YouTube (1:00 à 2:00).
+ * court : épisode vertical pour TikTok, Instagram, Snapchat et Short YouTube : 60 s par défaut, 90 s au plus.
  * moyen : épisode YouTube 16:9 (2:00 à 4:00), avec bande annonce verticale pour TikTok et Instagram.
  * long : film 16:9 (5 à 20 min) avec opening, ending et bande annonce.
  */
 export const BORNES_DUREE = {
-  court: { min: 60, max: 120, pas: 15, defaut: 75 },
+  court: { min: 15, max: 90, pas: 5, defaut: 60 },
   moyen: { min: 120, max: 240, pas: 30, defaut: 180 },
   long: { min: 300, max: 1200, pas: 60, defaut: 1200 },
   generique: { min: 15, max: 45, pas: 5, defaut: 30 },
@@ -70,7 +70,7 @@ export type FormatEpisode = "court" | "moyen" | "long";
 
 /** Libellé de chaque format dans l'interface. */
 export const NOMS_FORMATS: Record<FormatEpisode, string> = {
-  court: "Court · 1:00 à 2:00 · vertical · TikTok, Instagram, Short YouTube",
+  court: "Court · 60 s conseillé, 90 s maximum · vertical 9:16 · TikTok, Reels, Shorts",
   moyen: "YouTube · 2:00 à 4:00 · 16:9 · bande annonce verticale pour TikTok et Instagram",
   long: "Film · 5 à 20 min · 16:9 · opening, ending et bande annonce",
 };
@@ -106,6 +106,55 @@ export function aBandeAnnonce(format: FormatEpisode, genre: GenreEpisode): boole
 export function aGeneriques(format: FormatEpisode, genre: GenreEpisode): boolean {
   return genre === "episode" && format === "long";
 }
+
+/**
+ * Règles de durée du cahier des charges pour un épisode vertical (et une Story) :
+ * alerte au-delà de 60 s (Stories, TikTok conseillé), validation bloquée au-delà de 90 s.
+ */
+export const REGLES_DUREE = { alerte: 60, max: 90 } as const;
+
+/** Un plan dure de 1 à 8 s : les IA vidéo produisent des clips courts, recoupés au montage. */
+export const DUREE_PLAN = { min: 1, max: 8 } as const;
+
+/** Paliers proposés par la répartition automatique d'un épisode court (secondes). */
+export const PALIERS_COURT = [2, 3, 4, 5, 6, 8] as const;
+
+/** Transition à l'entrée d'un plan. */
+export const TRANSITIONS = { coupe: "Coupe franche", fondu: "Fondu au noir", flash: "Flash blanc" } as const;
+export type Transition = keyof typeof TRANSITIONS;
+
+/** Effet appliqué au plan pendant le montage. */
+export const EFFETS = { aucun: "Aucun", zoom: "Zoom avant lent", tremblement: "Tremblement", ralenti: "Ralenti" } as const;
+export type Effet = keyof typeof EFFETS;
+
+/** Genres d'éléments de la bibliothèque (les personnages ont leur propre table). */
+export const GENRES_ELEMENT = { decor: "Décor", activite: "Activité", marque: "Marque", son: "Son", variante: "Variante de personnage" } as const;
+export type GenreElement = keyof typeof GENRES_ELEMENT;
+
+/** Voix préréglées de Grok (xAI) : prêtes à parler dans les clips, avec synchronisation des lèvres. */
+export const VOIX_GROK = {
+  eve: "Eve · énergique, accent britannique",
+  ara: "Ara · chaleureuse, amicale",
+  leo: "Leo · autoritaire, forte",
+  rex: "Rex · assurée, claire",
+  sal: "Sal · douce, posée",
+  ursa: "Ursa · amicale, rassurante",
+  sirius: "Sirius · vive, joueuse",
+  zagan: "Zagan · puissante, dramatique",
+  orion: "Orion · grave, cinématique",
+  helix: "Helix · énergique, dynamique",
+  castor: "Castor · charismatique, détendue",
+  atlas: "Atlas · confiante, imposante",
+  luna: "Luna · douce, patiente",
+  iris: "Iris · enjouée, charmante",
+  celeste: "Celeste · bienveillante",
+  aurora: "Aurora · sereine",
+  kepler: "Kepler · créative, magnétique",
+  cosmo: "Cosmo · claire, curieuse",
+} as const;
+export type VoixGrok = keyof typeof VOIX_GROK;
+/** Voix Grok donnée par défaut à un nouveau personnage. */
+export const VOIX_GROK_DEFAUT: VoixGrok = "eve";
 
 /** Durée maximale d'une bande annonce, en secondes. */
 export const DUREE_MAX_BANDE_ANNONCE = 60;

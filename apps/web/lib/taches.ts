@@ -45,6 +45,9 @@ export async function mettreEnFile(d: DemandeTache): Promise<ResultatFile> {
   requete = d.episode_id ? requete.eq("episode_id", d.episode_id) : requete.is("episode_id", null);
   const personnage = d.donnees?.personnage_id;
   if (!d.episode_id && typeof personnage === "string") requete = requete.contains("donnees", { personnage_id: personnage });
+  // Arc de saison : un seul à la fois par saison.
+  const saison = d.donnees?.saison_id;
+  if (!d.episode_id && typeof saison === "string") requete = requete.contains("donnees", { saison_id: saison });
   const { data: existantes, error: e1 } = await requete.limit(1);
   if (e1) throw new Error(`Lecture de la file impossible : ${e1.message}`);
   if (existantes && existantes.length > 0) return { ok: false, raison: `${NOMS[d.type]} est déjà en file ou en cours.` };

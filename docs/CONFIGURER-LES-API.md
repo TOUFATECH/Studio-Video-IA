@@ -12,19 +12,24 @@ L'adresse de retour OAuth à déclarer chez Google, Meta et TikTok est affichée
 
 En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent `http` ou `localhost` : utilise alors l'adresse publique de ton déploiement, ou un tunnel HTTPS.
 
-## OpenAI (scénarios, images, fiches personnages, traductions)
+## OpenAI (arc, story, scénarios, storyboard, retouches, contrôle qualité, traductions)
 
 1. https://platform.openai.com → API keys → Create new secret key.
 2. Ajoute un moyen de paiement. La génération d'images peut demander la vérification de l'organisation.
-3. Modèles utilisés : `OPENAI_TEXT_MODEL` et `OPENAI_IMAGE_MODEL` dans `.env` (modifiables sans toucher au code).
+3. Modèles utilisés : `OPENAI_TEXT_MODEL` et `OPENAI_IMAGE_MODEL` dans `.env` (par défaut `gpt-image-2`, modifiables sans toucher au code).
+4. Les images sont faites **à partir de tes photos de référence** (personnages, variantes, décor, plan précédent) : jusqu'à 8 photos par image. Une retouche part de l'image actuelle et de ta consigne.
+5. OpenAI ne fait plus de vidéo : l'API Sora a fermé le 24 septembre 2026. Les vidéos passent par Grok.
 
-## xAI · Grok (clips vidéo)
+## xAI · Grok (vidéos, paroles des personnages, sons, reconnaissance des paroles)
 
 1. https://console.x.ai → API Keys → Create.
-2. Modèle et résolution : `XAI_VIDEO_MODEL` et `XAI_VIDEO_RESOLUTION` dans `.env`.
-3. Les vidéos renvoyées par xAI sont des liens temporaires : le worker les télécharge et les range tout de suite dans le dossier des médias.
+2. Modèle et résolution : `XAI_VIDEO_MODEL` (par défaut `grok-imagine-video-1.5`) et `XAI_VIDEO_RESOLUTION` dans `.env`.
+3. Chaque plan part avec l'image du storyboard en première image et jusqu'à 6 photos de référence (visages, décor). Avec des références, Grok plafonne à 720p et à 15 s par vidéo.
+4. **Voix** : chaque personnage a une voix Grok (Eve par défaut ; Ara, Leo, Rex, Sal…), à choisir dans la bible. Grok fait parler le personnage à l'image, avec le son d'ambiance. Les voix ElevenLabs restent possibles pour un personnage, au choix.
+5. **Reconnaissance des paroles** (clips musicaux) : `XAI_STT_MODEL` (`grok-stt`). Sans clé xAI, c'est ElevenLabs qui s'en charge.
+6. Les vidéos renvoyées par xAI sont des liens temporaires : le worker les télécharge et les range tout de suite dans le dossier des médias.
 
-## ElevenLabs (voix, voix clonées, bruitages, musique et paroles des clips)
+## ElevenLabs (facultatif : voix clonées, musique des clips)
 
 1. https://elevenlabs.io → profil → API Keys. Si tu restreins la clé, autorise : Text to Speech, Sound Effects, Voices, **Music**, **Forced Alignment** et **Speech to Text** (ces trois derniers servent aux clips).
 2. Le clonage de voix dépend de ton abonnement ElevenLabs. Clone seulement ta voix ou celle d'une personne qui a donné son accord (case obligatoire dans la bible).
@@ -32,11 +37,11 @@ En local, `APP_URL` vaut `http://localhost:3000`. Certains fournisseurs refusent
 4. Clips : la musique est composée avec `ELEVENLABS_MUSIC_MODEL` (`music_v1`, le seul qui chante des paroles imposées section par section). ElevenLabs refuse les noms d'artistes et les paroles existantes : écris un style (« synthpop, voix féminine, 110 BPM ») et tes propres paroles. La génération de musique demande un abonnement payant ElevenLabs.
 5. Le prix d'une minute de musique se règle dans Réglages → Budget (valeur d'exemple à remplacer par ton tarif).
 
-## Anthropic · Claude (facultatif : scènes et paroles des clips)
+## Anthropic · Claude (facultatif : arc, story, scénarios, contrôle qualité, paroles des clips)
 
 1. https://console.anthropic.com → API Keys → Create Key, puis ajoute du crédit (Billing).
 2. Colle la clé dans Réglages → Clés API → Anthropic · Claude, et clique Tester.
-3. Dans un clip, étape « Son et paroles », choisis **Claude** au lieu de ChatGPT. Les images restent faites par ChatGPT (OpenAI Images) et les vidéos par Grok.
+3. Réglages → Préférences → « IA qui écrit » : choisis **Claude** pour l'arc, la story et les scénarios des séries. Dans un clip, étape « Son et paroles », choisis **Claude** au lieu de ChatGPT. Les images restent faites par ChatGPT (OpenAI Images) et les vidéos par Grok.
 4. Modèle : `ANTHROPIC_MODEL` dans `.env` (par défaut `claude-sonnet-5-5`).
 
 ## YouTube (Google Cloud)

@@ -1,8 +1,20 @@
 // Répartition automatique des durées de clips pour tomber sur la durée cible d'un épisode.
-import { DUREES_AUTORISEES, DUREE_GENERIQUES, TYPES_PLAN, type FormatEpisode, type TypePlan } from "./constantes";
+import { DUREES_AUTORISEES, DUREE_GENERIQUES, PALIERS_COURT, TYPES_PLAN, type FormatEpisode, type TypePlan } from "./constantes";
 
-/** Ce dont la répartition a besoin d'un plan. */
-export type PlanDuree = { id: string; type: TypePlan; duree_fixee: number | null; section?: string; debut?: number | null; fin?: number | null };
+/** Ce dont la répartition a besoin d'un plan. `duree` (1 à 8 s, choisie à la main) passe avant `duree_fixee` (ancien palier). */
+export type PlanDuree = { id: string; type: TypePlan; duree_fixee: number | null; duree?: number | null; section?: string; debut?: number | null; fin?: number | null };
+
+/** Durée imposée à la main pour un plan, ou null. */
+export function dureeImposee(p: Pick<PlanDuree, "duree" | "duree_fixee">): number | null {
+  if (p.duree != null && Number.isFinite(Number(p.duree))) return Number(p.duree);
+  return p.duree_fixee ?? null;
+}
+
+/** Durée de départ d'un plan d'épisode court selon son type (les bases longues sont ramenées à 8 s). */
+function baseCourte(type: TypePlan): number {
+  const base = TYPES_PLAN[type].base;
+  return PALIERS_COURT.reduce((meilleur, p) => (Math.abs(p - base) < Math.abs(meilleur - base) ? p : meilleur), PALIERS_COURT[0]);
+}
 
 /** Vrai si tous les plans portent leur place dans une chanson (clip musical) : leur durée est alors imposée. */
 export function plansCales(plans: readonly PlanDuree[]): boolean {
@@ -14,9 +26,10 @@ export function plansCales(plans: readonly PlanDuree[]): boolean {
  * Part de la durée de base de chaque type, puis allonge ou raccourcit pas à pas le plan le plus adapté.
  * Les durées fixées à la main ne bougent jamais. Renvoie les durées dans l'ordre des plans.
  */
-export function repartirDurees(plans: readonly PlanDuree[], cible: number): number[] {
-  const autorisees: readonly number[] = DUREES_AUTORISEES;
-  const d = plans.map((p) => p.duree_fixee ?? TYPES_PLAN[p.type].base);
+export function repartirDurees(plans: readonly PlanDuree[], cible: number, paliers: readonly number[] = DUREES_AUTORISEES): number[] {
+  const autorisees: readonly number[] = paliers;
+  const court = paliers !== DUREES_AUTORISEES;
+  const d = plans.map((p) => dureeImposee(p) ?? (court ? baseCourte(p.type) : TYPES_PLAN[p.type].base));
   // 400 itérations suffisent largement : chaque pas rapproche strictement de la cible.
   for (let k = 0; k < 400; k++) {
     const somme = d.reduce((a, b) => a + b, 0);
@@ -27,7 +40,7 @@ export function repartirDurees(plans: readonly PlanDuree[], cible: number): numb
     let meilleureValeur = 0;
     plans.forEach((p, i) => {
       // Une accroche ne raccourcit pas : les 3 premières secondes doivent rester percutantes.
-      if (p.duree_fixee !== null || (ecart < 0 && p.type === "accroche")) return;
+      if (dureeImposee(p) !== null || (ecart < 0 && p.type === "accroche")) return;
       const actuelle = d[i] ?? 0;
       const idx = autorisees.indexOf(actuelle);
       const suivante = ecart > 0 ? autorisees[idx + 1] : autorisees[idx - 1];
@@ -71,7 +84,8 @@ export function dureesParPlan(plans: readonly PlanDuree[], cible: number, format
     return m;
   }
   if (format !== "long") {
-    const d = repartirDurees(plans, cible);
+    // Épisode court : plans de 2 à 8 s (le cahier des charges limite un plan à 8 s).
+    const d = repartirDurees(plans, cible, format === "court" ? PALIERS_COURT : DUREES_AUTORISEES);
     plans.forEach((p, i) => m.set(p.id, d[i] ?? 0));
     return m;
   }
@@ -97,7 +111,15 @@ export function dureeTotale(plans: readonly PlanDuree[], cible: number, format: 
 export function nombrePlansCible(format: FormatEpisode, cible: number): number {
   if (format === "long") return Math.max(12, Math.round((cible - DUREE_GENERIQUES) / 7));
   if (format === "moyen") return Math.min(40, Math.max(16, Math.round(cible / 7)));
-  return Math.min(18, Math.max(4, Math.round(cible / 7)));
+  // Court : environ 4 s par plan, soit 12 à 25 plans pour une minute.
+  return Math.min(25, Math.max(4, Math.round(cible / 4)));
+}
+
+/** Contrôle de la durée d'un épisode vertical : alerte au-delà de 60 s, blocage au-delà de 90 s. */
+export function controleDuree(total: number): { niveau: "ok" | "alerte" | "bloque"; message: string | null } {
+  if (total > 90 + 0.5) return { niveau: "bloque", message: `${Math.round(total)} s : un épisode dure 90 s au plus. Raccourcis ou supprime des plans avant de valider.` };
+  if (total > 60 + 0.5) return { niveau: "alerte", message: `${Math.round(total)} s : au-delà de 60 s, trop long pour une Story et au-dessus de la durée conseillée sur TikTok.` };
+  return { niveau: "ok", message: null };
 }
 
 /** Nombre de chapitres d'un film : un toutes les 2 minutes environ. */

@@ -1,5 +1,5 @@
 // Accueil : chiffres clés, liste « À faire », générations en cours, publications, réseaux et séries.
-import { NOMS_RESEAUX, RESEAUX, type Reseau } from "@studio-video-ia/core";
+import { NOMS_RESEAUX, RESEAUX, type Reseau, tempsRestant } from "@studio-video-ia/core";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RafraichissementDirect } from "@/components/RafraichissementDirect";
@@ -213,7 +213,10 @@ export default async function PageAccueil() {
                   <Jauge pourcentage={total ? (100 * fait) / total : 0} ton="info" />
                   <span className="ligne ligne--entre tres-petit doux">
                     <span>{total ? `${fait}/${total}` : ""}</span>
-                    <span className="mono">{t.progression.secondes ? dureeLisible(t.progression.secondes) : ""}</span>
+                    <span className="mono">
+                      {t.progression.secondes ? dureeLisible(t.progression.secondes) : ""}
+                      {tempsRestant(t.progression) ? ` · prêt dans ~${dureeLisible(tempsRestant(t.progression) ?? 0)}` : ""}
+                    </span>
                   </span>
                 </>
               );

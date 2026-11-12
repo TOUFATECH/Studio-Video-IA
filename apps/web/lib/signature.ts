@@ -2,10 +2,10 @@
 // sans croire l'extension ni le type MIME envoyés par le navigateur.
 
 /** Types reconnus. Le SVG est détecté pour être refusé explicitement (il peut contenir du script). */
-export type TypeDetecte = "png" | "jpeg" | "webp" | "mp3" | "wav" | "m4a" | "svg";
+export type TypeDetecte = "png" | "jpeg" | "webp" | "mp3" | "wav" | "m4a" | "mp4" | "mov" | "svg";
 
 /** Genres d'import acceptés par /api/import. */
-export type GenreImport = "echantillon_voix" | "musique" | "fiche" | "chanson";
+export type GenreImport = "echantillon_voix" | "musique" | "fiche" | "chanson" | "reference" | "remplacement_image" | "remplacement_clip";
 
 /** Types et taille maximale autorisés par genre d'import. */
 export const REGLES_IMPORT: Record<GenreImport, { types: readonly TypeDetecte[]; maxOctets: number; libelle: string }> = {
@@ -14,7 +14,14 @@ export const REGLES_IMPORT: Record<GenreImport, { types: readonly TypeDetecte[];
   fiche: { types: ["png", "jpeg", "webp"], maxOctets: 10 * 1024 * 1024, libelle: "PNG, JPG ou WebP, 10 Mo maximum" },
   // Chanson d'un clip : 45 Mo au plus (un MP3 de 10 min en 320 kb/s en fait environ 24).
   chanson: { types: ["mp3", "wav", "m4a"], maxOctets: 45 * 1024 * 1024, libelle: "MP3, WAV ou M4A, 45 Mo maximum" },
+  // Bibliothèque : photos et vidéos du vrai lieu ou de la personne (le conteneur MP4 peut se présenter comme M4A).
+  reference: { types: ["png", "jpeg", "webp", "mp4", "mov", "m4a"], maxOctets: 60 * 1024 * 1024, libelle: "photo PNG, JPG ou WebP (15 Mo) ou vidéo MP4 ou MOV (60 Mo)" },
+  remplacement_image: { types: ["png", "jpeg", "webp"], maxOctets: 15 * 1024 * 1024, libelle: "PNG, JPG ou WebP, 15 Mo maximum" },
+  remplacement_clip: { types: ["mp4", "mov", "m4a"], maxOctets: 60 * 1024 * 1024, libelle: "MP4 ou MOV, 60 Mo maximum" },
 };
+
+/** Taille maximale d'une photo de référence (les vidéos ont la limite du genre). */
+export const MAX_PHOTO_REFERENCE = 15 * 1024 * 1024;
 
 /** Extension et type MIME enregistrés pour chaque type détecté. */
 export const INFOS_TYPE: Record<Exclude<TypeDetecte, "svg">, { extension: string; mime: string }> = {
@@ -24,6 +31,8 @@ export const INFOS_TYPE: Record<Exclude<TypeDetecte, "svg">, { extension: string
   mp3: { extension: "mp3", mime: "audio/mpeg" },
   wav: { extension: "wav", mime: "audio/wav" },
   m4a: { extension: "m4a", mime: "audio/mp4" },
+  mp4: { extension: "mp4", mime: "video/mp4" },
+  mov: { extension: "mov", mime: "video/quicktime" },
 };
 
 /** Compare des octets à une suite ASCII à partir d'une position. */
@@ -32,6 +41,9 @@ function ascii(octets: Uint8Array, debut: number, texte: string): boolean {
   for (let i = 0; i < texte.length; i++) if (octets[debut + i] !== texte.charCodeAt(i)) return false;
   return true;
 }
+
+/** Marques « ftyp » propres à la vidéo (iPhone, Android, montage). */
+const MARQUES_VIDEO = ["avc1", "M4V ", "mp4v", "dash", "3gp4", "3gp5", "hvc1"];
 
 /** Marques « ftyp » d'un conteneur MP4 audio acceptées comme M4A. */
 const MARQUES_M4A = ["M4A ", "M4B ", "mp42", "isom", "iso2", "mp41"];
@@ -45,6 +57,8 @@ export function detecterType(octets: Uint8Array): TypeDetecte | null {
   if (ascii(octets, 0, "ID3")) return "mp3";
   // Trame MPEG sans étiquette ID3 : 11 bits de synchronisation à 1, couche III (bits 0b01).
   if (octets.length >= 2 && octets[0] === 0xff && ((octets[1] ?? 0) & 0xe0) === 0xe0 && ((octets[1] ?? 0) & 0x06) === 0x02) return "mp3";
+  if (ascii(octets, 4, "ftyp") && ascii(octets, 8, "qt  ")) return "mov";
+  if (ascii(octets, 4, "ftyp") && MARQUES_VIDEO.some((m) => ascii(octets, 8, m))) return "mp4";
   if (ascii(octets, 4, "ftyp") && MARQUES_M4A.some((m) => ascii(octets, 8, m))) return "m4a";
   // SVG : texte XML commençant (après BOM et espaces) par « <?xml » ou « <svg ».
   const debut = new TextDecoder("utf-8", { fatal: false }).decode(octets.slice(0, 512)).replace(/^﻿/, "").trimStart().toLowerCase();

@@ -1,7 +1,8 @@
-// Client xAI (Grok) : génération de clips vidéo à partir d'une image, suivi de la génération et téléchargement immédiat.
+// Client xAI (Grok) : clips vidéo à partir d'une image (avec références de personnages et de décors, voix
+// préréglées et son), suivi de la génération et téléchargement immédiat ; transcription des paroles avec minutage.
 import { z } from "zod";
 import { ErreurApi, type Fetch } from "./contrat";
-import { appelJson, attendre as attendreReel, erreurReponseInvalide, lireOctets, requete, type Attendre } from "./http";
+import { appelJson, attendre as attendreReel, erreurReponseInvalide, lireOctets, requete, versOctets, type Attendre } from "./http";
 
 /** Adresse de base de l'API xAI. */
 export const BASE_XAI = "https://api.x.ai/v1";
@@ -24,7 +25,17 @@ export type ParamsVideo = {
   genererAudio: boolean;
   /** Image de départ : adresse publique ou data URI (base64). */
   urlImage: string | null;
+  /**
+   * Images de référence (fiches personnages, photo du décor) : <IMAGE_1>, <IMAGE_2>… dans le prompt quand
+   * l'image de départ est <IMAGE_0>. 14 au plus sur grok-imagine-video-1.5 ; la sortie est alors limitée à 720p.
+   */
+  references?: readonly string[];
+  /** Voix préréglées (« eve », « leo »…) : <AUDIO_0>, <AUDIO_1>… dans le prompt. 3 au plus. */
+  voix?: readonly string[];
 };
+
+/** Nombre maximal de références et de voix acceptées par Grok Imagine Video 1.5. */
+export const LIMITES_REFERENCES_XAI = { images: 14, voix: 3 } as const;
 
 /** Options du suivi : intervalle et délai maximal (paramétrables pour les tests). */
 export type OptionsSuivi = { intervalleMs?: number; delaiMaxMs?: number; attendre?: Attendre; signal?: AbortSignal; surAttente?: (secondes: number) => void };
@@ -85,7 +96,13 @@ export async function lancerVideo(cle: string, p: ParamsVideo, f: Fetch = fetch)
     generate_audio: p.genererAudio,
   };
   if (p.urlImage) corps.image = { url: p.urlImage };
-  const rep = await appelJson(f, FOURNISSEUR, `${BASE_XAI}/videos/generations`, { method: "POST", headers: entetes(cle), body: JSON.stringify(corps) }, schemaLancement, [cle, p.urlImage]);
+  const references = (p.references ?? []).slice(0, LIMITES_REFERENCES_XAI.images);
+  const voix = (p.voix ?? []).slice(0, LIMITES_REFERENCES_XAI.voix);
+  if (references.length) corps.reference_images = references.map((url) => ({ url }));
+  if (voix.length) corps.reference_audios = voix.map((voice_id) => ({ voice_id }));
+  // Avec des références (mode « reference-to-video »), Grok plafonne la sortie à 720p.
+  if ((references.length || voix.length) && p.resolution === "1080p") corps.resolution = "720p";
+  const rep = await appelJson(f, FOURNISSEUR, `${BASE_XAI}/videos/generations`, { method: "POST", headers: entetes(cle), body: JSON.stringify(corps) }, schemaLancement, [cle, p.urlImage, ...references]);
   return rep.request_id;
 }
 
@@ -143,4 +160,39 @@ export async function genererVideo(cle: string, p: ParamsVideo, options: Options
 export async function listerModelesXai(cle: string, f: Fetch = fetch): Promise<string[]> {
   const rep = await appelJson(f, FOURNISSEUR, `${BASE_XAI}/models`, { method: "GET", headers: { Authorization: `Bearer ${cle}` } }, schemaModeles, [cle]);
   return rep.data.map((m) => m.id);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Transcription (Grok Speech to Text) : paroles avec le minutage de chaque mot
+// ---------------------------------------------------------------------------------------------
+
+/** Modèle de transcription par défaut (modifiable avec XAI_STT_MODEL). */
+export const MODELE_STT_XAI = "grok-stt";
+
+const schemaStt = z.object({
+  text: z.string().default(""),
+  language: z.string().nullish(),
+  duration: z.number().nullish(),
+  words: z.array(z.object({ text: z.string(), start: z.number(), end: z.number() })).default([]),
+});
+
+/** Un mot transcrit avec son début et sa fin (secondes). */
+export type MotTranscrit = { texte: string; debut: number; fin: number };
+
+/**
+ * Transcrit un fichier audio (chanson, voix) avec le minutage de chaque mot : POST /v1/stt (multipart).
+ * Les champs d'option passent avant le fichier, comme le demande la documentation xAI.
+ */
+export async function transcrireXai(
+  cle: string,
+  p: { audio: Uint8Array; nom: string; type?: string; langue?: string | null; modele?: string },
+  f: Fetch = fetch,
+): Promise<{ texte: string; mots: MotTranscrit[]; duree: number | null }> {
+  const form = new FormData();
+  form.append("model", p.modele ?? MODELE_STT_XAI);
+  form.append("format", "true");
+  if (p.langue) form.append("language", p.langue);
+  form.append("file", new Blob([versOctets(p.audio)], { type: p.type ?? "audio/mpeg" }), p.nom);
+  const rep = await appelJson(f, FOURNISSEUR, `${BASE_XAI}/stt`, { method: "POST", headers: { Authorization: `Bearer ${cle}` }, body: form }, schemaStt, [cle]);
+  return { texte: rep.text, mots: rep.words.map((w) => ({ texte: w.text, debut: w.start, fin: w.end })), duree: rep.duration ?? null };
 }

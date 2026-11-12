@@ -4,7 +4,9 @@
 import {
   BORNES_DUREE,
   LANGUES,
+  controleDuree,
   dureesParPlan,
+  indexerFichiers,
   livrablePour,
   verifierDureePublication,
   normaliserHashtags,
@@ -19,16 +21,19 @@ import { executer } from "@/lib/action";
 import { COLONNES_RESEAU, episodeAMoi, planAMoi, publicationAMoi } from "@/lib/appartenance";
 import { instantDepuisSaisie } from "@/lib/dates";
 import { ErreurUtilisateur } from "@/lib/erreurs";
-import { cheminsDuPlan, invaliderClips, invaliderImages, invaliderPlans, supprimerRendus } from "@/lib/invalidation";
+import { cheminsDuPlan, invaliderClips, invaliderPlans, supprimerRendus } from "@/lib/invalidation";
+import { verifierCoutLancement } from "@/lib/cout";
 import { ligne, ligneEspace, ligneFichier, lignePlan, lignePublication, ligneReseau, lignes } from "@/lib/lignes";
 import { supprimerObjets } from "@/lib/medias";
 import { chargerReglages } from "@/lib/reglages";
 import {
+  caseACocher,
   formulaire,
   id as schemaId,
   premiereErreur,
   schemaDemandeModification,
   schemaEpisodeFormulaire,
+  schemaEcrireScenario,
   schemaEpisodeSeul,
   schemaLangues,
   schemaMiniature,
@@ -143,8 +148,13 @@ export async function modifierEpisode(fd: FormData): Promise<void> {
 /** « Écrire avec l'IA » : met en file l'écriture du scénario (bible, mémoire et épisode précédent pris en compte). */
 export async function ecrireScenario(fd: FormData): Promise<void> {
   await executer(async () => {
-    const { episode_id } = valider(schemaEpisodeSeul, fd);
-    const { episode, serie } = await episodeAMoi(episode_id);
+    const d = valider(schemaEcrireScenario, fd);
+    const { episode, serie } = await episodeAMoi(d.episode_id);
+    // L'IA choisie (ChatGPT ou Claude) est gardée sur l'épisode : elle sert aussi aux modifications demandées ensuite.
+    if (d.fournisseur_texte !== episode.fournisseur_texte) {
+      const { db } = await utilisateur();
+      verifier((await db.from("episodes").update({ fournisseur_texte: d.fournisseur_texte }).eq("id", episode.id)).error, "Épisode");
+    }
     await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "scenario", donnees: { mode: "ecrire" }, priorite: 1 });
     return { message: "Écriture en file. Les plans apparaîtront ici." };
   });
@@ -240,23 +250,37 @@ export async function supprimerPlan(fd: FormData): Promise<void> {
 
 // ---------------------------------------------------------------- Storyboard
 
-/** « Générer les images » (toutes celles qui manquent) ou « Refaire » une image précise. */
+/**
+ * « Générer les images » (toutes celles qui manquent) ou « Refaire » une image précise.
+ * Générer valide le scénario (sauf au-delà de 90 s pour un épisode vertical) ; refaire garde les anciennes versions.
+ * Au-delà du plafond par épisode, la case « Je confirme la dépense » est exigée.
+ */
 export async function genererImages(fd: FormData): Promise<void> {
   await executer(async () => {
-    const d = valider(schemaPlans, fd, ["plan_ids"]);
+    const d = valider(schemaPlans.extend({ confirmer: caseACocher }), fd, ["plan_ids"]);
     const { episode, serie } = await episodeAMoi(d.episode_id);
     const plans = await plansDe(episode.id);
     if (!plans.length) throw new ErreurUtilisateur("Écris d’abord le scénario.");
     const ids = d.plan_ids.filter((x) => plans.some((p) => p.id === x));
+    const fichiers = await fichiersDe(episode.id);
+    const avecImage = new Set(fichiers.filter((f) => f.genre === "image" && f.statut === "pret").map((f) => f.plan_id));
+    const cibles = ids.length ? plans.filter((p) => ids.includes(p.id)) : plans.filter((p) => !avecImage.has(p.id));
+    if (episode.genre === "episode" && episode.format === "court") {
+      const total = [...dureesParPlan(plans, episode.duree_cible, episode.format).values()].reduce((a, b) => a + b, 0);
+      const c = controleDuree(total);
+      if (c.niveau === "bloque") throw new ErreurUtilisateur(c.message ?? "Épisode trop long.");
+    }
+    const cout = await verifierCoutLancement({ episode, plans: cibles, genre: "image", confirmer: d.confirmer });
+    const { db } = await utilisateur();
+    if (!episode.scenario_valide) await db.from("episodes").update({ scenario_valide: true }).eq("id", episode.id);
     if (ids.length) {
-      // Refaire : l'ancienne image et les clips qui en partent ne valent plus rien.
-      const { db } = await utilisateur();
+      // Refaire : l'ancienne image reste dans les versions ; ses clips seront périmés dès la nouvelle image.
       await db.from("plans").update({ valide: false }).in("id", ids);
-      await invaliderImages(episode.id, ids);
+      await supprimerRendus(episode.id);
       await remettreEnAttente(episode.id);
     }
     await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "storyboard", donnees: ids.length ? { plan_ids: ids } : {} });
-    return { message: ids.length ? "Nouvelle image en file." : "Génération des images en file." };
+    return { message: ids.length ? `Nouvelle image en file (environ ${cout}).` : `Génération des images en file (environ ${cout}).` };
   });
 }
 
@@ -286,14 +310,19 @@ export async function toutValider(fd: FormData): Promise<void> {
 /** « Valider et lancer les clips » : possible seulement quand chaque plan a une image validée. */
 export async function lancerClips(fd: FormData): Promise<void> {
   await executer(async () => {
-    const d = valider(schemaPlans, fd, ["plan_ids"]);
+    const d = valider(schemaPlans.extend({ confirmer: caseACocher }), fd, ["plan_ids"]);
     const { episode, serie } = await episodeAMoi(d.episode_id);
     const plans = await plansDe(episode.id);
-    const images = new Set((await fichiersDe(episode.id)).filter((f) => f.genre === "image" && f.statut === "pret").map((f) => f.plan_id));
+    const fichiers = await fichiersDe(episode.id);
+    const images = new Set(fichiers.filter((f) => f.genre === "image" && f.statut === "pret").map((f) => f.plan_id));
     if (!plans.length || plans.some((p) => !p.valide || !images.has(p.id))) throw new ErreurUtilisateur("Valide d’abord toutes les images du storyboard.");
     const ids = d.plan_ids.filter((x) => plans.some((p) => p.id === x));
+    // Coût : les plans demandés, sinon ceux dont le clip manque ou est périmé.
+    const index = indexerFichiers(fichiers);
+    const cibles = ids.length ? plans.filter((p) => ids.includes(p.id)) : plans.filter((p) => index.get(`${p.id}:clip:A`)?.statut !== "pret");
+    const cout = await verifierCoutLancement({ episode, plans: cibles, genre: "clip", confirmer: d.confirmer });
     await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "clips", donnees: ids.length ? { plan_ids: ids } : {} });
-    return { message: ids.length ? "Nouvel essai en file." : "Clips et voix en file." };
+    return { message: ids.length ? `Nouvel essai en file (environ ${cout}).` : `Clips en file (environ ${cout}).` };
   });
 }
 

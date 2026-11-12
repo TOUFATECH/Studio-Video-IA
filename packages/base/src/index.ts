@@ -11,6 +11,7 @@ import { Client } from "./requete";
 
 export * from "./comptes";
 export * from "./depot";
+export * from "./totp";
 export { debutDuMois } from "./fonctions";
 export * from "./migrations";
 export { ErreurSql, isoDepuisPostgres, moteurPostgres, moteurSqlite, numeroter, type LigneBrute, type Moteur } from "./moteur";

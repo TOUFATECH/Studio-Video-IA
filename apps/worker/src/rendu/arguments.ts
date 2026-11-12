@@ -59,21 +59,53 @@ export function styleSousTitres(police: string, orientation: Orientation): strin
   return [`PlayResX=${largeur}`, `PlayResY=${hauteur}`, `FontName=${police}`, `FontSize=${taille}`, "PrimaryColour=&H00FFFFFF", "OutlineColour=&H00000000", "BorderStyle=1", "Outline=2", "Shadow=0", `MarginV=${marge}`, "Alignment=2"].join(",");
 }
 
+/** Style du texte à l'écran d'un plan : en haut au centre (Alignment=6, numérotation SSA de libass), gras, plus grand que les sous-titres. */
+export function styleTexteEcran(police: string, orientation: Orientation): string {
+  const { largeur, hauteur } = DIMENSIONS[orientation];
+  return [`PlayResX=${largeur}`, `PlayResY=${hauteur}`, `FontName=${police}`, "FontSize=64", "Bold=1", "PrimaryColour=&H00FFFFFF", "OutlineColour=&H00000000", "BorderStyle=1", "Outline=3", "Shadow=0", `MarginV=${orientation === "vertical" ? 260 : 80}`, "Alignment=6"].join(",");
+}
+
 /** Filtre `subtitles` complet, avec le chemin du fichier SRT et le style correctement échappés. */
 export function filtreSousTitres(cheminSrt: string, police: string, orientation: Orientation): string {
   return `subtitles=filename=${echapperValeurFiltre(cheminSrt)}:force_style=${echapperValeurFiltre(styleSousTitres(police, orientation))}`;
 }
 
+/** Effet d'un plan au montage (choisi dans le storyboard). */
+export type EffetMontage = "aucun" | "zoom" | "tremblement" | "ralenti";
+/** Transition à l'entrée d'un plan. */
+export type TransitionMontage = "coupe" | "fondu" | "flash";
+
+/** Ampleur du zoom avant lent (12 %) et du tremblement (en pixels). */
+export const EFFETS_MONTAGE = { zoom: 0.12, tremblement: 14, ralenti: 2, fondu: 0.3, flash: 0.25 } as const;
+
 /**
  * Chaîne de filtres vidéo d'un segment : mise à l'échelle et bandes noires (ou recadrage au centre en 9:16),
- * 30 i/s, pixels carrés, puis durée exacte (la dernière image est prolongée si le clip est trop court).
+ * 30 i/s, pixels carrés, effet éventuel (zoom, tremblement, ralenti), durée exacte (la dernière image est
+ * prolongée si le clip est trop court), puis transition d'entrée (fondu au noir ou flash blanc).
  */
-export function filtreVideoSegment(p: { orientation: Orientation; duree: number; recadrer?: boolean }): string {
+export function filtreVideoSegment(p: { orientation: Orientation; duree: number; recadrer?: boolean; effet?: EffetMontage; transition?: TransitionMontage }): string {
   const { largeur: l, hauteur: h } = DIMENSIONS[p.orientation];
   const cadre = p.recadrer
     ? `crop=ih*9/16:ih,scale=${l}:${h}`
     : `scale=${l}:${h}:force_original_aspect_ratio=decrease,pad=${l}:${h}:(ow-iw)/2:(oh-ih)/2:color=black`;
-  return `${cadre},setsar=1,fps=${IPS},tpad=stop_mode=clone:stop_duration=${sec(p.duree)},trim=duration=${sec(p.duree)},setpts=PTS-STARTPTS,format=yuv420p`;
+  const images = Math.max(1, Math.round(p.duree * IPS));
+  const filtres: string[] = [];
+  // Ralenti : les images du clip sont étalées sur deux fois plus de temps (avant le passage à 30 i/s).
+  if (p.effet === "ralenti") filtres.push(`setpts=${EFFETS_MONTAGE.ralenti}*PTS`);
+  filtres.push(cadre, "setsar=1", `fps=${IPS}`);
+  if (p.effet === "zoom") {
+    // zoompan à une image de sortie par image d'entrée (d=1) : zoom avant progressif centré.
+    filtres.push(`zoompan=z='min(1+${EFFETS_MONTAGE.zoom}*on/${images},${1 + EFFETS_MONTAGE.zoom})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${l}x${h}:fps=${IPS}`);
+  } else if (p.effet === "tremblement") {
+    // Légère marge, puis recadrage déplacé au hasard à chaque image.
+    const a = EFFETS_MONTAGE.tremblement;
+    filtres.push(`scale=${l + 2 * a}:${h + 2 * a}`, `crop=${l}:${h}:x='${a}+(random(1)-0.5)*${a}':y='${a}+(random(2)-0.5)*${a}'`);
+  }
+  filtres.push(`tpad=stop_mode=clone:stop_duration=${sec(p.duree)}`, `trim=duration=${sec(p.duree)}`, "setpts=PTS-STARTPTS");
+  if (p.transition === "fondu") filtres.push(`fade=t=in:st=0:d=${EFFETS_MONTAGE.fondu}`);
+  else if (p.transition === "flash") filtres.push(`fade=t=in:st=0:d=${EFFETS_MONTAGE.flash}:color=white`);
+  filtres.push("format=yuv420p");
+  return filtres.join(",");
 }
 
 /** Paramètres d'un segment. */
@@ -89,6 +121,8 @@ export type ParamsSegment = {
   volume: number;
   /** Recadrage au centre en 9:16 (bande annonce tirée d'un film). */
   recadrer?: boolean;
+  effet?: EffetMontage;
+  transition?: TransitionMontage;
 };
 
 /**
@@ -161,7 +195,47 @@ export type ParamsFinal = {
   sortie: string;
   /** Clip musical : l'extrait de la chanson, lu à partir de son début, avec un fondu de fin. */
   chanson?: ChansonPlacee | null;
+  /** Logo de la marque (PNG) incrusté en haut à droite pendant toute la vidéo. */
+  logo?: string | null;
+  /** Fichier SRT du texte à l'écran des plans (en haut de l'image), ou null. */
+  texteEcran?: string | null;
 };
+
+/** Taille et marge du logo incrusté, en proportion de la largeur de la vidéo. */
+export const LOGO = { largeur: 0.16, marge: 0.045, opacite: 0.9 } as const;
+
+/** Couleur ffmpeg sûre (#RRGGBB), noir sinon. */
+export function couleurSure(couleur: string | null | undefined): string {
+  return couleur && /^#[0-9A-Fa-f]{6}$/.test(couleur) ? couleur : "#000000";
+}
+
+/**
+ * Carte de fin : fond de la couleur de la marque, logo centré, `duree` secondes, sans son
+ * (le segment reçoit un silence au montage).
+ */
+export function argumentsCarteFin(p: { logo: string; couleur: string | null; orientation: Orientation; duree: number; sortie: string }): string[] {
+  const { largeur: l, hauteur: h } = DIMENSIONS[p.orientation];
+  const d = sec(p.duree);
+  return [
+    ...DEBUT,
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=${couleurSure(p.couleur)}:s=${l}x${h}:r=${IPS}:d=${d}`,
+    "-i",
+    p.logo,
+    "-filter_complex",
+    `[1:v]scale=${Math.round(l * 0.55)}:-2,format=rgba[logo];[0:v][logo]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]`,
+    "-map",
+    "[v]",
+    ...VIDEO_INTERMEDIAIRE,
+    "-r",
+    String(IPS),
+    "-t",
+    d,
+    p.sortie,
+  ];
+}
 
 /**
  * Mixage et encodage final : audio des segments + voix (adelay) + musique et bruitage en boucle,
@@ -206,7 +280,20 @@ export function argumentsFinal(p: ParamsFinal): string[] {
       ? `${pistes.join("")}amix=inputs=${pistes.length}:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[a]`
       : `[base]alimiter=limit=0.95[a]`,
   );
-  filtres.push(p.sousTitres ? `[0:v]${filtreSousTitres(p.sousTitres, p.police, p.orientation)}[v]` : `[0:v]null[v]`);
+  const sortieTexte = p.logo ? "[vt]" : "[v]";
+  const chaine: string[] = [];
+  if (p.sousTitres) chaine.push(filtreSousTitres(p.sousTitres, p.police, p.orientation));
+  if (p.texteEcran) chaine.push(`subtitles=filename=${echapperValeurFiltre(p.texteEcran)}:force_style=${echapperValeurFiltre(styleTexteEcran(p.police, p.orientation))}`);
+  filtres.push(`[0:v]${chaine.length ? chaine.join(",") : "null"}${sortieTexte}`);
+  if (p.logo) {
+    // Logo en incrustation en haut à droite, légèrement transparent, sur toute la durée.
+    const { largeur: l } = DIMENSIONS[p.orientation];
+    entrees.push("-loop", "1", "-i", p.logo);
+    const marge = Math.round(l * LOGO.marge);
+    filtres.push(`[${n}:v]scale=${Math.round(l * LOGO.largeur)}:-2,format=rgba,colorchannelmixer=aa=${LOGO.opacite}[logo]`);
+    filtres.push(`[vt][logo]overlay=W-w-${marge}:${marge}:shortest=1[v]`);
+    n++;
+  }
   return [...DEBUT, ...entrees, "-filter_complex", filtres.join(";"), "-map", "[v]", "-map", "[a]", ...ENCODAGE_FINAL, "-r", String(IPS), "-t", total, p.sortie];
 }
 

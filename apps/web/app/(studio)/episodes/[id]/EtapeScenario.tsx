@@ -8,6 +8,25 @@ import { codeEpisode } from "@/lib/episodes";
 import { OPTIONS_LANGUES } from "@/lib/libelles";
 import type { DonneesEpisode } from "./chargement";
 import styles from "./episode.module.scss";
+import { PlanDetaille } from "./PlanDetaille";
+import { ChoixIATexte } from "@/components/ChoixIATexte";
+import { StoryEtScenes } from "./StoryEtScenes";
+
+/** Mots qui signalent une scène que les IA d'images refuseront (mineur dans une scène de séduction, contenu sensible). */
+const MINEURS = /\b(enfant|gamin|gamine|mineur|mineure|ado|adolescent|adolescente|collégien|collégienne|écolier|écolière|bébé|petite fille|petit garçon)\b/i;
+const SEDUCTION = /\b(séduction|séduit|séduire|drague|draguer|bisou|embrasse|baiser|sexy|déshabill|nu|nue|lingerie|câlin intime)\b/i;
+const SENSIBLE = /\b(sang|cadavre|arme|pistolet|couteau|drogue|suicide|torture)\b/i;
+
+/** Plans qu'une IA risque de refuser, avec la raison. */
+export function plansRefusables(plans: readonly { texte: string; replique: string }[]): { index: number; raison: string }[] {
+  const out: { index: number; raison: string }[] = [];
+  plans.forEach((p, i) => {
+    const t = `${p.texte} ${p.replique}`;
+    if (MINEURS.test(t) && SEDUCTION.test(t)) out.push({ index: i, raison: "mineur dans une scène de séduction" });
+    else if (SENSIBLE.test(t)) out.push({ index: i, raison: "contenu sensible" });
+  });
+  return out;
+}
 
 /** Une vérification de la continuité. */
 type Verif = { ok: boolean; avertissement?: boolean; texte: string };
@@ -34,6 +53,10 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
   const doublons = [...voix.values()].filter((x) => x.length > 1).map((x) => x.join(" et "));
   const sansAccord = personnages.filter((c) => c.source_voix === "elevenlabs_clone" && !c.accord_clone);
   const sansFiche = presents.filter((c) => c.fiche_statut !== "prete");
+  // Noms en majuscule cités dans les dialogues mais absents de la bibliothèque (personnage inconnu).
+  const noms = new Set(personnages.map((c) => c.nom.toLowerCase()));
+  const inconnus = nomsInconnus(plans.map((p) => p.texte), [...noms, ...d.elements.map((e) => e.nom.toLowerCase())]);
+  const refusables = plansRefusables(plans);
   const verifs: Verif[] = n
     ? [
         { ok: Math.abs(ecart) <= tolerance, texte: `Durée ${formaterDuree(total)} pour une cible de ${formaterDuree(episode.duree_cible)}.` },
@@ -42,6 +65,8 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
         { ok: sansPerso === 0 && sansReplique === 0, avertissement: true, texte: sansPerso ? `${sansPerso} dialogue(s) sans personnage.` : sansReplique ? `${sansReplique} réplique(s) à écrire.` : "Dialogues complets." },
         { ok: doublons.length === 0, texte: doublons.length ? `Même voix pour ${doublons.join(" ; ")}.` : "Une voix par personnage." },
         { ok: sansAccord.length === 0, texte: sansAccord.length ? `Voix clonée sans accord : ${sansAccord.map((c) => c.nom).join(", ")}.` : "Voix clonées : accord coché." },
+        { ok: inconnus.length === 0, avertissement: true, texte: inconnus.length ? `Noms absents de la bibliothèque : ${inconnus.join(", ")}. Ajoute-les comme personnages ou décors.` : "Tous les noms cités sont dans la bibliothèque." },
+        { ok: refusables.length === 0, texte: refusables.length ? `Plans que les IA risquent de refuser : ${refusables.map((r) => `P${r.index + 1} (${r.raison})`).join(", ")}.` : "Aucune scène à risque de refus." },
       ]
     : [{ ok: false, avertissement: true, texte: "Pas encore de scénario." }];
   const avant = d.ordre.slice(Math.max(0, d.position - 3), Math.max(0, d.position));
@@ -72,7 +97,7 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
                 <legend className="etiquette">Format</legend>
                 <label className="segment">
                   <input type="radio" name="format" value="court" defaultChecked={episode.format === "court"} />
-                  Court · 1:00 à 2:00 · vertical
+                  Court · 60 s conseillé, 90 s max · vertical
                 </label>
                 <label className="segment">
                   <input type="radio" name="format" value="moyen" defaultChecked={episode.format === "moyen"} />
@@ -118,6 +143,7 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
           </form>
           <form action={ecrireScenario} className="ligne marge-haut">
             <input type="hidden" name="episode_id" value={episode.id} />
+            <ChoixIATexte defaut={episode.fournisseur_texte} cles={d.clesTexte} />
             <BoutonEnvoi variante="principal" desactive={!!ecriture}>
               {ecriture ? "Écriture en cours…" : n ? "Réécrire avec l’IA" : "Écrire avec l’IA"}
             </BoutonEnvoi>
@@ -167,6 +193,8 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
           </ul>
         </section>
       </div>
+
+      {episode.genre !== "clip" ? <StoryEtScenes d={d} total={total} /> : null}
 
       <section aria-labelledby="modif-h" className="carte">
         <form action={demanderModification} className="pile pile--serree">
@@ -297,6 +325,9 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
                             <input id={`r-${p.id}`} name="replique" type="text" defaultValue={p.replique} maxLength={1000} />
                           </div>
                         </div>
+                        {episode.format === "court" ? (
+                          <input type="hidden" name="duree" value={p.duree_fixee ?? "auto"} />
+                        ) : (
                         <fieldset className="segments">
                           <legend className="tres-petit doux">Durée · {p.duree_fixee ? "fixée" : `auto (${duree} s)`}</legend>
                           <label className="segment">
@@ -310,6 +341,7 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
                             </label>
                           ))}
                         </fieldset>
+                        )}
                         <div>
                           <BoutonEnvoi>Enregistrer le plan</BoutonEnvoi>
                         </div>
@@ -332,6 +364,7 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
                         Supprimer
                       </BoutonEnvoi>
                     </form>
+                    <PlanDetaille plan={p} numero={i + 1} duree={duree} scenes={d.scenes} elements={d.elements} personnages={personnages} dureeLibre={episode.format === "court"} />
                   </article>
                 );
               })}
@@ -341,3 +374,24 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
     </div>
   );
 }
+
+/**
+ * Noms propres cités dans les plans (mot à majuscule qui n'ouvre pas une phrase) et absents de la bibliothèque.
+ * Heuristique simple : elle signale, elle ne bloque pas.
+ */
+export function nomsInconnus(textes: readonly string[], connus: readonly string[]): string[] {
+  const deja = new Set(connus.map((c) => c.toLowerCase()));
+  const out = new Set<string>();
+  for (const t of textes) {
+    for (const m of t.matchAll(/(?<=[\p{Ll},;:] )([A-ZÉÈÀÂÎÔÛ][\p{L}'-]{2,})/gu)) {
+      const mot = m[1] ?? "";
+      if (!deja.has(mot.toLowerCase()) && !MOTS_COURANTS.has(mot.toLowerCase())) out.add(mot);
+    }
+  }
+  return [...out].slice(0, 6);
+}
+
+/** Mots capitalisés courants à ne pas prendre pour des noms (début de phrase, lieux génériques). */
+const MOTS_COURANTS = new Set(
+  "le la les un une des il elle ils elles on nous vous son sa ses leur leurs ce cet cette ces au aux du de et mais puis quand alors dans sur sous avec sans pendant après avant gros plan large moyen fin carte logo épisode scène caméra zoom ralenti flash".split(" "),
+);

@@ -24,6 +24,9 @@ import {
   type Episode,
   type Fichier,
   type LigneParole,
+  CHAMPS_EPISODE_DEFAUT,
+  CHAMPS_FICHIER_DEFAUT,
+  CHAMPS_PLAN_DEFAUT,
 } from "../src/index";
 
 const PAROLES = `[Couplet 1]
@@ -47,7 +50,7 @@ function episode(extra: Partial<Episode> = {}): Episode {
     langue: "fr", langues: ["fr"], sous_titres: { fr: "fr" }, prises: 1, enchainer: true, musique: false, bruitages: false,
     chapitres: [], titres_traduits: {}, choix_titres: {}, miniature: null, memoire_faite: false, hashtags: {},
     style_visuel: "", paroles: PAROLES, paroles_alignees: null, paroles_traduites: {}, bpm: null, extrait_debut: 0, extrait_fin: null,
-    musique_style: "synthpop", instrumental: false, fournisseur_texte: "openai", cree_le: "2026-01-01", ...extra,
+    musique_style: "synthpop", instrumental: false, fournisseur_texte: "openai", ...CHAMPS_EPISODE_DEFAUT, cree_le: "2026-01-01", ...extra,
   };
 }
 
@@ -163,10 +166,11 @@ describe("extrait et découpage", () => {
     expect(segs.every((s) => s.texte === "")).toBe(true);
   });
 
-  it("demande à Grok le palier juste au-dessus de la durée du plan", () => {
+  it("demande à Grok la seconde entière juste au-dessus de la durée du plan", () => {
     expect(dureeGenerationClip(2.6)).toBe(3);
     expect(dureeGenerationClip(5)).toBe(5);
-    expect(dureeGenerationClip(5.2)).toBe(8);
+    expect(dureeGenerationClip(5.2)).toBe(6);
+    expect(dureeGenerationClip(0.4)).toBe(1);
     expect(dureeGenerationClip(14.9)).toBe(15);
     expect(coutUnite({ cle: "p:clip:A", genre: "clip", plan: null, langue: null, prise: "A" }, 4.2, { image: 0, video_seconde: 0.1, voix_1000_car: 0 })).toBeCloseTo(0.5);
   });
@@ -247,7 +251,7 @@ describe("publication et état d'un clip", () => {
   it("guide l'utilisateur : chanson, synchronisation, découpage", () => {
     const base = { plans: [], personnages: [], taches: [], publications: [] };
     expect(etatEpisode({ ...base, episode: episode(), fichiers: [] }).action).toBe("Ajouter la chanson");
-    const chanson = { id: "f", espace_id: "e", episode_id: "c1", plan_id: null, personnage_id: null, genre: "chanson", langue: null, prise: null, chemin: "e/x.mp3", duree_s: 180, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01" } satisfies Fichier;
+    const chanson = { id: "f", espace_id: "e", episode_id: "c1", plan_id: null, personnage_id: null, genre: "chanson", langue: null, prise: null, chemin: "e/x.mp3", duree_s: 180, secondes_generation: null, cout: 0, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...CHAMPS_FICHIER_DEFAUT } satisfies Fichier;
     const e1 = etatEpisode({ ...base, episode: episode(), fichiers: [chanson] });
     expect([e1.etape, e1.action]).toEqual(["son", "Synchroniser les paroles"]);
     const e2 = etatEpisode({ ...base, episode: episode({ paroles_alignees: lignesExemple() }), fichiers: [chanson] });

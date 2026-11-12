@@ -89,6 +89,14 @@ export class Stockage {
   }
 
   /**
+   * Image à donner à une IA (Grok) : adresse publique signée si le site est joignable depuis Internet
+   * (requête légère), sinon l'image elle-même en data URI.
+   */
+  async urlPourIA(chemin: string): Promise<string> {
+    return adressePublique(this.adresseSite) ? this.urlPublique(chemin) : this.dataUri(chemin);
+  }
+
+  /**
    * Adresse publique signée (1 h) pour qu'un service externe télécharge le fichier (Instagram).
    * Le site doit être joignable depuis Internet en https (APP_URL). Ne jamais la journaliser.
    */

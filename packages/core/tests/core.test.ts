@@ -26,12 +26,19 @@ import {
   type Personnage,
   type Plan,
   type TypePlan,
+  CHAMPS_EPISODE_DEFAUT,
+  controleDuree,
+  indexerFichiers,
+  statutProduction,
+  versionsDe,
+  CHAMPS_FICHIER_DEFAUT,
+  CHAMPS_PLAN_DEFAUT,
 } from "../src/index";
 import { apercu, chiffrer, dechiffrer, lireCleMaitre } from "../src/chiffrement";
 
 /** Fabrique un plan de test. */
 function plan(id: string, type: TypePlan, extra: Partial<Plan> = {}): Plan {
-  return { id, episode_id: "e1", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: false, modifie: false, prise_choisie: "A", debut: null, fin: null, ...extra };
+  return { id, episode_id: "e1", position: 0, section: "principal", type, texte: `Plan ${id}`, personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide: false, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT, ...extra };
 }
 
 /** Fabrique un épisode de test. */
@@ -41,7 +48,7 @@ function episode(extra: Partial<Episode> = {}): Episode {
     langue: "fr", langues: ["fr", "en"], sous_titres: { fr: "fr", en: "aucun" }, prises: 1, enchainer: true, musique: true, bruitages: true,
     chapitres: [], titres_traduits: { ja: "橋" }, choix_titres: {}, miniature: null, memoire_faite: false, hashtags: {},
     style_visuel: "", paroles: "", paroles_alignees: null, paroles_traduites: {}, bpm: null, extrait_debut: 0, extrait_fin: null, musique_style: "", instrumental: false, fournisseur_texte: "openai",
-    cree_le: "2026-01-01", ...extra,
+    ...CHAMPS_EPISODE_DEFAUT, cree_le: "2026-01-01", ...extra,
   };
 }
 
@@ -168,7 +175,7 @@ describe("chiffrement", () => {
 describe("état d'un épisode", () => {
   it("passe de « Storyboard à valider » à « Clips à lancer »", () => {
     const plans = [plan("a", "accroche"), plan("b", "final")];
-    const fichiers: Fichier[] = plans.map((p) => ({ id: p.id, espace_id: "w", episode_id: "e1", plan_id: p.id, personnage_id: null, genre: "image", langue: null, prise: null, chemin: "x", duree_s: null, secondes_generation: 10, cout: 0.04, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01" }));
+    const fichiers: Fichier[] = plans.map((p) => ({ id: p.id, espace_id: "w", episode_id: "e1", plan_id: p.id, personnage_id: null, genre: "image", langue: null, prise: null, chemin: "x", duree_s: null, secondes_generation: 10, cout: 0.04, statut: "pret", erreur: null, essais: 1, cree_le: "2026-01-01", ...CHAMPS_FICHIER_DEFAUT }));
     const base = { episode: episode(), personnages: [], fichiers, taches: [], publications: [] };
     expect(etatEpisode({ ...base, plans }).statut).toBe("Storyboard à valider");
     expect(etatEpisode({ ...base, plans: plans.map((p) => ({ ...p, valide: true })) }).statut).toBe("Clips à lancer");
@@ -198,14 +205,55 @@ describe("hashtags", () => {
 });
 
 describe("durées par réseau", () => {
-  it("accepte un court de 2:00 sur TikTok et refuse 2:30", () => {
-    expect(verifierDureePublication({ reseau: "tiktok", livrable: "court", format: "court", duree: 120 })).toBeNull();
-    expect(verifierDureePublication({ reseau: "instagram", livrable: "court", format: "court", duree: 150 })).toContain("2:00");
+  it("limite un épisode vertical à 90 s sur tous les réseaux", () => {
+    expect(verifierDureePublication({ reseau: "tiktok", livrable: "court", format: "court", duree: 90 })).toBeNull();
+    expect(verifierDureePublication({ reseau: "instagram", livrable: "court", format: "court", duree: 120 })).toContain("1:30");
+    expect(verifierDureePublication({ reseau: "youtube", livrable: "court", format: "court", duree: 95 })).toContain("1:30");
   });
-  it("limite le Short YouTube à 3:00 et l'épisode YouTube à 4:00", () => {
-    expect(verifierDureePublication({ reseau: "youtube", livrable: "court", format: "court", duree: 179 })).toBeNull();
+  it("garde 2:00 pour un clip musical vertical et 4:00 pour l'épisode YouTube", () => {
+    expect(verifierDureePublication({ reseau: "tiktok", livrable: "court", format: "court", duree: 120, genre: "clip" })).toBeNull();
+    expect(verifierDureePublication({ reseau: "instagram", livrable: "court", format: "court", duree: 150, genre: "clip" })).toContain("2:00");
+    expect(verifierDureePublication({ reseau: "youtube", livrable: "court", format: "court", duree: 179, genre: "clip" })).toBeNull();
     expect(verifierDureePublication({ reseau: "youtube", livrable: "film", format: "moyen", duree: 240 })).toBeNull();
     expect(verifierDureePublication({ reseau: "youtube", livrable: "film", format: "moyen", duree: 260 })).toContain("4:00");
+  });
+  it("alerte au-delà de 60 s et bloque au-delà de 90 s", () => {
+    expect(controleDuree(60).niveau).toBe("ok");
+    expect(controleDuree(75).niveau).toBe("alerte");
+    expect(controleDuree(91).niveau).toBe("bloque");
+  });
+  it("répartit un épisode court en plans de 2 à 8 s et respecte une durée choisie à la main", () => {
+    const plans = TYPES_COURTS.map((t, i) => plan(`p${i}`, t, i === 1 ? { duree: 1.5 } : {}));
+    const d = dureesParPlan(plans, 60, "court");
+    expect(Math.abs([...d.values()].reduce((a, b) => a + b, 0) - 60)).toBeLessThanOrEqual(1);
+    expect(d.get("p1")).toBe(1.5);
+    for (const [id, v] of d) if (id !== "p1") expect(v).toBeGreaterThanOrEqual(2), expect(v).toBeLessThanOrEqual(8);
+  });
+  it("garde la version choisie par l'utilisateur avant la plus récente", () => {
+    const base = { espace_id: "w", episode_id: "e1", plan_id: "p1", personnage_id: null, genre: "image" as const, langue: null, prise: null, duree_s: null, secondes_generation: 1, cout: 0, statut: "pret" as const, erreur: null, essais: 1, ...CHAMPS_FICHIER_DEFAUT };
+    const v1: Fichier = { ...base, id: "v1", chemin: "a", cree_le: "2026-01-01T00:00:00Z" };
+    const v2: Fichier = { ...base, id: "v2", chemin: "b", cree_le: "2026-01-02T00:00:00Z" };
+    expect(indexerFichiers([v1, v2]).get("p1:image")?.id).toBe("v2");
+    expect(indexerFichiers([{ ...v1, actif_le: "2026-01-03T00:00:00Z" }, v2]).get("p1:image")?.id).toBe("v1");
+    expect(versionsDe([v1, v2], "p1:image").map((f) => f.id)).toEqual(["v2", "v1"]);
+    // Un clip fait avant la nouvelle image est périmé ; un clip refait après redevient le bon.
+    const clip: Fichier = { ...base, id: "c1", genre: "clip", prise: "A", chemin: "c", cree_le: "2026-01-01T12:00:00Z" };
+    expect(indexerFichiers([v1, clip]).get("p1:clip:A")?.id).toBe("c1");
+    expect(indexerFichiers([v1, clip, v2]).get("p1:clip:A")).toBeUndefined();
+    expect(indexerFichiers([v1, clip, v2, { ...clip, id: "c2", cree_le: "2026-01-03T00:00:00Z" }]).get("p1:clip:A")?.id).toBe("c2");
+  });
+  it("donne les 9 statuts de production dans l'ordre", () => {
+    const c = (fait: number, total: number) => ({ fait, echec: 0, total });
+    const base = { storyboard: c(0, 3), valides: 0, clips: c(0, 3), rendus: c(0, 1), publiees: 0, programmees: 0 };
+    expect(statutProduction({ scenario_valide: false, video_validee: false }, base, 3).statut).toBe("Brouillon");
+    expect(statutProduction({ scenario_valide: true, video_validee: false }, base, 3).statut).toBe("Scénario validé");
+    expect(statutProduction({ scenario_valide: true, video_validee: false }, { ...base, storyboard: c(3, 3) }, 3).statut).toBe("Images générées");
+    expect(statutProduction({ scenario_valide: true, video_validee: false }, { ...base, storyboard: c(3, 3), valides: 3 }, 3).statut).toBe("Storyboard validé");
+    expect(statutProduction({ scenario_valide: true, video_validee: false }, { ...base, storyboard: c(3, 3), valides: 3, clips: c(3, 3) }, 3).statut).toBe("Vidéos générées");
+    expect(statutProduction({ scenario_valide: true, video_validee: false }, { ...base, clips: c(3, 3), rendus: c(1, 1) }, 3).statut).toBe("Monté");
+    expect(statutProduction({ scenario_valide: true, video_validee: true }, { ...base, rendus: c(1, 1) }, 3).statut).toBe("Validé");
+    expect(statutProduction({ scenario_valide: true, video_validee: true }, { ...base, programmees: 1 }, 3).statut).toBe("Programmé");
+    expect(statutProduction({ scenario_valide: true, video_validee: true }, { ...base, publiees: 1 }, 3).statut).toBe("Publié");
   });
   it("publie l'épisode YouTube en entier sur YouTube et en bande annonce ailleurs", () => {
     expect(livrablePour({ format: "moyen" }, "youtube")).toBe("film");

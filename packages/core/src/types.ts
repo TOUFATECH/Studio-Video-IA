@@ -2,7 +2,12 @@
 // Les noms suivent exactement les colonnes de packages/base/src/schema-sqlite.ts.
 import { z } from "zod";
 import {
+  EFFETS,
   LANGUES,
+  TRANSITIONS,
+  type Effet,
+  type GenreElement,
+  type Transition,
   LISTE_TYPES_PLAN,
   RESEAUX,
   type ChoixSousTitres,
@@ -51,6 +56,12 @@ export const schemaPreferences = z.object({
   sous_titres: schemaSousTitres,
   prises: z.union([z.literal(1), z.literal(2)]),
   memoire_auto: z.boolean(),
+  /** Nombre d'images proposées par plan (1 à 4), parmi lesquelles on choisit. */
+  propositions: z.number().int().min(1).max(4).default(1),
+  /** Contrôle qualité de chaque image par l'IA (nombre de personnages, visages, décor, texte parasite). */
+  controle_qualite: z.boolean().default(true),
+  /** Au-delà de ce coût estimé pour un épisode (euros), une confirmation est demandée avant de lancer. */
+  plafond_episode: z.number().min(0).max(10000).default(20),
 });
 export type Preferences = z.infer<typeof schemaPreferences>;
 
@@ -116,6 +127,7 @@ export type Personnage = {
   nom: string;
   description: string;
   source_voix: SourceVoix;
+  /** Voix ElevenLabs, ou voix préréglée Grok (« eve », « leo »…) quand source_voix vaut « grok ». */
   voix_id: string;
   accord_clone: boolean;
   fiche_chemin: string | null;
@@ -130,6 +142,12 @@ export type Saison = {
   numero: number;
   opening_id: string | null;
   ending_id: string | null;
+  /** Titre de la saison (« Le glow-up »). */
+  titre: string;
+  /** Arc narratif : début, montée, retournement, fin de saison. */
+  arc: string;
+  /** Nombre d'épisodes prévus (1 à 30), null tant qu'il n'est pas fixé. */
+  nombre_episodes: number | null;
 };
 
 /** Un épisode (ou un générique). */
@@ -177,10 +195,66 @@ export type Episode = {
   instrumental: boolean;
   /** IA qui écrit les scènes et les paroles du clip. */
   fournisseur_texte: FournisseurTexte;
+  // ----- Story de l'épisode -----
+  /** Accroche des 3 premières secondes. */
+  accroche: string;
+  /** Déroulé de l'épisode, en quelques phrases. */
+  deroule: string;
+  /** Fin qui donne envie de voir la suite. */
+  fin_suite: string;
+  /** Rappel de 2 s de l'épisode précédent au début du montage. */
+  rappel: boolean;
+  /** Logo de la marque en incrustation, et carte de fin avec le logo. */
+  logo: boolean;
+  carte_fin: boolean;
+  /** Validations de l'auteur : scénario, puis vidéo finale. */
+  scenario_valide: boolean;
+  video_validee: boolean;
   cree_le: string;
 };
 
-/** Un plan du scénario : un clip Grok de 3 à 15 s. */
+/** Un commentaire laissé sur un plan (« trop sombre »), repris à la regénération suivante. */
+export const schemaCommentaire = z.object({ id: z.string(), texte: z.string(), le: z.string(), pris: z.boolean().default(false) });
+export type Commentaire = z.infer<typeof schemaCommentaire>;
+
+/** Schémas de la transition et de l'effet d'un plan. */
+export const schemaTransition = z.enum(Object.keys(TRANSITIONS) as [Transition, ...Transition[]]);
+export const schemaEffet = z.enum(Object.keys(EFFETS) as [Effet, ...Effet[]]);
+
+/** Une scène : un lieu, un moment, des personnages, plusieurs plans. */
+export type Scene = {
+  id: string;
+  episode_id: string;
+  position: number;
+  titre: string;
+  lieu_id: string | null;
+  moment: string;
+  resume: string;
+  personnages: string[];
+};
+
+/** Un élément de la bibliothèque : décor, activité, marque, son ou variante d'un personnage. */
+export type Element = {
+  id: string;
+  espace_id: string;
+  /** null : partagé avec toutes les séries du compte. */
+  serie_id: string | null;
+  genre: GenreElement;
+  nom: string;
+  description: string;
+  /** Moment du décor (jour, nuit…). */
+  moment: string;
+  /** Activité : modèle de consigne de mouvement réutilisable. */
+  consigne: string;
+  /** Variante : le personnage concerné. */
+  personnage_id: string | null;
+  /** Marque : couleurs et police. */
+  couleurs: { principale?: string; secondaire?: string; police?: string };
+  position: number;
+  cree_le: string;
+};
+
+/** Un plan du scénario : une image puis une animation de 1 à 8 s. */
 export type Plan = {
   id: string;
   episode_id: string;
@@ -198,6 +272,25 @@ export type Plan = {
   /** Pour un clip : début et fin du plan dans la chanson (secondes). Null pour un épisode. */
   debut: number | null;
   fin: number | null;
+  // ----- Storyboard détaillé -----
+  scene_id: string | null;
+  /** Durée choisie à la main (1 à 8 s), sinon répartie automatiquement. */
+  duree: number | null;
+  decor_id: string | null;
+  activite_id: string | null;
+  /** Personnages présents à l'image (identifiants). */
+  personnages: string[];
+  /** Variantes de personnages utilisées (identifiants d'éléments). */
+  variantes: string[];
+  cadrage: string;
+  /** Consigne de mouvement donnée à l'IA vidéo. */
+  mouvement: string;
+  transition: Transition;
+  effet: Effet;
+  texte_ecran: string;
+  /** Son du plan : bruitages, ambiance, musique. */
+  son: string;
+  commentaires: Commentaire[];
 };
 
 /** Genre de fichier produit ou importé. */
@@ -212,7 +305,8 @@ export type GenreFichier =
   | "bruitage"
   | "musique"
   | "echantillon_voix"
-  | "chanson";
+  | "chanson"
+  | "reference";
 
 /** Un fichier stocké dans le dossier des médias (image, clip, voix, rendu…). */
 export type Fichier = {
@@ -232,7 +326,24 @@ export type Fichier = {
   erreur: string | null;
   essais: number;
   cree_le: string;
+  /** Élément de la bibliothèque (photo ou vidéo de référence). */
+  element_id: string | null;
+  /** Version retenue : la plus récente par actif_le (choix de l'utilisateur), sinon par création. */
+  actif_le: string | null;
+  /** Consigne utilisée pour produire cette version (prompt, retouche). */
+  consigne: string;
+  /** Fournisseur qui a produit le fichier (openai, xai, import…). */
+  fournisseur: string;
+  /** Contrôle qualité automatique d'une image. */
+  controle: Controle | null;
+  personne_reelle: boolean;
+  accord_image: boolean;
+  nom_origine: string;
 };
+
+/** Résultat du contrôle qualité d'une image : douteux = signalé en orange. */
+export const schemaControle = z.object({ statut: z.enum(["ok", "douteux"]), raisons: z.array(z.string()).default([]) });
+export type Controle = z.infer<typeof schemaControle>;
 
 /** Types de tâches traitées par le worker. */
 export type TypeTache =
@@ -377,13 +488,45 @@ export const schemaPlanIA = z.object({
   personnage: z.string().nullable(),
   replique: z.string(),
   section: z.string().optional(),
+  // Champs du storyboard détaillé (facultatifs : un modèle peut les omettre).
+  scene: z.number().int().min(0).nullish(),
+  duree: z.number().min(1).max(15).nullish(),
+  personnages: z.array(z.string()).nullish(),
+  decor: z.string().nullish(),
+  activite: z.string().nullish(),
+  cadrage: z.string().nullish(),
+  mouvement: z.string().nullish(),
+  texte_ecran: z.string().nullish(),
+  son: z.string().nullish(),
+  effet: z.string().nullish(),
+  transition: z.string().nullish(),
+});
+/** Scène renvoyée par l'IA. */
+export const schemaSceneIA = z.object({
+  titre: z.string().default(""),
+  lieu: z.string().nullish(),
+  moment: z.string().nullish(),
+  resume: z.string().default(""),
+  personnages: z.array(z.string()).nullish(),
 });
 /** Scénario complet renvoyé par l'IA. */
 export const schemaScenarioIA = z.object({
   titre: z.string().min(1),
+  accroche: z.string().nullish(),
+  deroule: z.string().nullish(),
+  fin: z.string().nullish(),
+  scenes: z.array(schemaSceneIA).nullish(),
   plans: z.array(schemaPlanIA).min(1),
   chapitres: z.array(schemaChapitre).optional(),
 });
+
+/** Arc de saison renvoyé par l'IA : un titre et un résumé par épisode, dans l'ordre. */
+export const schemaArcIA = z.object({
+  titre: z.string().default(""),
+  arc: z.string().min(10),
+  episodes: z.array(z.object({ titre: z.string().min(1), resume: z.string().min(5), accroche: z.string().nullish() })).min(1),
+});
+export type ArcIA = z.infer<typeof schemaArcIA>;
 export type ScenarioIA = z.infer<typeof schemaScenarioIA>;
 
 /** Scènes d'un clip renvoyées par l'IA : une description par segment, dans l'ordre. */
@@ -418,4 +561,45 @@ export const schemaFaitsIA = z.object({
 });
 export type FaitsIA = z.infer<typeof schemaFaitsIA>;
 
-export type { ChoixSousTitres, FormatEpisode, FournisseurTexte, GenreEpisode, GenreSerie, Langue, Livrable, Reseau, SourceVoix, TypePlan };
+export type { ChoixSousTitres, Effet, FormatEpisode, FournisseurTexte, GenreElement, GenreEpisode, GenreSerie, Langue, Livrable, Reseau, SourceVoix, Transition, TypePlan };
+
+/** Valeurs par défaut des champs ajoutés aux plans par le storyboard détaillé (anciennes lignes, fixtures). */
+export const CHAMPS_PLAN_DEFAUT = {
+  scene_id: null,
+  duree: null,
+  decor_id: null,
+  activite_id: null,
+  personnages: [],
+  variantes: [],
+  cadrage: "",
+  mouvement: "",
+  transition: "coupe",
+  effet: "aucun",
+  texte_ecran: "",
+  son: "",
+  commentaires: [],
+} as const satisfies Partial<Plan>;
+
+/** Valeurs par défaut des champs de story et de validation d'un épisode. */
+export const CHAMPS_EPISODE_DEFAUT = {
+  accroche: "",
+  deroule: "",
+  fin_suite: "",
+  rappel: true,
+  logo: true,
+  carte_fin: true,
+  scenario_valide: false,
+  video_validee: false,
+} as const satisfies Partial<Episode>;
+
+/** Valeurs par défaut des champs de version d'un fichier. */
+export const CHAMPS_FICHIER_DEFAUT = {
+  element_id: null,
+  actif_le: null,
+  consigne: "",
+  fournisseur: "",
+  controle: null,
+  personne_reelle: false,
+  accord_image: false,
+  nom_origine: "",
+} as const satisfies Partial<Fichier>;

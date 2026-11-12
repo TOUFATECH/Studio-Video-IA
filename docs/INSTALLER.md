@@ -111,4 +111,6 @@ npm run mot-de-passe -- moi@exemple.fr "mon nouveau mot de passe"
 docker compose exec web npm run mot-de-passe -- moi@exemple.fr "mon nouveau mot de passe"   # avec Docker
 ```
 
+Téléphone de la double authentification perdu : ajoute `--sans-2fa` à la fin de la commande, elle désactive aussi la double authentification.
+
 Les sessions ouvertes de ce compte sont fermées.

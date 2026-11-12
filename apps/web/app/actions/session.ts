@@ -1,13 +1,16 @@
 "use server";
 // Actions de connexion : compte par e-mail et mot de passe (géré par l'application), déconnexion,
 // choix de l'espace affiché. Le premier compte se crée toujours ; les suivants si INSCRIPTIONS n'est pas « fermees ».
-import { creerUtilisateur, ErreurSql, fermerSession, nombreUtilisateurs, ouvrirSession, verifierIdentifiants } from "@studio-video-ia/base";
+import { creerUtilisateur, ErreurSql, fermerSession, lireTotp, nombreUtilisateurs, ouvrirSession, verifierIdentifiants, verifierTotp } from "@studio-video-ia/base";
+import { dechiffrer } from "@studio-video-ia/core/chiffrement";
+import { cleMaitre } from "@/lib/cles";
+import { COOKIE_DEUX_FACTEURS, DUREE_DEUX_FACTEURS_S, jetonDeuxFacteurs, lireJetonDeuxFacteurs } from "@/lib/deux-facteurs";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { executer } from "@/lib/action";
 import { base, clientUtilisateur, COOKIE_SESSION } from "@/lib/bdd";
 import { COOKIE_ESPACE } from "@/lib/espace-courant";
-import { cheminSur, formulaire, premiereErreur, schemaChoixEspace, schemaConnexion, schemaInscription } from "@/lib/schemas";
+import { cheminSur, formulaire, premiereErreur, schemaChoixEspace, schemaCodeTotp, schemaConnexion, schemaInscription } from "@/lib/schemas";
 import { initialiserCompte, utilisateur } from "@/lib/session";
 
 /** État renvoyé au formulaire de connexion. */
@@ -35,9 +38,40 @@ export async function connexionMotDePasse(_etat: EtatConnexion, fd: FormData): P
     await pause(600);
     return { erreur: "E-mail ou mot de passe incorrect." };
   }
+  // Double authentification active : la session n'est ouverte qu'après le code à 6 chiffres.
+  if ((await lireTotp((await base()).moteur, user.id)).actif) {
+    const h = await headers();
+    const https = (h.get("x-forwarded-proto") ?? "").includes("https") || (process.env.APP_URL ?? "").startsWith("https://");
+    (await cookies()).set(COOKIE_DEUX_FACTEURS, jetonDeuxFacteurs(user.id), { path: "/", httpOnly: true, sameSite: "lax", secure: https, maxAge: DUREE_DEUX_FACTEURS_S });
+    redirect(`/connexion/code?suite=${encodeURIComponent(cheminSur(r.data.suite))}`);
+  }
   await poserSession(user.id);
   await initialiserCompte(await clientUtilisateur(user.id));
   redirect(cheminSur(r.data.suite));
+}
+
+/** Deuxième étape de connexion : le code de l'appli d'authentification. */
+export async function connexionCode(_etat: EtatConnexion, fd: FormData): Promise<EtatConnexion> {
+  const magasin = await cookies();
+  const id = lireJetonDeuxFacteurs(magasin.get(COOKIE_DEUX_FACTEURS)?.value);
+  if (!id) return { erreur: "Délai dépassé : reconnecte-toi avec ton mot de passe." };
+  const r = schemaCodeTotp.safeParse(formulaire(fd));
+  if (!r.success) return { erreur: premiereErreur(r.error) };
+  const etat = await lireTotp((await base()).moteur, id);
+  let ok = false;
+  try {
+    ok = !!etat.chiffre && etat.actif && verifierTotp(dechiffrer(etat.chiffre, cleMaitre()), r.data.code);
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    await pause(600);
+    return { erreur: "Code incorrect. Vérifie l’heure de ton téléphone et réessaie." };
+  }
+  magasin.delete(COOKIE_DEUX_FACTEURS);
+  await poserSession(id);
+  await initialiserCompte(await clientUtilisateur(id));
+  redirect(cheminSur(typeof fd.get("suite") === "string" ? String(fd.get("suite")) : "/"));
 }
 
 /** Vrai si un nouveau compte peut être créé (toujours pour le premier). */

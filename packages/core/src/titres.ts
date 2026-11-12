@@ -4,6 +4,7 @@ import {
   DUREE_MAX_BANDE_ANNONCE,
   DUREE_MAX_CLIP,
   DUREE_MAX_PUBLICATION,
+  REGLES_DUREE,
   MOT_CLIP,
   motEpisode,
   type FormatEpisode,
@@ -88,6 +89,8 @@ export function verifierDureePublication(params: { reseau: Reseau; livrable: Liv
     return depasse(DUREE_MAX_BANDE_ANNONCE) ? `La bande annonce dure ${mmss(duree)} : 1:00 maximum.` : null;
   }
   if (livrable === "court") {
+    // Épisode vertical : 90 s au plus sur tous les réseaux (cahier des charges). Les clips musicaux gardent leurs limites.
+    if (params.genre !== "clip") return depasse(REGLES_DUREE.max) ? `Épisode de ${mmss(duree)} : 1:30 maximum.` : null;
     if (reseau === "youtube") return depasse(DUREE_MAX_PUBLICATION.youtube_short) ? `Short YouTube de ${mmss(duree)} : 3:00 maximum.` : null;
     return depasse(DUREE_MAX_PUBLICATION[reseau]) ? `Vidéo de ${mmss(duree)} : ${reseau === "tiktok" ? "TikTok" : "Instagram"} est limité à 2:00 dans Studio Vidéo IA.` : null;
   }

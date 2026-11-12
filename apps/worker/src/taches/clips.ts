@@ -1,5 +1,7 @@
-// Tâche « clips » : traductions manquantes, puis un clip Grok par plan (deux si 2 prises) et une voix ElevenLabs
-// par réplique et par langue. Une relance automatique par unité, puis échec lisible ; le coût de chaque fichier est enregistré.
+// Tâche « clips » : traductions manquantes, puis un clip Grok Imagine Video par plan (deux si 2 prises).
+// Grok part de l'image validée du plan, garde les visages et le décor grâce aux références (fiches, photo du vrai lieu),
+// fait parler les personnages avec leur voix préréglée (lèvres synchronisées) et génère le son.
+// Les voix ElevenLabs restent possibles pour un personnage qui en a une. Une relance automatique par unité, puis échec lisible.
 import {
   coutUnite,
   dureeGenerationClip,
@@ -8,8 +10,8 @@ import {
   languesATraduire,
   LANGUES,
   promptTraduction,
-  promptVideo,
-  promptVideoClip,
+  promptVideoGrok,
+  VOIX_GROK_DEFAUT,
   repliqueEn,
   unitesClips,
   type Episode,
@@ -24,7 +26,17 @@ import { exigerCle } from "../cles";
 import { avecRelance, enParallele, ErreurAnnulee, ErreurArret, ErreurPlafond, type Contexte } from "../contexte";
 import { chargerEpisode, chargerReglages, enregistrerFichier, erreurCourte, fichierPret, nomPlan, unitePrete, type EpisodeComplet } from "../donnees";
 import { cheminMedia, nomUnique } from "../stockage";
-import { ecrire } from "../bdd";
+import { ecrire, lignes } from "../bdd";
+import { activiteDuPlan, decorDuPlan, personnagesDuPlan, referencesDuPlan, variantesDuPlan } from "../bibliotheque";
+
+/** Nombre maximal de références envoyées à Grok avec un clip (la requête reste légère). */
+export const MAX_REFERENCES_VIDEO = 6;
+
+/** Voix Grok d'un personnage : sa voix préréglée, sinon la voix par défaut. */
+export function voixGrokDe(p: Pick<Personnage, "voix_id">): string {
+  const v = p.voix_id.trim().toLowerCase();
+  return /^[a-z]{2,20}$/.test(v) ? v : VOIX_GROK_DEFAUT;
+}
 
 /** Données acceptées : plans à régénérer (toutes leurs unités), sinon toutes les unités sans fichier prêt. */
 export const schemaDonneesClips = z.object({ plan_ids: z.array(z.string()).optional() });
@@ -120,17 +132,45 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
         if (!image?.chemin) throw new Error("image du plan absente : relance le storyboard");
         const grok = !clipMusical && audioGrok(plan, e.personnages);
         const perso = e.personnages.find((p) => p.id === plan.personnage_id);
-        // Clip musical : Grok génère le palier juste au-dessus de la durée du plan, recoupé au montage, sans son.
+        // Grok génère la seconde entière juste au-dessus de la durée du plan ; le clip est recoupé au montage.
         const dureeGrok = dureeGenerationClip(duree);
-        // Avec une voix Grok, la réplique doit figurer dans le prompt pour que le clip la prononce.
-        const prompt = clipMusical ? promptVideoClip(plan, dureeGrok) : `${promptVideo(plan, duree, grok)}${grok && perso ? ` ${perso.nom} dit : « ${plan.replique} »` : ""}`;
+        // Mêmes références que pour l'image : fiche ou photo de chaque personnage, photo du vrai décor.
+        const prevues = referencesDuPlan({
+          personnages: personnagesDuPlan(plan, e.personnages),
+          variantes: variantesDuPlan(plan, e.elements),
+          decor: decorDuPlan(plan, e.scenes, e.elements),
+          references: e.references,
+          max: MAX_REFERENCES_VIDEO,
+        });
+        // Le personnage qui parle avec une voix Grok a sa voix préréglée, lèvres synchronisées.
+        const voix = grok && perso ? [voixGrokDe(perso)] : [];
+        const prompt = promptVideoGrok({
+          plan,
+          duree: dureeGrok,
+          references: prevues.map((r) => ({ libelle: r.libelle })),
+          parle: grok && perso ? { nom: perso.nom, voix: 0 } : null,
+          activite: activiteDuPlan(plan, e.elements),
+          // Clip musical : seule la chanson s'entend.
+          muet: clipMusical,
+        });
         const { valeur, essais } = await avecRelance(async () => {
-          // URL signée recréée à chaque essai : xAI télécharge l'image pendant la génération.
-          // L'image part dans la requête (data URI) : xAI n'a pas besoin d'accéder aux fichiers locaux.
-          const urlImage = await ctx.stockage.dataUri(image.chemin ?? "");
+          // Adresses recréées à chaque essai : signées (site public) ou data URI (site local).
+          const urlImage = await ctx.stockage.urlPourIA(image.chemin ?? "");
+          const references = await Promise.all(prevues.map((r) => ctx.stockage.urlPourIA(r.chemin)));
           return genererVideo(
             cleXai,
-            { modele: ctx.config.modeles.video, prompt, duree: dureeGrok, ratio: ratioClips(e.episode.format), resolution: ctx.config.modeles.resolutionVideo, genererAudio: grok, urlImage },
+            {
+              modele: ctx.config.modeles.video,
+              prompt,
+              duree: dureeGrok,
+              ratio: ratioClips(e.episode.format),
+              resolution: ctx.config.modeles.resolutionVideo,
+              // Grok fait aussi les paroles et le son du plan ; un clip musical reste muet.
+              genererAudio: !clipMusical,
+              urlImage,
+              references,
+              voix,
+            },
             { signal: ctx.signal, surAttente: (s) => void etape(`Clip ${u.prise ?? "A"} du ${nom} : génération (${s} s)`).catch(() => undefined) },
             ctx.f,
           );
@@ -148,6 +188,8 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
           secondes_generation: Math.round((Date.now() - debut) / 100) / 10,
           cout: coutUnite(u, duree, tarifs) * essais,
           essais,
+          consigne: prompt,
+          fournisseur: "xai",
         });
       } else if (u.genre === "voix" && u.langue) {
         await etape(`Voix ${u.langue} du ${nom}`);
@@ -195,4 +237,22 @@ export async function tacheClips(ctx: Contexte): Promise<void> {
   // Les clips Grok prennent plusieurs minutes : on en lance plusieurs à la fois (préférence « parallèle »).
   await enParallele(unites, preferences.parallele, produire);
   await etape(echecs ? `${fait - echecs} unité(s) prête(s), ${echecs} en échec` : `${fait} unité(s) prête(s)`);
+  if (!echecs && unites.length) await remonterSiDejaMonte(ctx, e);
+}
+
+/**
+ * Remontage automatique : si l'épisode avait déjà été monté, la vidéo finale est refaite dès que les plans changés
+ * ont leurs nouveaux clips, sans refaire le reste.
+ */
+export async function remonterSiDejaMonte(ctx: Contexte, e: EpisodeComplet): Promise<void> {
+  // Les rendus sont effacés dès qu'un plan change : les miniatures (créées au premier rendu) prouvent qu'il a été monté.
+  const dejaMonte = e.fichiers.some((f) => f.genre === "rendu") || !!e.episode.miniature?.chemins.length || e.episode.video_validee;
+  if (!dejaMonte) return;
+  const apres = await chargerEpisode(ctx.db, e.episode.id);
+  const manque = unitesClips(apres.episode, apres.plans, apres.personnages).some((u) => !unitePrete(apres.fichiers, u.cle));
+  if (manque) return;
+  const actives = await lignes<{ id: string }>(ctx.db.from("taches").select("id").eq("episode_id", e.episode.id).eq("type", "rendu").in("statut", ["en_file", "en_cours", "en_pause"]), "rendu en file");
+  if (actives.length) return;
+  await ecrire(ctx.db.from("taches").insert({ espace_id: e.serie.espace_id, episode_id: e.episode.id, type: "rendu", donnees: {} }), "remontage automatique");
+  ctx.journal("plans changés : remontage automatique en file");
 }

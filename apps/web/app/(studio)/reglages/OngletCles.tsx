@@ -12,10 +12,10 @@ import { TesterCle } from "./TesterCle";
 
 /** Fournisseurs affichés, dans l'ordre, avec leur usage. */
 const LIGNES: { cle: Fournisseur; nom: string; usage: string; application: boolean }[] = [
-  { cle: "openai", nom: "OpenAI", usage: "Scénarios, images des plans, fiches personnages, miniatures", application: false },
-  { cle: "xai", nom: "xAI · Grok", usage: "Clips vidéo, image → vidéo, 1 à 15 s", application: false },
-  { cle: "elevenlabs", nom: "ElevenLabs", usage: "Voix multilingues, voix clonées, bruitages, musique des clips, synchronisation des paroles", application: false },
-  { cle: "anthropic", nom: "Anthropic · Claude", usage: "Facultatif : écrire les scènes et les paroles des clips avec Claude au lieu de ChatGPT", application: false },
+  { cle: "openai", nom: "OpenAI", usage: "ChatGPT : story, storyboard, images des plans, visages des personnages, contrôle qualité", application: false },
+  { cle: "xai", nom: "xAI · Grok", usage: "Grok : vidéo de chaque plan (1 à 15 s) avec les paroles des personnages et le son, transcription des paroles des clips", application: false },
+  { cle: "elevenlabs", nom: "ElevenLabs", usage: "Facultatif : voix clonées, doublage dans d’autres langues, bruitages, musique générée", application: false },
+  { cle: "anthropic", nom: "Anthropic · Claude", usage: "Facultatif : écrire avec Claude au lieu de ChatGPT (scénarios, clips) et contrôle qualité", application: false },
   { cle: "google", nom: "Google Cloud · YouTube", usage: "Envoi YouTube et Shorts, statistiques, revenus", application: true },
   { cle: "meta", nom: "Meta · Instagram", usage: "Reels Instagram (Instagram Login), statistiques", application: true },
   { cle: "tiktok", nom: "TikTok for Developers", usage: "Content Posting API, statistiques", application: true },

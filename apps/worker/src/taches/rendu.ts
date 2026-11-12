@@ -32,6 +32,28 @@ import { monter, type PlanAMonter } from "../rendu/montage";
 import { cheminMedia, nomUnique } from "../stockage";
 import { ecrire, ligne, lignes, ligneOuNull } from "../bdd";
 import { traduireParoles } from "./decoupage";
+import { logoDeLaSerie } from "../bibliotheque";
+
+/**
+ * Clip du rappel : le dernier plan de l'épisode précédent de la série (même ordre que l'interface : saison puis numéro),
+ * s'il a un clip prêt. Null sinon (premier épisode, rappel désactivé).
+ */
+export async function clipRappel(ctx: Contexte, e: EpisodeComplet): Promise<string | null> {
+  if (!e.episode.rappel || e.episode.genre !== "episode") return null;
+  const saisons = await lignes<{ id: string; numero: number }>(ctx.db.from("saisons").select("id, numero").eq("serie_id", e.serie.id), "saisons");
+  const numero = new Map(saisons.map((x) => [x.id, x.numero]));
+  const episodes = await lignes<{ id: string; saison_id: string; numero: number }>(
+    ctx.db.from("episodes").select("id, saison_id, numero").eq("serie_id", e.serie.id).eq("genre", "episode"),
+    "épisodes de la série",
+  );
+  const ordre = (x: { saison_id: string; numero: number }): number => (numero.get(x.saison_id) ?? 0) * 10_000 + x.numero;
+  const precedent = episodes.filter((x) => ordre(x) < ordre(e.episode)).sort((a, b) => ordre(b) - ordre(a))[0];
+  if (!precedent) return null;
+  const dernier = await ligneOuNull<Plan>(ctx.db.from("plans").select("*").eq("episode_id", precedent.id).order("position", { ascending: false }).limit(1), "dernier plan");
+  if (!dernier) return null;
+  const clips = await lignes<Fichier>(ctx.db.from("fichiers").select("*").eq("plan_id", dernier.id).eq("genre", "clip").eq("statut", "pret"), "clip du rappel");
+  return clipDuPlan(indexerFichiers(clips), dernier)?.chemin ?? null;
+}
 
 /** Données acceptées : langues à rendre (toutes par défaut) et bande annonce (vraie par défaut pour un film). */
 export const schemaDonneesRendu = z.object({ langues: z.array(z.string()).optional(), bande_annonce: z.boolean().optional() });
@@ -162,6 +184,13 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
     : null;
   await ctx.progression({ fait: 0, total: unites.length, etape: "Préparation des fichiers" });
   const cheminBruitage = estClip ? null : await bruitage(ctx, e);
+  // Marque : logo en incrustation et carte de fin ; rappel de 2 s de l'épisode précédent.
+  const logo = e.episode.logo || e.episode.carte_fin ? logoDeLaSerie(e.elements, e.references) : null;
+  const logoLocal = logo ? await local(logo.chemin) : null;
+  const rappel = await clipRappel(ctx, e).catch((err) => {
+    ctx.journal(`rappel de l'épisode précédent impossible : ${erreurCourte(err)}`);
+    return null;
+  });
   const rendues: string[] = [];
 
   for (const [n, u] of unites.entries()) {
@@ -208,6 +237,9 @@ export async function tacheRendu(ctx: Contexte): Promise<void> {
       plans,
       avant: avant ? await local(avant) : null,
       apres: apres ? await local(apres) : null,
+      rappel: rappel && !bande ? await local(rappel) : null,
+      logo: e.episode.logo ? logoLocal : null,
+      carteFin: e.episode.carte_fin && logoLocal && !bande ? { logo: logoLocal, couleur: logo?.couleur ?? null } : null,
       musique: musique?.chemin ? await local(musique.chemin) : null,
       bruitage: cheminBruitage ? await local(cheminBruitage) : null,
       sousTitres: choix === "aucun" || estClip ? null : { choix, langueOrigine: e.episode.langue },

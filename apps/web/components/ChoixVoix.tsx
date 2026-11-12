@@ -1,5 +1,6 @@
 "use client";
 // Choix de la voix d'un personnage : bibliothèque ElevenLabs, voix clonée (avec accord obligatoire) ou audio Grok.
+import { VOIX_GROK, VOIX_GROK_DEFAUT } from "@studio-video-ia/core";
 import { useState } from "react";
 
 /** Voix proposée par ElevenLabs. */
@@ -34,7 +35,7 @@ export function ChoixVoix({
           <select id={`${prefixe}-src`} name="source_voix" value={choix} onChange={(e) => setChoix(e.target.value === "grok" ? "grok" : e.target.value === "elevenlabs_clone" ? "elevenlabs_clone" : "elevenlabs")}>
             <option value="elevenlabs">ElevenLabs · bibliothèque</option>
             <option value="elevenlabs_clone">ElevenLabs · voix clonée</option>
-            <option value="grok">Grok · audio du clip</option>
+            <option value="grok">Grok · voix dans le clip (lèvres synchronisées)</option>
           </select>
         </div>
         {choix !== "grok" ? (
@@ -57,7 +58,18 @@ export function ChoixVoix({
             )}
           </div>
         ) : (
-          <input type="hidden" name="voix_id" value="" />
+          <div className="champ">
+            <label className="etiquette" htmlFor={`${prefixe}-grok`}>
+              Voix Grok
+            </label>
+            <select id={`${prefixe}-grok`} name="voix_id" defaultValue={voixId in VOIX_GROK ? voixId : VOIX_GROK_DEFAUT}>
+              {Object.entries(VOIX_GROK).map(([id, nom]) => (
+                <option key={id} value={id}>
+                  {nom}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
       {choix === "elevenlabs_clone" ? (
@@ -68,7 +80,7 @@ export function ChoixVoix({
       ) : (
         <input type="hidden" name="accord_clone" value={accord ? "on" : ""} />
       )}
-      <p className="tres-petit doux">{choix === "grok" ? "Parle seulement dans la langue d’origine, avec le son du clip." : "Parle FR · EN · JA · KO · PT."}</p>
+      <p className="tres-petit doux">{choix === "grok" ? "Grok fait parler le personnage dans le clip avec cette voix, dans la langue d’origine." : "Parle FR · EN · JA · KO · PT."}</p>
     </div>
   );
 }

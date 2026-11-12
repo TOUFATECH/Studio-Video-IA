@@ -1,6 +1,6 @@
 // Schémas Zod de toutes les entrées : formulaires des Server Actions et paramètres d'URL.
 // Module pur (sans accès réseau), testé dans tests/schemas.test.ts.
-import { DUREES_AUTORISEES, FOURNISSEURS, LANGUES, schemaLangue, schemaSousTitres, schemaTypePlan } from "@studio-video-ia/core";
+import { DUREES_AUTORISEES, DUREE_PLAN, FOURNISSEURS, GENRES_ELEMENT, LANGUES, schemaEffet, schemaLangue, schemaSousTitres, schemaTransition, schemaTypePlan, VOIX_GROK } from "@studio-video-ia/core";
 import { z } from "zod";
 import { fuseauValide, schemaSaisieLocale } from "./dates";
 
@@ -98,6 +98,9 @@ export const schemaPreferencesFormulaire = z.object({
   prises: z.coerce.number().pipe(z.union([z.literal(1), z.literal(2)])),
   memoire_auto: caseACocher,
   theme: z.enum(["sombre", "clair"]).default("sombre"),
+  propositions: z.coerce.number().int().min(1).max(4).default(1),
+  controle_qualite: caseACocher,
+  plafond_episode: z.coerce.number().min(0, "Le plafond ne peut pas être négatif.").max(10000).default(20),
 });
 
 // ---------- Séries ----------
@@ -225,9 +228,9 @@ export const schemaPublicationSeule = z.object({ publication_id: id });
 export const schemaTestComplet = z.object({ sous_titres: schemaSousTitres, espace_id: id });
 
 // ---------- Paramètres d'URL ----------
-export const schemaOngletSerie = z.enum(["episodes", "bible", "memoire", "publication"]).catch("episodes");
+export const schemaOngletSerie = z.enum(["episodes", "bible", "bibliotheque", "memoire", "publication"]).catch("episodes");
 export const schemaEtape = z.enum(["son", "scenario", "storyboard", "clips", "montage", "publication"]);
-export const schemaOngletReglages = z.enum(["comptes", "cles", "budget", "preferences"]).catch("comptes");
+export const schemaOngletReglages = z.enum(["comptes", "cles", "budget", "preferences", "securite"]).catch("comptes");
 export const schemaPeriode = z.enum(["7", "30", "tout"]).catch("30");
 export const schemaFiltreReseau = z.enum(["tous", "tiktok", "instagram", "youtube"]).catch("tous");
 
@@ -284,3 +287,89 @@ export const schemaReglagesClip = z
   .refine((c) => c.extrait_fin === null || c.extrait_fin > c.extrait_debut + 3, { message: "La fin de l’extrait doit venir au moins 3 s après son début.", path: ["extrait_fin"] });
 export const schemaMusique = z.object({ episode_id: id, duree: z.coerce.number().int().min(10, "10 s minimum.").max(600, "10 minutes maximum.") });
 export const schemaEspaceClips = z.object({ serie_id: id, nom: texte(120).min(1, "Donne un nom (le tien, ton nom d’artiste…)."), style_visuel: texte(500) });
+
+
+// ---------- Cahier des charges « Studio Séries IA » ----------
+
+/** Nombre de 1 à 30 épisodes, propositions de 1 à 4. */
+const entier = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
+
+/** Arc de saison écrit par l'IA. */
+const fournisseurTexte = z.enum(["openai", "anthropic"]).catch("openai").default("openai");
+export const schemaArc = z.object({ saison_id: id, idee: texte(4000), nombre: entier(1, 30), fournisseur_texte: fournisseurTexte });
+/** « Écrire avec l'IA » d'un épisode : IA choisie (ChatGPT ou Claude). */
+export const schemaEcrireScenario = z.object({ episode_id: id, fournisseur_texte: fournisseurTexte });
+/** Saison : titre, arc, nombre d'épisodes. */
+export const schemaSaisonFormulaire = z.object({ saison_id: id, titre: texte(120), arc: texte(20000), nombre_episodes: z.preprocess((v) => (v === "" ? null : v), entier(1, 30).nullable()) });
+/** Story d'un épisode. */
+export const schemaStory = z.object({ episode_id: id, accroche: texte(500), deroule: texte(20000), fin_suite: texte(500), rappel: caseACocher });
+/** Validation d'une étape par l'auteur (scénario, vidéo finale). */
+export const schemaValidationEtape = z.object({ episode_id: id, valide: caseACocher });
+/** Marque au montage : logo et carte de fin. */
+export const schemaMarqueMontage = z.object({ episode_id: id, logo: caseACocher, carte_fin: caseACocher });
+
+/** Durée d'un plan détaillé : vide = automatique, sinon 1 à 8 s (pas de 0,5 s). */
+const dureeLibre = z.preprocess(
+  (v) => (v === "" || v === "auto" || v === undefined ? null : v),
+  z.coerce.number().min(DUREE_PLAN.min, `${DUREE_PLAN.min} s minimum.`).max(DUREE_PLAN.max, `${DUREE_PLAN.max} s maximum : les IA vidéo produisent des clips courts.`).nullable(),
+);
+
+/** Champs détaillés d'un plan (storyboard). */
+export const schemaPlanDetaille = z.object({
+  id,
+  scene_id: idOuNul,
+  duree: dureeLibre,
+  decor_id: idOuNul,
+  activite_id: idOuNul,
+  personnages: z.array(id),
+  variantes: z.array(id),
+  cadrage: texte(200),
+  mouvement: texte(500),
+  transition: schemaTransition,
+  effet: schemaEffet,
+  texte_ecran: texte(200),
+  son: texte(300),
+});
+
+/** Scène d'un épisode. */
+export const schemaScene = z.object({ id, titre: texte(200), lieu_id: idOuNul, moment: texte(80), resume: texte(2000), personnages: z.array(id) });
+export const schemaSceneSeule = z.object({ scene_id: id });
+
+/** Commentaire sur un plan. */
+export const schemaCommentaire = z.object({ plan_id: id, texte: texte(500).min(2, "Écris le commentaire.") });
+export const schemaCommentaireSeul = z.object({ plan_id: id, commentaire_id: z.string().min(1).max(64) });
+
+/** Refaire, retoucher, choisir une version. */
+export const schemaRefaire = z.object({ plan_id: id, consigne: texte(1000).default(""), propositions: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), entier(1, 4).optional()), confirmer: caseACocher });
+export const schemaRetouche = z.object({ plan_id: id, consigne: texte(1000).min(3, "Décris la retouche (« changer le t-shirt en noir »)."), confirmer: caseACocher });
+export const schemaVersion = z.object({ fichier_id: id });
+/** Refaire une scène ou l'épisode : seulement les plans en erreur, ou tous ; images ou clips. */
+export const schemaRefaireLot = z.object({ episode_id: id, scene_id: idOuNul, portee: z.enum(["erreurs", "tous"]), etape: z.enum(["images", "clips"]), confirmer: caseACocher });
+
+/** Élément de la bibliothèque. */
+const genreElement = z.enum(Object.keys(GENRES_ELEMENT) as [keyof typeof GENRES_ELEMENT, ...(keyof typeof GENRES_ELEMENT)[]]);
+export const schemaNouvelElement = z.object({ serie_id: id, genre: genreElement, nom: texte(120).min(1, "Donne un nom."), personnage_id: idOuNul });
+const couleur = z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Couleur invalide.").optional());
+export const schemaElement = z.object({
+  id,
+  nom: texte(120).min(1, "Donne un nom."),
+  description: texte(4000),
+  moment: texte(80),
+  consigne: texte(2000),
+  partage: caseACocher,
+  principale: couleur,
+  secondaire: couleur,
+  police: texte(80).default(""),
+});
+export const schemaFichierSeul = z.object({ fichier_id: id });
+
+/** Voix Grok d'un personnage. */
+export const schemaVoixGrok = z.enum(Object.keys(VOIX_GROK) as [keyof typeof VOIX_GROK, ...(keyof typeof VOIX_GROK)[]]);
+/** Nouveau personnage décrit en quelques mots : l'IA propose 4 visages. */
+export const schemaPersonnageDecrit = z.object({ serie_id: id, nom: texte(80).min(1, "Donne un nom."), description: texte(3000).min(5, "Décris le personnage (âge, rôle, caractère, tenue).") });
+
+/** Préférences de génération (propositions, contrôle qualité, plafond par épisode). */
+export const schemaPreferencesGeneration = z.object({ propositions: entier(1, 4), controle_qualite: caseACocher, plafond_episode: z.coerce.number().min(0).max(10000) });
+
+/** Code à 6 chiffres d'une appli d'authentification. */
+export const schemaCodeTotp = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Le code fait 6 chiffres.") });

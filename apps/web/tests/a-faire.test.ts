@@ -1,5 +1,5 @@
 // Tests de la construction de la liste « À faire » avec des données factices.
-import { etatEpisode, type Episode, type Espace, type Fichier, type Personnage, type Plan, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache } from "@studio-video-ia/core";
+import { CHAMPS_EPISODE_DEFAUT, CHAMPS_FICHIER_DEFAUT, CHAMPS_PLAN_DEFAUT, etatEpisode, type Episode, type Espace, type Fichier, type Personnage, type Plan, type Publication, type ReseauConnecte, type Saison, type Serie, type Tache } from "@studio-video-ia/core";
 import { describe, expect, it } from "vitest";
 import { construireAFaire, type EntreeAFaire } from "../lib/a-faire";
 
@@ -17,7 +17,7 @@ const serie: Serie = {
   genre: "serie",
   cree_le: "2026-01-01T00:00:00Z",
 };
-const saison: Saison = { id: "sai1", serie_id: "ser1", numero: 1, opening_id: null, ending_id: null };
+const saison: Saison = { id: "sai1", serie_id: "ser1", numero: 1, opening_id: null, ending_id: null, titre: "", arc: "", nombre_episodes: null };
 
 /** Épisode factice. */
 function episode(id: string, numero: number): Episode {
@@ -54,18 +54,19 @@ function episode(id: string, numero: number): Episode {
     musique_style: "",
     instrumental: false,
     fournisseur_texte: "openai",
+    ...CHAMPS_EPISODE_DEFAUT,
     cree_le: "2026-01-01T00:00:00Z",
   };
 }
 
 /** Plan factice. */
 function plan(id: string, episodeId: string, valide: boolean): Plan {
-  return { id, episode_id: episodeId, position: 0, section: "principal", type: "action", texte: "x", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide, modifie: false, prise_choisie: "A", debut: null, fin: null };
+  return { id, episode_id: episodeId, position: 0, section: "principal", type: "action", texte: "x", personnage_id: null, replique: "", repliques_traduites: {}, duree_fixee: null, valide, modifie: false, prise_choisie: "A", debut: null, fin: null, ...CHAMPS_PLAN_DEFAUT };
 }
 
 /** Fichier factice prêt ou en échec. */
 function fichier(id: string, episodeId: string, planId: string | null, genre: Fichier["genre"], statut: Fichier["statut"] = "pret", langue: Fichier["langue"] = null): Fichier {
-  return { id, espace_id: "esp1", episode_id: episodeId, plan_id: planId, personnage_id: null, genre, langue, prise: genre === "clip" ? "A" : null, chemin: `esp1/${id}`, duree_s: null, secondes_generation: null, cout: 0, statut, erreur: null, essais: 0, cree_le: "2026-01-02T00:00:00Z" };
+  return { id, espace_id: "esp1", episode_id: episodeId, plan_id: planId, personnage_id: null, genre, langue, prise: genre === "clip" ? "A" : null, chemin: `esp1/${id}`, duree_s: null, secondes_generation: null, cout: 0, statut, erreur: null, essais: 0, cree_le: "2026-01-02T00:00:00Z", ...CHAMPS_FICHIER_DEFAUT };
 }
 
 const tiktok: ReseauConnecte = { id: "res1", espace_id: "esp1", reseau: "tiktok", nom_compte: "@renard", langue: "fr", id_externe: "x", jeton_expire_le: null, statut: "connecte", audit_tiktok_valide: false, infos: {}, cree_le: "2026-01-01T00:00:00Z" };

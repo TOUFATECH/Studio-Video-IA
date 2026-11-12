@@ -1,7 +1,7 @@
 // Textes envoyés aux IA : scénario, images, clips, mémoire, traductions, fiches personnages, bruitages.
 // Tout le contexte de continuité (bible, mémoire, épisodes précédents) est assemblé ici, en un seul endroit.
-import { LISTE_TYPES_PLAN, NOMS_LANGUES, TYPES_PLAN, type Langue } from "./constantes";
-import type { Episode, FaitMemoire, Personnage, Plan, Serie } from "./types";
+import { EFFETS, LISTE_TYPES_PLAN, NOMS_LANGUES, TRANSITIONS, TYPES_PLAN, type Langue } from "./constantes";
+import type { Commentaire, Element, Episode, FaitMemoire, Personnage, Plan, Saison, Serie } from "./types";
 
 /** Message pour un modèle de langage. */
 export type MessagesIA = { system: string; user: string };
@@ -37,14 +37,25 @@ export function texteMemoire(memoire: readonly Pick<FaitMemoire, "genre" | "text
  * Prompt d'écriture du scénario d'un épisode.
  * La réponse attendue est un JSON conforme à `schemaScenarioIA` (titre, plans, chapitres pour un film).
  */
+/** Décors et activités de la bibliothèque, en texte compact pour l'IA. */
+export function texteBibliotheque(elements: readonly Pick<Element, "genre" | "nom" | "description" | "moment" | "consigne">[]): string {
+  const decors = elements.filter((e) => e.genre === "decor").map((e) => `- ${e.nom}${e.moment ? ` (${e.moment})` : ""} : ${e.description || "(sans description)"}`);
+  const activites = elements.filter((e) => e.genre === "activite").map((e) => `- ${e.nom} : ${e.consigne || e.description || "(sans consigne)"}`);
+  return [`Décors disponibles (vrais lieux, à réutiliser à l'identique) :\n${decors.join("\n") || "- (aucun)"}`, `Activités disponibles :\n${activites.join("\n") || "- (aucune)"}`].join("\n\n");
+}
+
 export function promptScenario(params: {
   serie: Pick<Serie, "nom" | "univers" | "fil_rouge" | "style_visuel">;
   personnages: readonly Pick<Personnage, "nom" | "description">[];
   memoire: readonly Pick<FaitMemoire, "genre" | "texte" | "ouvert">[];
   precedents: readonly EpisodePrecedent[];
-  episode: Pick<Episode, "titre" | "idee" | "format" | "genre" | "duree_cible" | "langue">;
+  episode: Pick<Episode, "titre" | "idee" | "format" | "genre" | "duree_cible" | "langue"> & Partial<Pick<Episode, "accroche" | "deroule" | "fin_suite">>;
   nombrePlans: number;
   nombreChapitres: number;
+  /** Décors et activités de la bibliothèque (facultatif). */
+  bibliotheque?: readonly Pick<Element, "genre" | "nom" | "description" | "moment" | "consigne">[];
+  /** Arc de la saison (facultatif). */
+  arc?: string;
 }): MessagesIA {
   const { episode } = params;
   const types = LISTE_TYPES_PLAN.map((t) => `${t} (${TYPES_PLAN[t].libelle}, environ ${TYPES_PLAN[t].base} s)`).join(", ");
@@ -58,6 +69,9 @@ export function promptScenario(params: {
     `Types de plan possibles : ${types}.`,
     `Les dialogues (type dialogue) ont un personnage choisi EXACTEMENT parmi : ${noms}, et une réplique courte (12 mots maximum) écrite en ${langue}.`,
     "Pour les autres types, personnage = null et replique = \"\".",
+    "Organise l'épisode en scènes (un lieu, un moment, des personnages) ; chaque plan indique sa scène (index à partir de 0), sa durée en secondes, les personnages présents à l'image (noms exacts), le décor et l'activité choisis dans la bibliothèque quand ils existent (nom exact, sinon null), le cadrage (gros plan, plan moyen, plan large…), la consigne de mouvement pour l'animation, le texte à l'écran (souvent vide) et le son (bruitages, ambiance, musique).",
+    `Effets possibles : ${Object.keys(EFFETS).join(", ")}. Transitions possibles : ${Object.keys(TRANSITIONS).join(", ")}.`,
+    "Ne mets jamais de mineur dans une scène de séduction, ni de contenu sensible que les IA d'images refuseraient.",
     `Écris les descriptions des plans en ${langue}.`,
     "Réponds uniquement en JSON.",
   ].join("\n");
@@ -71,21 +85,66 @@ export function promptScenario(params: {
         ? `Épisode YouTube de ${Math.round(episode.duree_cible / 60)} minutes en 16:9, ${params.nombrePlans} plans, section "principal". Le rythme peut prendre le temps d'installer une scène, mais garde une accroche forte et une fin qui appelle la suite.`
         : episode.format === "long"
         ? `Film de ${Math.round(episode.duree_cible / 60)} minutes en ${params.nombreChapitres} chapitres (sections "ch1", "ch2"…), environ ${params.nombrePlans} plans au total. Donne la liste "chapitres" [{section, titre}] et la section de chaque plan.`
-        : `Épisode court de ${episode.duree_cible} secondes, ${params.nombrePlans} plans, section "principal".`;
+        : `Épisode court vertical de ${episode.duree_cible} secondes (90 s au plus), environ ${params.nombrePlans} plans de 1 à 8 secondes dont la somme fait ${episode.duree_cible} s, section "principal". Accroche forte dans les 3 premières secondes, fin qui donne envie de voir la suite.`;
   const user = [
     texteBible(params.serie, params.personnages),
     "",
+    texteBibliotheque(params.bibliotheque ?? []),
+    "",
     texteMemoire(params.memoire),
     "",
+    params.arc ? `Arc de la saison :\n${params.arc}\n` : "",
     `Épisodes précédents :\n${precedents}`,
     "",
     `À écrire : ${forme}`,
     `Titre de travail : ${episode.titre || "(à proposer)"}`,
     `Idée : ${episode.idee || "(libre, dans la continuité)"}`,
+    episode.accroche ? `Accroche voulue : ${episode.accroche}` : "",
+    episode.deroule ? `Déroulé voulu : ${episode.deroule}` : "",
+    episode.fin_suite ? `Fin voulue : ${episode.fin_suite}` : "",
     "",
-    'Format JSON : {"titre": string, "chapitres"?: [{"section": string, "titre": string}], "plans": [{"type": string, "texte": string, "personnage": string|null, "replique": string, "section": string}]}',
-  ].join("\n");
+    'Format JSON : {"titre": string, "accroche": string, "deroule": string, "fin": string, "scenes": [{"titre": string, "lieu": string|null, "moment": string, "resume": string, "personnages": [string]}], "chapitres"?: [{"section": string, "titre": string}], "plans": [{"type": string, "texte": string, "personnage": string|null, "replique": string, "section": string, "scene": number, "duree": number, "personnages": [string], "decor": string|null, "activite": string|null, "cadrage": string, "mouvement": string, "texte_ecran": string, "son": string, "effet": string, "transition": string}]}',
+  ]
+    .filter((l, i, t) => l !== "" || t[i - 1] !== "")
+    .join("\n");
   return { system, user };
+}
+
+/**
+ * Prompt de l'arc d'une saison : l'IA découpe l'idée en N épisodes (titre + résumé), avec une progression
+ * logique (début, montée, retournement, fin de saison). Réponse conforme à `schemaArcIA`.
+ */
+export function promptArc(params: {
+  serie: Pick<Serie, "nom" | "univers" | "fil_rouge" | "style_visuel">;
+  personnages: readonly Pick<Personnage, "nom" | "description">[];
+  memoire: readonly Pick<FaitMemoire, "genre" | "texte" | "ouvert">[];
+  saison: Pick<Saison, "numero" | "titre">;
+  idee: string;
+  nombre: number;
+  langue: Langue;
+  bibliotheque?: readonly Pick<Element, "genre" | "nom" | "description" | "moment" | "consigne">[];
+}): MessagesIA {
+  return {
+    system: [
+      "Tu es showrunner de séries courtes verticales (60 s par épisode) publiées sur TikTok, Reels, Snapchat et Shorts.",
+      `Découpe l'idée de saison en exactement ${params.nombre} épisodes qui se suivent : début, montée, retournement, fin de saison.`,
+      "Chaque épisode a un titre court, un résumé de 2 ou 3 phrases et une accroche pour ses 3 premières secondes ; chaque fin donne envie de voir le suivant.",
+      "Respecte la bible et la mémoire : ne contredis jamais un fait établi. Utilise les décors et les personnages connus.",
+      `Écris en ${NOMS_LANGUES[params.langue]}.`,
+      'Réponds uniquement en JSON : {"titre": string, "arc": string, "episodes": [{"titre": string, "resume": string, "accroche": string}]}',
+    ].join("\n"),
+    user: [
+      texteBible(params.serie, params.personnages),
+      "",
+      texteBibliotheque(params.bibliotheque ?? []),
+      "",
+      texteMemoire(params.memoire),
+      "",
+      `Saison ${params.saison.numero}${params.saison.titre ? ` « ${params.saison.titre} »` : ""}`,
+      `Idée de la saison : ${params.idee || "(libre, dans la continuité)"}`,
+      `Nombre d'épisodes : ${params.nombre}`,
+    ].join("\n"),
+  };
 }
 
 /** Prompt de réécriture d'un plan ou d'un épisode à partir d'une demande de l'utilisateur. */
@@ -100,27 +159,120 @@ export function promptModification(params: { contexte: string; plans: readonly P
   };
 }
 
+/** Commentaires d'un plan pas encore pris en compte, à appliquer à la prochaine génération. */
+export function commentairesAAppliquer(commentaires: readonly Commentaire[] | undefined): string[] {
+  return (commentaires ?? []).filter((c) => !c.pris && c.texte.trim()).map((c) => c.texte.trim());
+}
+
 /** Prompt de l'image clé d'un plan (ChatGPT / OpenAI Images). */
 export function promptImage(params: {
   serie: Pick<Serie, "style_visuel" | "univers">;
   personnagesPresents: readonly Pick<Personnage, "nom" | "description">[];
-  plan: Pick<Plan, "texte" | "type">;
+  plan: Pick<Plan, "texte" | "type"> & Partial<Pick<Plan, "cadrage" | "commentaires">>;
   vertical: boolean;
   planPrecedent: string | null;
   avecFiches: boolean;
+  /** Décor du plan : description et photo du vrai lieu fournie en référence. */
+  decor?: (Pick<Element, "nom" | "description" | "moment"> & { avecPhoto: boolean }) | null;
+  /** Activité : ce que fait le personnage. */
+  activite?: Pick<Element, "nom" | "description"> | null;
+  /** Variantes de personnages (« capuche cachant tous les cheveux »). */
+  variantes?: readonly Pick<Element, "nom" | "description">[];
+  /** Consigne de correction donnée à la main (« la capuche doit cacher tous les cheveux »). */
+  consigne?: string;
 }): string {
   const persos = params.personnagesPresents.map((p) => `${p.nom} : ${p.description}`).join(" ; ");
+  const corrections = [...commentairesAAppliquer(params.plan.commentaires), ...(params.consigne?.trim() ? [params.consigne.trim()] : [])];
   return [
     `Style : ${params.serie.style_visuel}. ${params.vertical ? "Cadrage vertical 9:16." : "Cadrage horizontal 16:9."}`,
     params.serie.univers ? `Univers : ${params.serie.univers}` : "",
-    persos ? `Personnages présents (apparence identique à chaque image) : ${persos}.` : "",
-    params.avecFiches ? "Respecte exactement les fiches de référence fournies (visage, couleurs, vêtements)." : "",
+    persos ? `Personnages présents (apparence identique à chaque image, exactement ${params.personnagesPresents.length} personne(s) à l'image) : ${persos}.` : "",
+    params.variantes?.length ? `Tenues et variantes : ${params.variantes.map((v) => `${v.nom} : ${v.description}`).join(" ; ")}.` : "",
+    params.avecFiches ? "Respecte exactement les images de référence des personnages fournies (visage, teint, coiffure, vêtements) : ne les éclaircis pas, ne les change pas." : "",
+    params.decor
+      ? `Décor : ${params.decor.nom}${params.decor.moment ? ` (${params.decor.moment})` : ""}. ${params.decor.description}${params.decor.avecPhoto ? " La photo du vrai lieu est fournie en référence : reproduis ce lieu tel quel (mêmes murs, couleurs, objets, enseigne)." : ""}`
+      : "",
+    params.activite ? `Action : ${params.activite.nom}${params.activite.description ? ` — ${params.activite.description}` : ""}.` : "",
+    params.plan.cadrage ? `Cadrage : ${params.plan.cadrage}.` : "",
     params.planPrecedent ? `Continuité avec le plan précédent : ${params.planPrecedent}` : "",
     `Scène : ${params.plan.texte}`,
+    corrections.length ? `Corrections obligatoires : ${corrections.join(" ; ")}.` : "",
     "Pas de texte écrit dans l'image, pas de logo, pas de filigrane.",
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** Prompt de retouche d'une image existante : une seule modification, tout le reste identique. */
+export function promptRetouche(consigne: string, vertical: boolean): string {
+  return [
+    `Modifie uniquement ceci dans l'image fournie : ${consigne.trim()}.`,
+    "Garde tout le reste strictement identique : personnages, visages, teint, vêtements, décor, lumière, cadrage.",
+    vertical ? "Format vertical 9:16." : "Format horizontal 16:9.",
+    "Pas de texte écrit, pas de logo, pas de filigrane.",
+  ].join("\n");
+}
+
+/** Une référence envoyée à Grok avec la vidéo : son étiquette dans le prompt (« le personnage Zaydo »). */
+export type ReferenceVideo = { libelle: string };
+
+/**
+ * Prompt d'animation Grok Imagine Video 1.5 : l'image validée du plan est la première image ;
+ * les fiches des personnages et la photo du décor suivent (<IMAGE_1>, <IMAGE_2>…) ; chaque personnage
+ * qui parle a sa voix (<AUDIO_0>…). Grok produit l'image, les paroles synchronisées et le son.
+ */
+export function promptVideoGrok(params: {
+  plan: Pick<Plan, "texte" | "type" | "replique"> & Partial<Pick<Plan, "mouvement" | "son" | "cadrage">>;
+  duree: number;
+  /** Références après la première image, dans l'ordre d'envoi. */
+  references: readonly ReferenceVideo[];
+  /** Personnage qui parle et l'index de sa voix, ou null. */
+  parle: { nom: string; voix: number } | null;
+  activite?: Pick<Element, "consigne"> | null;
+  /** Vrai : aucun son généré (clip musical). */
+  muet?: boolean;
+}): string {
+  const { plan } = params;
+  const rythme = plan.type === "action" || plan.type === "climax" ? "mouvement dynamique" : plan.type === "decor" ? "mouvement de caméra lent" : "mouvement naturel";
+  const refs = params.references.map((r, i) => `${r.libelle} est <IMAGE_${i + 1}>`).join(" ; ");
+  return [
+    `<IMAGE_0> est la première image exacte du plan.${refs ? ` ${refs} : garde exactement ces visages, tenues et lieux.` : ""}`,
+    plan.texte,
+    `Mouvement : ${plan.mouvement?.trim() || rythme}.${params.activite?.consigne ? ` ${params.activite.consigne}` : ""}`,
+    `Durée ${params.duree} secondes, cohérente avec la première image.`,
+    params.parle && plan.replique.trim() ? `${params.parle.nom} dit, avec la voix <AUDIO_${params.parle.voix}> et les lèvres synchronisées : « ${plan.replique.trim()} »` : params.muet ? "" : "Personne ne parle.",
+    params.muet ? "Aucun son, aucune parole, aucun texte à l'écran." : plan.son?.trim() ? `Son : ${plan.son.trim()}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Prompt du contrôle qualité d'une image de plan (vision ChatGPT ou Claude) : ce qui a dû être refait sur le clip
+ * O'QG devient un contrôle automatique. Réponse conforme à `schemaControle`.
+ */
+export function promptControle(params: {
+  plan: Pick<Plan, "texte">;
+  personnages: readonly Pick<Personnage, "nom" | "description">[];
+  decor?: Pick<Element, "nom" | "description"> | null;
+  references: number;
+}): { system: string; user: string } {
+  return {
+    system: [
+      "Tu contrôles la qualité d'images générées pour une série. Tu compares l'image du plan (la première) aux images de référence qui suivent (fiches des personnages, photo du décor).",
+      "Vérifie : le bon nombre de personnages, des visages et un teint conformes aux fiches (pas éclaircis), les bons vêtements et coiffures, un décor conforme, aucun texte, logo ou filigrane parasite, aucune main ou visage déformé.",
+      "Sois strict mais juste : « douteux » seulement pour un vrai défaut visible.",
+      'Réponds uniquement en JSON : {"statut": "ok" | "douteux", "raisons": [string]} ; raisons en français, courtes, vides si ok.',
+    ].join("\n"),
+    user: [
+      `Plan attendu : ${params.plan.texte}`,
+      `Personnages attendus (${params.personnages.length}) : ${params.personnages.map((p) => `${p.nom} (${p.description})`).join(" ; ") || "aucun"}`,
+      params.decor ? `Décor attendu : ${params.decor.nom}. ${params.decor.description}` : "",
+      `Images jointes : 1 image du plan, puis ${params.references} référence(s).`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
 }
 
 /** Prompt d'animation d'un plan (Grok, image vers vidéo). */

@@ -1,12 +1,15 @@
-// `npm run mot-de-passe -- <email> <nouveau mot de passe>` : remet un mot de passe oublié (sur la machine du studio).
-// Ferme toutes les sessions du compte. Sans compte à cette adresse, rien n'est modifié.
-import { changerMotDePasse, configBase, ouvrirBase } from "./index";
+// `npm run mot-de-passe -- <email> <nouveau mot de passe> [--sans-2fa]` : remet un mot de passe oublié (sur la machine
+// du studio). Ferme toutes les sessions du compte. `--sans-2fa` désactive aussi la double authentification (téléphone perdu).
+// Sans compte à cette adresse, rien n'est modifié.
+import { changerMotDePasse, configBase, enregistrerTotp, ouvrirBase } from "./index";
 
 /** Change le mot de passe demandé. */
 async function principal(): Promise<void> {
-  const [email, nouveau] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const sans2fa = args.includes("--sans-2fa");
+  const [email, nouveau] = args.filter((a) => a !== "--sans-2fa");
   if (!email || !nouveau) {
-    console.error("Usage : npm run mot-de-passe -- <email> <nouveau mot de passe (10 caractères minimum)>");
+    console.error("Usage : npm run mot-de-passe -- <email> <nouveau mot de passe (10 caractères minimum)> [--sans-2fa]");
     process.exit(2);
   }
   const base = await ouvrirBase(configBase());
@@ -18,7 +21,8 @@ async function principal(): Promise<void> {
       return;
     }
     await changerMotDePasse(base.moteur, String(u.id), nouveau);
-    console.log(`Mot de passe de ${email} changé ; ses sessions ouvertes sont fermées.`);
+    if (sans2fa) await enregistrerTotp(base.moteur, String(u.id), null, false);
+    console.log(`Mot de passe de ${email} changé${sans2fa ? ", double authentification désactivée" : ""} ; ses sessions ouvertes sont fermées.`);
   } finally {
     await base.fermer();
   }
