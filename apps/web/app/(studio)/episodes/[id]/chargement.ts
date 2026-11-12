@@ -36,9 +36,11 @@ export async function chargerEpisode(brut: string) {
   ]);
   if (!espace) notFound();
   // Scènes de l'épisode et bibliothèque visible par la série (ses éléments et ceux partagés dans le compte).
-  const [scenes, elements] = await Promise.all([
+  const [scenes, elements, clesTexte] = await Promise.all([
     db.from("scenes").select("*").eq("episode_id", episode.id).order("position").then((x) => lignes(ligneScene, x.data, "scenes")),
     db.from("elements").select("*").eq("espace_id", serie.espace_id).order("position").then((x) => lignes(ligneElement, x.data, "elements").filter((e) => e.serie_id === null || e.serie_id === serie.id)),
+    // Clés présentes : seulement le nom du fournisseur, les valeurs ne sont jamais lisibles ici.
+    db.from("cles_api").select("fournisseur").then((x) => (x.data ?? []).map((c) => String(c.fournisseur))),
   ]);
   const saison = saisons.find((s) => s.id === episode.saison_id);
   const ordre = ordreLecture(episodesSerie, saisons);
@@ -63,6 +65,7 @@ export async function chargerEpisode(brut: string) {
   return {
     scenes,
     elements,
+    clesTexte,
     production,
     episode,
     serie,

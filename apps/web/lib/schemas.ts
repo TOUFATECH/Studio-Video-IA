@@ -295,7 +295,10 @@ export const schemaEspaceClips = z.object({ serie_id: id, nom: texte(120).min(1,
 const entier = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
 
 /** Arc de saison écrit par l'IA. */
-export const schemaArc = z.object({ saison_id: id, idee: texte(4000), nombre: entier(1, 30) });
+const fournisseurTexte = z.enum(["openai", "anthropic"]).catch("openai").default("openai");
+export const schemaArc = z.object({ saison_id: id, idee: texte(4000), nombre: entier(1, 30), fournisseur_texte: fournisseurTexte });
+/** « Écrire avec l'IA » d'un épisode : IA choisie (ChatGPT ou Claude). */
+export const schemaEcrireScenario = z.object({ episode_id: id, fournisseur_texte: fournisseurTexte });
 /** Saison : titre, arc, nombre d'épisodes. */
 export const schemaSaisonFormulaire = z.object({ saison_id: id, titre: texte(120), arc: texte(20000), nombre_episodes: z.preprocess((v) => (v === "" ? null : v), entier(1, 30).nullable()) });
 /** Story d'un épisode. */

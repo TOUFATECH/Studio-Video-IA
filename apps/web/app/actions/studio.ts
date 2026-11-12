@@ -55,7 +55,7 @@ export async function ecrireArc(fd: FormData): Promise<void> {
     const { saison, serie } = await saisonAMoi(d.saison_id);
     const { db } = await utilisateur();
     verifier((await db.from("saisons").update({ nombre_episodes: d.nombre, ...(d.idee ? { arc: d.idee } : {}) }).eq("id", saison.id)).error, "Saison");
-    await exigerMiseEnFile({ espace_id: serie.espace_id, type: "scenario", donnees: { mode: "arc", saison_id: saison.id, idee: d.idee, nombre: d.nombre }, priorite: 1 });
+    await exigerMiseEnFile({ espace_id: serie.espace_id, type: "scenario", donnees: { mode: "arc", saison_id: saison.id, idee: d.idee, nombre: d.nombre, fournisseur: d.fournisseur_texte }, priorite: 1 });
     return { message: `Arc en file : ${d.nombre} épisodes vont être proposés. Les épisodes déjà écrits ne bougent pas.` };
   });
 }

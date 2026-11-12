@@ -9,6 +9,7 @@ import { OPTIONS_LANGUES } from "@/lib/libelles";
 import type { DonneesEpisode } from "./chargement";
 import styles from "./episode.module.scss";
 import { PlanDetaille } from "./PlanDetaille";
+import { ChoixIATexte } from "@/components/ChoixIATexte";
 import { StoryEtScenes } from "./StoryEtScenes";
 
 /** Mots qui signalent une scène que les IA d'images refuseront (mineur dans une scène de séduction, contenu sensible). */
@@ -142,6 +143,7 @@ export function EtapeScenario({ d, total }: { d: DonneesEpisode; total: number }
           </form>
           <form action={ecrireScenario} className="ligne marge-haut">
             <input type="hidden" name="episode_id" value={episode.id} />
+            <ChoixIATexte defaut={episode.fournisseur_texte} cles={d.clesTexte} />
             <BoutonEnvoi variante="principal" desactive={!!ecriture}>
               {ecriture ? "Écriture en cours…" : n ? "Réécrire avec l’IA" : "Écrire avec l’IA"}
             </BoutonEnvoi>

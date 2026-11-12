@@ -4,6 +4,7 @@ import { ecrireArc, modifierSaison } from "@/app/actions/studio";
 import Link from "next/link";
 import { ajouterEpisode, ajouterSaison, ecrireSuite } from "@/app/actions/series";
 import { BoutonEnvoi } from "@/components/ui/BoutonEnvoi";
+import { ChoixIATexte } from "@/components/ChoixIATexte";
 import { Jauge, Pastille, Puce } from "@/components/ui/elements";
 import { codeEpisode, nomEpisode } from "@/lib/episodes";
 import type { DonneesSerie } from "./chargement";
@@ -95,6 +96,7 @@ export function OngletEpisodes({ d }: { d: DonneesSerie }) {
                       </label>
                       <input id={`ar-n-${s.id}`} name="nombre" type="number" min={1} max={30} defaultValue={s.nombre_episodes ?? Math.max(eps.length, 12)} required style={{ width: 100 }} />
                     </div>
+                    <ChoixIATexte defaut={d.clesTexte.includes("openai") || !d.clesTexte.includes("anthropic") ? "openai" : "anthropic"} cles={d.clesTexte} />
                     <BoutonEnvoi variante="principal" desactive={d.arcs.has(s.id)}>
                       Écrire l’arc avec l’IA
                     </BoutonEnvoi>

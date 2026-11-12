@@ -39,12 +39,14 @@ export async function chargerSerie(brut: string) {
   const tachesArc = lignes(ligneTache, (await db.from("taches").select("*").eq("espace_id", serie.espace_id).eq("type", "scenario").is("episode_id", null).in("statut", ["en_file", "en_cours"])).data, "taches");
   const arcs = new Set(tachesArc.map((t) => String(t.donnees.saison_id ?? "")));
   // Bibliothèque : éléments de la série et partagés, photos de référence, visages proposés.
-  const [elements, references, fichesProposees] = await Promise.all([
+  const [elements, references, fichesProposees, clesTexte] = await Promise.all([
     db.from("elements").select("*").eq("espace_id", serie.espace_id).order("position").then((x) => lignes(ligneElement, x.data, "elements").filter((e) => e.serie_id === null || e.serie_id === serie.id)),
     db.from("fichiers").select("*").eq("espace_id", serie.espace_id).eq("genre", "reference").order("cree_le", { ascending: false }).then((x) => lignes(ligneFichier, x.data, "fichiers")),
     personnages.length
       ? db.from("fichiers").select("*").eq("genre", "fiche").in("personnage_id", personnages.map((p) => p.id)).order("cree_le", { ascending: false }).then((x) => lignes(ligneFichier, x.data, "fichiers"))
       : Promise.resolve([]),
+    // Clés présentes : seulement le nom du fournisseur.
+    db.from("cles_api").select("fournisseur").then((x) => (x.data ?? []).map((c) => String(c.fournisseur))),
   ]);
   const plansPar = grouper(plans, (p) => p.episode_id);
   const fichiersPar = grouper(fichiers, (f) => f.episode_id);
@@ -57,7 +59,7 @@ export async function chargerSerie(brut: string) {
       etatEpisode({ episode: ep, plans: plansPar.get(ep.id) ?? [], personnages, fichiers: fichiersPar.get(ep.id) ?? [], taches: tachesPar.get(ep.id) ?? [], publications: (pubsPar.get(ep.id) ?? []).filter((p) => p.statut !== "annulee") }),
     );
   }
-  return { user, serie, espace, saisons, episodes, personnages, memoire, comptes, plans, plansPar, fichiers, taches, publications, pubsPar, etats, fiches, arcs, elements, references, fichesProposees };
+  return { user, serie, espace, saisons, episodes, personnages, memoire, comptes, plans, plansPar, fichiers, taches, publications, pubsPar, etats, fiches, arcs, elements, references, fichesProposees, clesTexte };
 }
 
 /** Données de la fiche série. */

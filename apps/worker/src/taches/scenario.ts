@@ -20,6 +20,7 @@ import {
   type Plan,
   type Saison,
   type Serie,
+  type FournisseurTexte,
 } from "@studio-video-ia/core";
 import { chargerBibliotheque } from "../donnees";
 import { demanderJson } from "@studio-video-ia/integrations";
@@ -44,6 +45,8 @@ export const schemaDonneesScenario = z.object({
   saison_id: z.string().optional(),
   idee: z.string().max(4000).optional(),
   nombre: z.number().int().min(1).max(30).optional(),
+  // IA choisie pour l'arc (ChatGPT ou Claude) ; les épisodes créés la gardent.
+  fournisseur: z.enum(["openai", "anthropic"]).optional(),
 });
 
 /** Retrouve un élément de la bibliothèque par son nom (casse et accents ignorés), dans un genre donné. */
@@ -101,7 +104,7 @@ function fichiersDerives(fichiers: readonly Fichier[]): Fichier[] {
 /** Exécute la tâche scenario. */
 export async function tacheScenario(ctx: Contexte): Promise<void> {
   const donnees = schemaDonneesScenario.parse(ctx.tache.donnees ?? {});
-  if (donnees.mode === "arc") return ecrireArc(ctx, donnees.saison_id ?? "", donnees.idee ?? "", donnees.nombre ?? null);
+  if (donnees.mode === "arc") return ecrireArc(ctx, donnees.saison_id ?? "", donnees.idee ?? "", donnees.nombre ?? null, donnees.fournisseur);
   if (!ctx.tache.episode_id) throw new Error("Tâche scénario sans épisode.");
   const e = await chargerEpisode(ctx.db, ctx.tache.episode_id);
   if (donnees.mode === "modification") return modifier(ctx, e, donnees.demande ?? "", donnees.plan_ids);
@@ -209,7 +212,7 @@ async function modifier(ctx: Contexte, e: EpisodeComplet, demande: string, planI
   const clip = e.episode.genre === "clip";
   const reponse = await demanderTexteIA(
     ctx,
-    clip ? e.episode.fournisseur_texte : "openai",
+    e.episode.fournisseur_texte,
     promptModification({ contexte: clip ? `${contexte}\nClip musical : ne change pas les paroles, seulement ce qu'on voit.` : contexte, plans: cibles, demande, langue: clip ? "fr" : e.episode.langue }),
     schemaModificationIA,
   );
@@ -237,7 +240,7 @@ async function modifier(ctx: Contexte, e: EpisodeComplet, demande: string, planI
  * Les épisodes existants sans scénario reçoivent leur titre et leur idée ; les manquants sont créés.
  * Un épisode déjà écrit (avec des plans) n'est jamais modifié.
  */
-async function ecrireArc(ctx: Contexte, saisonId: string, idee: string, nombre: number | null): Promise<void> {
+async function ecrireArc(ctx: Contexte, saisonId: string, idee: string, nombre: number | null, choisi?: FournisseurTexte): Promise<void> {
   if (!saisonId) throw new Error("Arc de saison sans saison.");
   const saison = await ligneOuNull<Saison>(ctx.db.from("saisons").select("*").eq("id", saisonId).limit(1), "saison");
   if (!saison) throw new Error("Saison introuvable.");
@@ -250,7 +253,7 @@ async function ecrireArc(ctx: Contexte, saisonId: string, idee: string, nombre: 
     lignes<FaitMemoire>(ctx.db.from("memoire").select("*").eq("serie_id", serie.id).order("cree_le"), "mémoire"),
     chargerBibliotheque(ctx.db, serie),
   ]);
-  const fournisseur = (await fournisseurDisponible(ctx, "openai")) ?? "openai";
+  const fournisseur = (await fournisseurDisponible(ctx, choisi ?? "openai")) ?? "openai";
   await ctx.progression({ fait: 1, total: 3, etape: `Découpage de la saison en ${n} épisodes par l'IA` });
   const arc = await demanderTexteIA(
     ctx,
@@ -288,6 +291,7 @@ async function ecrireArc(ctx: Contexte, saisonId: string, idee: string, nombre: 
           langue: serie.langue,
           langues: [serie.langue],
           sous_titres: { [serie.langue]: "aucun" },
+          fournisseur_texte: fournisseur,
           ...valeurs,
         }),
         "nouvel épisode de l'arc",

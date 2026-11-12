@@ -33,6 +33,7 @@ import {
   premiereErreur,
   schemaDemandeModification,
   schemaEpisodeFormulaire,
+  schemaEcrireScenario,
   schemaEpisodeSeul,
   schemaLangues,
   schemaMiniature,
@@ -147,8 +148,13 @@ export async function modifierEpisode(fd: FormData): Promise<void> {
 /** « Écrire avec l'IA » : met en file l'écriture du scénario (bible, mémoire et épisode précédent pris en compte). */
 export async function ecrireScenario(fd: FormData): Promise<void> {
   await executer(async () => {
-    const { episode_id } = valider(schemaEpisodeSeul, fd);
-    const { episode, serie } = await episodeAMoi(episode_id);
+    const d = valider(schemaEcrireScenario, fd);
+    const { episode, serie } = await episodeAMoi(d.episode_id);
+    // L'IA choisie (ChatGPT ou Claude) est gardée sur l'épisode : elle sert aussi aux modifications demandées ensuite.
+    if (d.fournisseur_texte !== episode.fournisseur_texte) {
+      const { db } = await utilisateur();
+      verifier((await db.from("episodes").update({ fournisseur_texte: d.fournisseur_texte }).eq("id", episode.id)).error, "Épisode");
+    }
     await exigerMiseEnFile({ espace_id: serie.espace_id, episode_id: episode.id, type: "scenario", donnees: { mode: "ecrire" }, priorite: 1 });
     return { message: "Écriture en file. Les plans apparaîtront ici." };
   });

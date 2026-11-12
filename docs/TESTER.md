@@ -14,10 +14,11 @@ npm run build -w @studio-video-ia/web     # le site se compile, sans .env
 Ce que couvre `npm test` :
 - la **base** : création du schéma, comptes et sessions, et les **règles d'accès** (un utilisateur ne voit ni ne modifie rien d'un autre, ne lit jamais une clé chiffrée ni un jeton, ne crée ni tâche ni fichier lui-même), déclencheurs de cohérence, journal des dépenses, file de tâches. Sur SQLite toujours ; aussi sur PostgreSQL si `TEST_DATABASE_URL=postgres://…` est défini (la CI le fait) ;
 - les médias : chemins qui ne sortent jamais du dossier, liens signés à durée limitée ;
-- la logique : durées des plans, sous-titres SRT, fuseaux horaires, hashtags, chiffrement des clés ;
+- la logique : durées des plans (1 à 8 s, 90 s maximum pour un épisode vertical), sous-titres SRT, fuseaux horaires, hashtags, chiffrement des clés, versions des images et des vidéos, statuts de production, coût avant lancement ;
+- la double authentification (codes de la norme RFC 6238) et la migration de la base vers la version 2 (données gardées) ;
 - les clips musicaux : lecture des paroles, placement des mots dans la chanson (y compris en japonais), découpage calé sur les paroles et le tempo, plan de composition de la musique, sous-titres des paroles ;
 - chaque API (OpenAI, Anthropic, xAI, ElevenLabs, YouTube, Instagram, TikTok), avec des réponses simulées : URL, en-têtes, corps envoyés, erreurs 401 et 429, pagination ;
-- le worker : file de tâches, budget, planificateur, et un **vrai rendu ffmpeg** (1080x1920, voix, sous-titres, et un clip musical 16:9 monté sur une chanson) si ffmpeg est installé ;
+- le worker : file de tâches, budget, planificateur, références envoyées à OpenAI et à Grok, et un **vrai rendu ffmpeg** (1080x1920, voix, sous-titres, zoom, tremblement, ralenti, fondu, flash, logo, carte de fin, rappel, texte à l'écran, et un clip musical 16:9 monté sur une chanson) si ffmpeg est installé ;
 - le site : validations, signature OAuth, contrôle des fichiers importés, statistiques, programmation.
 
 ## Niveau 1 — Le studio en marche (gratuit, 5 min)
@@ -48,11 +49,20 @@ Depuis le terminal du worker : `npm run diagnostic` affiche le même bilan (code
 
 Chaque étape affiche son temps et son résultat, et le rendu se lit dans la page. Rien n'est publié.
 
-## Niveau 4 — Un vrai épisode court (coût réel : environ 11 images et 75 s de vidéo)
+## Niveau 3 bis — Bibliothèque, story et sécurité (gratuit, 10 min)
 
-1. **Séries → Nouvelle série** : remplis la bible (univers, personnages, voix). Génère les fiches de référence des personnages.
-2. Épisode 1 → **Écrire avec l'IA** → relis les plans, modifie ce que tu veux.
-3. **Storyboard** → Générer les images → valide-les une par une ou refais celles qui ne vont pas.
+Sans rien générer :
+1. Série → **Bibliothèque** : ajoute un décor avec une photo. Coche « vraie personne » sans l'accord : l'import doit être refusé ; avec l'accord, accepté.
+2. Ajoute un personnage décrit (nom, description) et un logo PNG dans **Marques**.
+3. **Épisodes** → Arc de la saison : remplis titre, arc et nombre d'épisodes à la main, Enregistrer.
+4. Épisode → **Scénario** : remplis la story, ajoute une scène, un plan ; règle sa durée à 12 s : refusé (8 s max). Ajoute un commentaire.
+5. **Réglages → Sécurité** : active la double authentification, déconnecte-toi, reconnecte-toi : le code est demandé.
+
+## Niveau 4 — Un vrai épisode court (coût réel : environ 15 images et 60 s de vidéo)
+
+1. **Séries → Nouvelle série** : remplis la bible (univers, personnages, voix Grok). Dans **Bibliothèque**, ajoute des photos de chaque personnage et du décor, puis « Proposer 4 visages » et choisis une fiche.
+2. Épisode 1 → **Écrire avec l'IA** (ChatGPT ou Claude) → relis la story, les scènes et les plans, modifie ce que tu veux, **Valider le scénario**.
+3. **Storyboard** → Générer les images → valide-les une par une, ou refais avec une consigne, retouche, remplace par ton image. Le guide complet : `docs/GUIDE-SERIES.md`.
 4. **Valider et lancer les clips** : suis la progression, le temps et le coût. Un échec est réessayé une fois tout seul.
 5. **Montage** : langues, sous-titres pour chaque version, titre, puis **Lancer le rendu**.
 6. **Publication**, pour un premier essai sans risque :
@@ -92,4 +102,8 @@ Pour changer d'avis : modifie l'extrait ou le tempo puis **Redécouper**, ou cha
 | Clés API illisibles après une réinstallation | Clé de chiffrement perdue | Remets `cle-chiffrement` depuis une sauvegarde, ou ressaisis les clés. |
 | Musique refusée par ElevenLabs | Nom d'artiste ou paroles existantes, ou offre gratuite | Retire les noms du style et des paroles ; la musique demande un abonnement ElevenLabs. |
 | Paroles mal placées | Paroles différentes de ce qui est chanté | Corrige les paroles pour qu'elles collent à la chanson, Enregistrer, puis Resynchroniser. |
+| Code de double authentification refusé | Heure du téléphone décalée, ou téléphone perdu | Mets l'heure automatique ; sinon `npm run mot-de-passe -- <email> <mot de passe> --sans-2fa`. |
+| Lancement refusé : « confirme la dépense » | Coût estimé au-dessus du plafond par épisode | Coche « Je confirme la dépense », ou relève le plafond dans Réglages → Préférences. |
+| « 1:30 maximum » au storyboard | Épisode vertical trop long | Raccourcis ou retire des plans dans Scénario. |
+| Photo refusée : accord manquant | Case « vraie personne » cochée sans l'accord | Coche l'accord (droit à l'image) si la personne a donné son autorisation. |
 | Chanson refusée à l'import | Fichier de plus de 45 Mo ou format inconnu | Exporte en MP3 (192 kb/s suffit). |
